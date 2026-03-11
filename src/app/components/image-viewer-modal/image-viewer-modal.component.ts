@@ -1,9 +1,11 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface ReviewImage {
   images: string[];
   folder: string;
+  prompt?: string;
+  review?: string;
 }
 
 @Component({
@@ -17,9 +19,15 @@ export class ImageViewerModalComponent implements OnInit {
   @Input() isOpen: boolean = false;
   @Input() reviewData: ReviewImage | null = null;
   @Output() closeModal = new EventEmitter<void>();
+  @ViewChild('imageElement') imageElement: ElementRef<HTMLImageElement> | null = null;
 
   currentImageIndex: number = 0;
   currentImageUrl: string = '';
+  currentImageName: string = '';
+  imageWidth: number = 0;
+  imageHeight: number = 0;
+  imageSizeKB: number = 0;
+  
   zoomLevel: number = 100;
   minZoom: number = 50;
   maxZoom: number = 300;
@@ -33,6 +41,12 @@ export class ImageViewerModalComponent implements OnInit {
   dragStartY: number = 0;
   dragOffsetX: number = 0;
   dragOffsetY: number = 0;
+  
+  // Sidebar toggle
+  showSidebar: boolean = true;
+  
+  // Metadata
+  prompt: string = '';
 
   ngOnInit() {
     this.updateCurrentImage();
@@ -43,6 +57,7 @@ export class ImageViewerModalComponent implements OnInit {
       this.currentImageIndex = 0;
       this.zoomLevel = 100;
       this.resetPan();
+      this.prompt = this.reviewData.prompt || '';
       this.updateCurrentImage();
     }
   }
@@ -50,7 +65,43 @@ export class ImageViewerModalComponent implements OnInit {
   updateCurrentImage() {
     if (this.reviewData && this.reviewData.images.length > 0) {
       const fileName = this.reviewData.images[this.currentImageIndex];
+      this.currentImageName = fileName;
       this.currentImageUrl = `http://localhost:3000/api/images/${this.reviewData.folder}/${fileName}`;
+      
+      // Fetch image metadata (dimensions and size)
+      this.fetchImageMetadata();
+    }
+  }
+
+  /**
+   * Fetch image dimensions and size metadata
+   */
+  fetchImageMetadata() {
+    const img = new Image();
+    img.onload = () => {
+      this.imageWidth = img.naturalWidth;
+      this.imageHeight = img.naturalHeight;
+    };
+    img.src = this.currentImageUrl;
+    
+    // Fetch file size
+    fetch(this.currentImageUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        this.imageSizeKB = Math.round(blob.size / 1024);
+      })
+      .catch(err => console.error('Error fetching image metadata:', err));
+    
+    // Extract actual generation prompt from image metadata
+    if (this.reviewData && this.reviewData.folder && this.currentImageName) {
+      fetch(`http://localhost:3000/api/image-metadata/${this.reviewData.folder}/${this.currentImageName}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.prompt) {
+            this.prompt = data.prompt;
+          }
+        })
+        .catch(err => console.error('Error extracting image prompt:', err));
     }
   }
 
@@ -152,6 +203,13 @@ export class ImageViewerModalComponent implements OnInit {
 
   close() {
     this.closeModal.emit();
+  }
+
+  /**
+   * Toggle metadata sidebar visibility
+   */
+  toggleSidebar() {
+    this.showSidebar = !this.showSidebar;
   }
 
   onBackdropClick(event: MouseEvent) {

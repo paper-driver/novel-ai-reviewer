@@ -256,6 +256,177 @@ app.delete('/api/reviews/:id', (req, res) => {
   }
 });
 
+// GET endpoint to extract metadata from an image (generation prompt from embedded metadata or filename)
+app.get('/api/image-metadata/:folder/:filename', (req, res) => {
+  try {
+    const { folder, filename } = req.params;
+    const imagePath = path.join(GENERATED_DIR, folder, filename);
+    
+    // Security check: prevent directory traversal
+    if (!imagePath.startsWith(GENERATED_DIR)) {
+      return res.status(400).json({ error: 'Invalid path' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    let prompt = null;
+    let generationData = null;
+    
+    // Try to read embedded PNG metadata first
+    try {
+      const imageBuffer = fs.readFileSync(imagePath);
+      const metadata = readPNGMetadata(imageBuffer);
+      
+      // Look for Comment chunk which typically contains JSON with generation parameters
+      if (metadata.comment) {
+        try {
+          const commentData = JSON.parse(metadata.comment);
+          if (commentData.prompt) {
+            prompt = commentData.prompt;
+            generationData = commentData;
+          }
+        } catch (e) {
+          // Comment is not JSON, try direct text
+          prompt = metadata.comment;
+        }
+      }
+      
+      // Also check Description field
+      if (!prompt && metadata.description) {
+        prompt = metadata.description;
+      }
+    } catch (err) {
+      console.warn('Could not read embedded PNG metadata:', err.message);
+    }
+    
+    // Fall back to extracting from filename if no embedded metadata found
+    if (!prompt) {
+      const match = filename.match(/^(.+?)\s+s-\d+\.png$/i);
+      if (match) {
+        prompt = match[1];
+      }
+    }
+    
+    res.json({
+      filename: filename,
+      prompt: prompt || null,
+      generationData: generationData || undefined
+    });
+  } catch (err) {
+    console.error('Error extracting image metadata:', err);
+    res.status(500).json({ error: 'Failed to extract metadata', details: err.message });
+  }
+});
+
+// Helper function to read PNG text chunks
+function readPNGMetadata(buffer) {
+  const metadata = {};
+  
+  // PNG file signature: 137 80 78 71 13 10 26 10
+  const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  
+  // Check PNG signature
+  if (!buffer.slice(0, 8).equals(PNG_SIGNATURE)) {
+    throw new Error('Not a valid PNG file');
+  }
+  
+  let offset = 8; // Start after PNG signature
+  
+  while (offset < buffer.length) {
+    // Read chunk length (4 bytes, big-endian)
+    if (offset + 8 > buffer.length) break;
+    const chunkLength = buffer.readUInt32BE(offset);
+    offset += 4;
+    
+    // Read chunk type (4 bytes)
+    const chunkType = buffer.toString('ascii', offset, offset + 4);
+    offset += 4;
+    
+    // Read chunk data
+    const chunkData = buffer.slice(offset, offset + chunkLength);
+    offset += chunkLength;
+    
+    // Skip CRC (4 bytes)
+    offset += 4;
+    
+    // Process text chunks
+    if (chunkType === 'tEXt') {
+      // tEXt format: keyword (null-terminated) + text data
+      const nullIndex = chunkData.indexOf(0);
+      if (nullIndex > 0) {
+        const keyword = chunkData.toString('latin1', 0, nullIndex);
+        const text = chunkData.toString('utf-8', nullIndex + 1);
+        metadata[keyword.toLowerCase()] = text;
+      }
+    } else if (chunkType === 'zTXt') {
+      // zTXt format: keyword (null-terminated) + compression method + compressed text
+      const nullIndex = chunkData.indexOf(0);
+      if (nullIndex > 0) {
+        const keyword = chunkData.toString('latin1', 0, nullIndex);
+        const compressionMethod = chunkData[nullIndex + 1];
+        if (compressionMethod === 0) { // DEFLATE
+          try {
+            const zlib = require('zlib');
+            const compressedText = chunkData.slice(nullIndex + 2);
+            const decompressed = zlib.inflateSync(compressedText);
+            const text = decompressed.toString('utf-8');
+            metadata[keyword.toLowerCase()] = text;
+          } catch (e) {
+            console.warn('Failed to decompress zTXt chunk:', e.message);
+          }
+        }
+      }
+    } else if (chunkType === 'iTXt') {
+      // iTXt format: keyword (null-terminated) + compression flag + compression method + language tag + translated keyword + text
+      const nullIndex = chunkData.indexOf(0);
+      if (nullIndex > 0) {
+        const keyword = chunkData.toString('latin1', 0, nullIndex);
+        const compressionFlag = chunkData[nullIndex + 1];
+        if (compressionFlag === 0) { // Uncompressed
+          let dataStart = nullIndex + 3;
+          const langTagEnd = chunkData.indexOf(0, dataStart);
+          if (langTagEnd > 0) {
+            dataStart = langTagEnd + 1;
+            const transKeywordEnd = chunkData.indexOf(0, dataStart);
+            if (transKeywordEnd > 0) {
+              dataStart = transKeywordEnd + 1;
+              const text = chunkData.toString('utf-8', dataStart);
+              metadata[keyword.toLowerCase()] = text;
+            }
+          }
+        } else if (compressionFlag === 1) { // Compressed with DEFLATE
+          try {
+            const zlib = require('zlib');
+            let dataStart = nullIndex + 3;
+            const langTagEnd = chunkData.indexOf(0, dataStart);
+            if (langTagEnd > 0) {
+              dataStart = langTagEnd + 1;
+              const transKeywordEnd = chunkData.indexOf(0, dataStart);
+              if (transKeywordEnd > 0) {
+                dataStart = transKeywordEnd + 1;
+                const compressedText = chunkData.slice(dataStart);
+                const decompressed = zlib.inflateSync(compressedText);
+                const text = decompressed.toString('utf-8');
+                metadata[keyword.toLowerCase()] = text;
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to decompress iTXt chunk:', e.message);
+          }
+        }
+      }
+    } else if (chunkType === 'IEND') {
+      // End of PNG file
+      break;
+    }
+  }
+  
+  return metadata;
+}
+
 app.listen(PORT, () => {
   console.log(`Review server listening on port ${PORT}`);
 });

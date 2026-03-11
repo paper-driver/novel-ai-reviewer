@@ -53,7 +53,9 @@ export class ReviewsTableComponent implements OnInit, OnChanges {
   openImageViewer(review: Review): void {
     this.selectedReview = {
       images: review.images,
-      folder: review.folder
+      folder: review.folder,
+      prompt: review.prompt,
+      review: review.review
     };
     this.isModalOpen = true;
   }

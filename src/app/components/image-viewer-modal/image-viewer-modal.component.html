@@ -12,53 +12,94 @@
       <button class="close-btn" (click)="close()" aria-label="Close modal">×</button>
     </div>
 
-    <div class="modal-body" (wheel)="onMouseWheel($event)" (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()" (mouseleave)="onMouseUp()">
-      <div class="image-viewer">
-        <img 
-          *ngIf="currentImageUrl" 
-          [src]="currentImageUrl" 
-          alt="Review image"
-          class="review-image"
-          [style.transform]="'scale(' + (zoomLevel / 100) + ') translate(' + dragOffsetX + 'px, ' + dragOffsetY + 'px)'"
-          [class.dragging]="isDragging"
-        >
-        <div *ngIf="!currentImageUrl" class="no-image">No image available</div>
+    <div class="modal-content">
+      <!-- Main Image Viewer -->
+      <div class="modal-body" (wheel)="onMouseWheel($event)" (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()" (mouseleave)="onMouseUp()">
+        <div class="image-viewer">
+          <img 
+            #imageElement
+            *ngIf="currentImageUrl" 
+            [src]="currentImageUrl" 
+            alt="Review image"
+            class="review-image"
+            [style.transform]="'scale(' + (zoomLevel / 100) + ') translate(' + dragOffsetX + 'px, ' + dragOffsetY + 'px)'"
+            [class.dragging]="isDragging"
+          >
+          <div *ngIf="!currentImageUrl" class="no-image">No image available</div>
+        </div>
+
+        <div class="image-counter">
+          {{ currentImageIndex + 1 }} / {{ reviewData?.images.length || 0 }}
+        </div>
+
+        <div class="modal-footer">
+          <button 
+            class="nav-btn prev-btn" 
+            (click)="prevImage()" 
+            [disabled]="currentImageIndex === 0"
+            aria-label="Previous image"
+          >
+            ← Prev
+          </button>
+
+          <div class="thumbnail-strip">
+            <img 
+              *ngFor="let image of reviewData?.images; let i = index"
+              [src]="'http://localhost:3000/api/images/' + reviewData?.folder + '/' + image"
+              [class.active]="i === currentImageIndex"
+              (click)="currentImageIndex = i; updateCurrentImage()"
+              [alt]="'Thumbnail ' + (i + 1)"
+              class="thumbnail"
+            >
+          </div>
+
+          <button 
+            class="nav-btn next-btn" 
+            (click)="nextImage()" 
+            [disabled]="currentImageIndex === (reviewData?.images.length || 0) - 1"
+            aria-label="Next image"
+          >
+            Next →
+          </button>
+        </div>
       </div>
 
-      <div class="image-counter">
-        {{ currentImageIndex + 1 }} / {{ reviewData?.images.length || 0 }}
+      <!-- Metadata Sidebar -->
+      <div class="metadata-sidebar" *ngIf="currentImageUrl && showSidebar">
+        <div class="metadata-header">
+          <h3>Image Info</h3>
+          <button class="btn-close-sidebar" (click)="toggleSidebar()" title="Close sidebar">✕</button>
+        </div>
+        <div class="metadata-content">
+          <div class="metadata-item prompt-item" *ngIf="prompt">
+            <span class="metadata-label">Generation Prompt</span>
+            <span class="metadata-value prompt-text">{{ prompt }}</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-label">Filename</span>
+            <span class="metadata-value" [title]="currentImageName">{{ currentImageName }}</span>
+          </div>
+          <div class="metadata-item" *ngIf="imageWidth > 0 && imageHeight > 0">
+            <span class="metadata-label">Dimensions</span>
+            <span class="metadata-value">{{ imageWidth }} × {{ imageHeight }}px</span>
+          </div>
+          <div class="metadata-item" *ngIf="imageSizeKB > 0">
+            <span class="metadata-label">File Size</span>
+            <span class="metadata-value">{{ imageSizeKB }}KB</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-label">Zoom Level</span>
+            <span class="metadata-value">{{ zoomLevel }}%</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-label">Image #</span>
+            <span class="metadata-value">{{ currentImageIndex + 1 }} of {{ reviewData?.images.length }}</span>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="modal-footer">
-      <button 
-        class="nav-btn prev-btn" 
-        (click)="prevImage()" 
-        [disabled]="currentImageIndex === 0"
-        aria-label="Previous image"
-      >
-        ← Prev
-      </button>
-
-      <div class="thumbnail-strip">
-        <img 
-          *ngFor="let image of reviewData?.images; let i = index"
-          [src]="'http://localhost:3000/api/images/' + reviewData?.folder + '/' + image"
-          [class.active]="i === currentImageIndex"
-          (click)="currentImageIndex = i; updateCurrentImage()"
-          [alt]="'Thumbnail ' + (i + 1)"
-          class="thumbnail"
-        >
-      </div>
-
-      <button 
-        class="nav-btn next-btn" 
-        (click)="nextImage()" 
-        [disabled]="currentImageIndex === (reviewData?.images.length || 0) - 1"
-        aria-label="Next image"
-      >
-        Next →
-      </button>
+      <!-- Toggle Sidebar Button (shown when sidebar is hidden) -->
+      <button class="btn-toggle-sidebar" *ngIf="currentImageUrl && !showSidebar" (click)="toggleSidebar()" title="Show sidebar">ℹ</button>
     </div>
   </div>
 </div>
