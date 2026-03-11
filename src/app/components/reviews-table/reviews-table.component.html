@@ -1,0 +1,48 @@
+<table class="reviews-table" *ngIf="reviews && reviews.length > 0">
+  <thead>
+    <tr>
+      <th>Prompt</th>
+      <th>Hand &amp; Feet</th>
+      <th>Facial Expression</th>
+      <th>Genital</th>
+      <th>Accessories</th>
+      <th>Side Character</th>
+      <th>Background</th>
+      <th>Thumbnail</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <ng-container *ngFor="let review of reviews">
+      <tr (click)="onRowClick(review, $event)" class="clickable-row">
+        <td>{{ review.prompt }}</td>
+        <td>{{ review.ratings.handFeet }}</td>
+        <td>{{ review.ratings.facialExpression }}</td>
+        <td>{{ review.ratings.genital }}</td>
+        <td>{{ review.ratings.accessories }}</td>
+        <td>{{ review.ratings.sideCharacter }}</td>
+        <td>{{ review.ratings.background }}</td>
+        <td>
+          <img 
+            [src]="getThumbnailUrl(review)" 
+            (click)="openImageViewer(review)" 
+            class="thumbnail" 
+            alt="thumbnail"
+            title="Click to view all images"
+          >
+        </td>
+        <td class="actions-cell" (click)="$event.stopPropagation()">
+          <button class="btn-action btn-delete" (click)="deleteReview(review)" title="Delete review">Delete</button>
+        </td>
+      </tr>
+    </ng-container>
+  </tbody>
+</table>
+<p *ngIf="reviews && reviews.length === 0">No reviews found.</p>
+
+<!-- Image Viewer Modal -->
+<app-image-viewer-modal 
+  [isOpen]="isModalOpen"
+  [reviewData]="selectedReview"
+  (closeModal)="closeImageViewer()"
+></app-image-viewer-modal>

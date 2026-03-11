@@ -1,0 +1,64 @@
+<div class="modal-backdrop" *ngIf="isOpen" (click)="onBackdropClick($event)">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h2>Review Images</h2>
+      <div class="zoom-controls">
+        <button class="zoom-btn" (click)="zoomOut()" [disabled]="zoomLevel === minZoom" title="Zoom out" aria-label="Zoom out">−</button>
+        <span class="zoom-percentage">{{ zoomLevel }}%</span>
+        <button class="zoom-btn" (click)="zoomIn()" [disabled]="zoomLevel === maxZoom" title="Zoom in" aria-label="Zoom in">+</button>
+        <button class="zoom-btn reset-btn" (click)="resetZoom()" title="Reset zoom" aria-label="Reset zoom">↻</button>
+      </div>
+      <div class="help-text">Scroll to zoom • Drag to move</div>
+      <button class="close-btn" (click)="close()" aria-label="Close modal">×</button>
+    </div>
+
+    <div class="modal-body" (wheel)="onMouseWheel($event)" (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()" (mouseleave)="onMouseUp()">
+      <div class="image-viewer">
+        <img 
+          *ngIf="currentImageUrl" 
+          [src]="currentImageUrl" 
+          alt="Review image"
+          class="review-image"
+          [style.transform]="'scale(' + (zoomLevel / 100) + ') translate(' + dragOffsetX + 'px, ' + dragOffsetY + 'px)'"
+          [class.dragging]="isDragging"
+        >
+        <div *ngIf="!currentImageUrl" class="no-image">No image available</div>
+      </div>
+
+      <div class="image-counter">
+        {{ currentImageIndex + 1 }} / {{ reviewData?.images.length || 0 }}
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button 
+        class="nav-btn prev-btn" 
+        (click)="prevImage()" 
+        [disabled]="currentImageIndex === 0"
+        aria-label="Previous image"
+      >
+        ← Prev
+      </button>
+
+      <div class="thumbnail-strip">
+        <img 
+          *ngFor="let image of reviewData?.images; let i = index"
+          [src]="'http://localhost:3000/api/images/' + reviewData?.folder + '/' + image"
+          [class.active]="i === currentImageIndex"
+          (click)="currentImageIndex = i; updateCurrentImage()"
+          [alt]="'Thumbnail ' + (i + 1)"
+          class="thumbnail"
+        >
+      </div>
+
+      <button 
+        class="nav-btn next-btn" 
+        (click)="nextImage()" 
+        [disabled]="currentImageIndex === (reviewData?.images.length || 0) - 1"
+        aria-label="Next image"
+      >
+        Next →
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,15 @@
+<div class="filter-panel">
+  <div class="search">
+    <label for="promptFilter">Prompt</label>
+    <input id="promptFilter" type="text" [(ngModel)]="filters.prompt" placeholder="Search prompt">
+  </div>
+  <div class="rating-filters">
+    <div class="rating-filter" *ngFor="let field of ['handFeet','facialExpression','genital','accessories','sideCharacter','background']">
+      <label [for]="field + 'Filter'">{{ field }}</label>
+      <select [id]="field + 'Filter'" [(ngModel)]="filters[field]">
+        <option *ngFor="let r of ratingOptions" [value]="r">{{ r || 'All' }}</option>
+      </select>
+    </div>
+  </div>
+  <button (click)="applyFilters()">Apply</button>
+</div>
