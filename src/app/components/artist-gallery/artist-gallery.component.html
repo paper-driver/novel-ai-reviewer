@@ -1,0 +1,109 @@
+<div class="artist-gallery-container">
+  <h2>Artist Tag Gallery</h2>
+  
+  <div class="info-box">
+    <p>
+      Browse and view images organized by artist tag combinations.
+      Select a sorted folder to load all artist groups with thumbnails.
+    </p>
+  </div>
+
+  <!-- Folder Selection -->
+  <div class="selection-panel">
+    <div class="folder-picker-group">
+      <label>📁 Select Sorted Folder:</label>
+      <div class="folder-picker-controls">
+        <button 
+          (click)="selectSortedFolder()" 
+          [disabled]="isLoading"
+          class="btn-select-folder"
+          [class.selected]="sortedFolderPath">
+          {{ sortedFolderPath || 'Click to Select Sorted Folder' }}
+        </button>
+        <span *ngIf="sortedFolderPath" class="folder-path">{{ sortedFolderPath }}</span>
+      </div>
+      <small class="help-text">
+        Click to open the native folder picker and select the sorted folder containing artist subfolders.
+      </small>
+    </div>
+
+    <button 
+      (click)="loadGroups()" 
+      [disabled]="!sortedFolderPath || isLoading"
+      class="btn-load">
+      {{ isLoading ? 'Loading Groups...' : 'Load Artist Groups' }}
+    </button>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    <strong>Error:</strong> {{ error }}
+  </div>
+
+  <!-- Loading State with Progress Bar -->
+  <div *ngIf="isLoading" class="loading-state">
+    <p>Loading artist groups and thumbnails...</p>
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- Gallery Table -->
+  <div *ngIf="!isLoading && groups.length > 0" class="gallery-section">
+    <div class="gallery-header">
+      <h3>Artist Tag Groups ({{ groups.length }} groups, {{ totalImages }} images)</h3>
+    </div>
+
+    <div class="gallery-table-wrapper">
+      <table class="gallery-table">
+        <thead>
+          <tr>
+            <th class="col-artists">Artist Tag Combination</th>
+            <th class="col-preview">Preview Thumbnail</th>
+            <th class="col-count">Images</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let group of groups" class="gallery-row">
+            <!-- Artist Tags Column -->
+            <td class="col-artists">
+              <div class="artist-tags">
+                <span class="tag-text">{{ getArtistTagDisplay(group) }}</span>
+              </div>
+            </td>
+
+            <!-- Thumbnail Column -->
+            <td class="col-preview">
+              <div class="thumbnail-container">
+                <img 
+                  [src]="getThumbnailUrl(group)" 
+                  [alt]="getArtistTagDisplay(group)"
+                  class="thumbnail-image"
+                  (click)="openImageViewer(group)"
+                  title="Click to view images">
+              </div>
+            </td>
+
+            <!-- Image Count Column -->
+            <td class="col-count">
+              <div class="count-badge">{{ group.imageCount }}</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && sortedFolderPath && groups.length === 0" class="empty-state">
+    <p>No artist groups found in the selected folder.</p>
+    <p class="help-text">Make sure you've selected the correct sorted folder path.</p>
+  </div>
+
+  <!-- Image Viewer Modal - Reusable Component -->
+  <app-image-viewer-modal 
+    [isOpen]="showImageViewer"
+    [reviewData]="currentGroupReviewData"
+    (closeModal)="closeImageViewer()">
+  </app-image-viewer-modal>
+</div>

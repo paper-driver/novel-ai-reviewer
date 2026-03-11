@@ -5,20 +5,26 @@
   <div class="nav-tabs">
     <button 
       class="tab-button" 
-      [class.active]="!showArtistGrouping"
-      (click)="showArtistGrouping = false">
+      [class.active]="currentTab === 'reviews'"
+      (click)="currentTab = 'reviews'">
       Reviews
     </button>
     <button 
       class="tab-button" 
-      [class.active]="showArtistGrouping"
-      (click)="showArtistGrouping = true">
+      [class.active]="currentTab === 'grouping'"
+      (click)="currentTab = 'grouping'">
       Artist Grouping Tool
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="currentTab === 'gallery'"
+      (click)="currentTab = 'gallery'">
+      Artist Gallery
     </button>
   </div>
 
   <!-- Reviews Section -->
-  <div *ngIf="!showArtistGrouping" class="reviews-section">
+  <div *ngIf="currentTab === 'reviews'" class="reviews-section">
     <app-review-form 
       [editingReview]="editingReview"
       (reviewCreated)="onReviewChange()"
@@ -32,7 +38,12 @@
   </div>
 
   <!-- Artist Grouping Section -->
-  <div *ngIf="showArtistGrouping" class="grouping-section">
+  <div *ngIf="currentTab === 'grouping'" class="grouping-section">
     <app-artist-grouping></app-artist-grouping>
+  </div>
+
+  <!-- Artist Gallery Section -->
+  <div *ngIf="currentTab === 'gallery'" class="gallery-section">
+    <app-artist-gallery></app-artist-gallery>
   </div>
 </div>

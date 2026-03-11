@@ -1,12 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
 import { ReviewService, ArtistGroupResult } from '../../services/review.service';
+import { FolderPickerService } from '../../services/folder-picker.service';
 
 @Component({
   selector: 'app-artist-grouping',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HttpClientModule],
   templateUrl: './artist-grouping.component.html',
   styleUrls: ['./artist-grouping.component.scss']
 })
@@ -23,50 +25,45 @@ export class ArtistGroupingComponent implements OnInit {
   processingProgress = 0;
   processingMessage = '';
 
-  constructor(private reviewService: ReviewService) {}
+  constructor(
+    private reviewService: ReviewService,
+    private folderPickerService: FolderPickerService
+  ) {}
 
   ngOnInit(): void {}
 
-  selectSourceFolder(): void {
-    const folderPath = prompt(
-      'Enter the full path to the source folder containing PNG images:\n\nExample: /Users/name/Pictures/images'
-    );
+  async selectSourceFolder(): Promise<void> {
+    try {
+      const folderName = await this.folderPickerService.pickFolder();
 
-    if (folderPath === null) {
-      return; // User cancelled
+      if (!folderName) {
+        this.error = 'No source folder selected';
+        return;
+      }
+
+      this.sourceFolder = folderName;
+      this.sourceFolderName = folderName;
+      this.error = null;
+    } catch (err) {
+      this.error = 'Error selecting source folder: ' + (err instanceof Error ? err.message : String(err));
     }
-
-    const trimmedPath = folderPath.trim();
-
-    if (!trimmedPath) {
-      this.error = 'Please enter a valid folder path';
-      return;
-    }
-
-    this.sourceFolder = trimmedPath;
-    this.sourceFolderName = trimmedPath;
-    this.error = null;
   }
 
-  selectDestinationFolder(): void {
-    const folderPath = prompt(
-      'Enter the full path to the destination folder where sorted subfolders will be created:\n\nExample: /Users/name/Pictures/sorted'
-    );
+  async selectDestinationFolder(): Promise<void> {
+    try {
+      const folderName = await this.folderPickerService.pickFolder();
 
-    if (folderPath === null) {
-      return; // User cancelled
+      if (!folderName) {
+        this.error = 'No destination folder selected';
+        return;
+      }
+
+      this.destinationFolder = folderName;
+      this.destinationFolderName = folderName;
+      this.error = null;
+    } catch (err) {
+      this.error = 'Error selecting destination folder: ' + (err instanceof Error ? err.message : String(err));
     }
-
-    const trimmedPath = folderPath.trim();
-
-    if (!trimmedPath) {
-      this.error = 'Please enter a valid folder path';
-      return;
-    }
-
-    this.destinationFolder = trimmedPath;
-    this.destinationFolderName = trimmedPath;
-    this.error = null;
   }
 
   groupByArtists(): void {

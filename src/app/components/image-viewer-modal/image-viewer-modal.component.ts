@@ -6,6 +6,11 @@ export interface ReviewImage {
   folder: string;
   prompt?: string;
   review?: string;
+  // For artist gallery support
+  artists?: string[];
+  title?: string; // Used for artist tag display instead of prompt
+  // API type: 'reviews' (default) or 'artist-gallery'
+  apiType?: 'reviews' | 'artist-gallery';
 }
 
 @Component({
@@ -66,7 +71,24 @@ export class ImageViewerModalComponent implements OnInit {
     if (this.reviewData && this.reviewData.images.length > 0) {
       const fileName = this.reviewData.images[this.currentImageIndex];
       this.currentImageName = fileName;
-      this.currentImageUrl = `http://localhost:3000/api/images/${this.reviewData.folder}/${fileName}`;
+      
+      // Clear previous metadata when switching images
+      this.prompt = '';
+      
+      // Build image URL based on API type
+      const apiType = this.reviewData.apiType || 'reviews';
+      console.log(`[ImageViewer] Updating current image to: ${fileName}, apiType: ${apiType}`);
+      
+      if (apiType === 'artist-gallery') {
+        // For artist-gallery: use the artist-gallery endpoint with encoded file path
+        const fullFilePath = `${this.reviewData.folder}/${fileName}`;
+        this.currentImageUrl = `http://localhost:3000/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}`;
+      } else {
+        // For reviews: use the standard images endpoint
+        this.currentImageUrl = `http://localhost:3000/api/images/${this.reviewData.folder}/${fileName}`;
+      }
+      
+      console.log(`[ImageViewer] Image URL: ${this.currentImageUrl}`);
       
       // Fetch image metadata (dimensions and size)
       this.fetchImageMetadata();
@@ -94,11 +116,35 @@ export class ImageViewerModalComponent implements OnInit {
     
     // Extract actual generation prompt from image metadata
     if (this.reviewData && this.reviewData.folder && this.currentImageName) {
-      fetch(`http://localhost:3000/api/image-metadata/${this.reviewData.folder}/${this.currentImageName}`)
-        .then(response => response.json())
+      const apiType = this.reviewData.apiType || 'reviews';
+      let metadataUrl: string;
+      
+      if (apiType === 'artist-gallery') {
+        // For artist-gallery: use artist-gallery endpoint with encoded file path
+        const fullFilePath = `${this.reviewData.folder}/${this.currentImageName}`;
+        metadataUrl = `http://localhost:3000/api/artist-gallery/image-metadata?filePath=${encodeURIComponent(fullFilePath)}`;
+      } else {
+        // For reviews: use standard endpoint
+        metadataUrl = `http://localhost:3000/api/image-metadata/${this.reviewData.folder}/${this.currentImageName}`;
+      }
+      
+      console.log(`[ImageViewer] Fetching metadata from: ${metadataUrl}`);
+      
+      fetch(metadataUrl)
+        .then(response => {
+          if (!response.ok) {
+            console.warn(`[ImageViewer] Metadata fetch returned ${response.status}: ${response.statusText}`);
+            return Promise.reject(new Error(`HTTP ${response.status}`));
+          }
+          return response.json();
+        })
         .then(data => {
+          console.log(`[ImageViewer] Metadata response:`, data);
           if (data.prompt) {
             this.prompt = data.prompt;
+            console.log('Prompt extracted:', this.prompt.substring(0, 100) + '...');
+          } else {
+            console.warn('No prompt in metadata:', data);
           }
         })
         .catch(err => console.error('Error extracting image prompt:', err));
@@ -199,6 +245,23 @@ export class ImageViewerModalComponent implements OnInit {
       this.resetPan();
       this.updateCurrentImage();
     }
+  }
+
+  getThumbnailUrl(image: string): string {
+    if (!this.reviewData) return '';
+    
+    const apiType = this.reviewData.apiType || 'reviews';
+    let url: string;
+    if (apiType === 'artist-gallery') {
+      // For artist-gallery: use the artist-gallery endpoint with encoded file path
+      const fullFilePath = `${this.reviewData.folder}/${image}`;
+      url = `http://localhost:3000/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}`;
+    } else {
+      // For reviews: use the standard images endpoint
+      url = `http://localhost:3000/api/images/${this.reviewData.folder}/${image}`;
+    }
+    console.log(`[ImageViewer] getThumbnailUrl for ${image}: ${url}`);
+    return url;
   }
 
   close() {

@@ -835,6 +835,346 @@ function extractArtistTags(prompt) {
   return artists;
 }
 
+// ============ ARTIST GALLERY API ENDPOINTS ============
+
+/**
+ * POST /api/artist-gallery/load-groups
+ * Scans a sorted folder and loads all artist groups with metadata
+ * Request body: { folderPath: string }
+ * Response: { success: boolean, sortedFolder: string, groups: ArtistGroupInfo[], totals: { groups: number, images: number } }
+ */
+app.post('/api/artist-gallery/load-groups', (req, res) => {
+  try {
+    const { folderPath } = req.body;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folderPath' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+    
+    const stats = fs.statSync(resolvedPath);
+    if (!stats.isDirectory()) {
+      return res.status(400).json({ error: 'Path is not a directory' });
+    }
+
+    // Load mapping file if it exists
+    const mappingFile = path.join(resolvedPath, '.artist-mapping.json');
+    let artistKeyToFolder = {};
+    if (fs.existsSync(mappingFile)) {
+      try {
+        artistKeyToFolder = JSON.parse(fs.readFileSync(mappingFile, 'utf8'));
+      } catch (err) {
+        console.warn('Failed to read mapping file:', err.message);
+      }
+    }
+
+    const groups = [];
+    const subfolders = fs.readdirSync(resolvedPath).filter(f => {
+      return f !== '.artist-mapping.json' && fs.statSync(path.join(resolvedPath, f)).isDirectory();
+    });
+
+    subfolders.forEach(folderName => {
+      const folderPath = path.join(resolvedPath, folderName);
+      const files = fs.readdirSync(folderPath).filter(f => {
+        const filePath = path.join(folderPath, f);
+        return fs.statSync(filePath).isFile() && f.endsWith('.png') && !isMacSystemFile(f);
+      });
+
+      if (files.length > 0) {
+        // Find the original artist key from mapping
+        const artistKey = Object.keys(artistKeyToFolder).find(key => artistKeyToFolder[key] === folderName) || folderName;
+        const artists = artistKey.split(' | ').filter(a => a && a !== 'no-artists');
+        const thumbnailPath = files[0]; // First file as thumbnail
+
+        groups.push({
+          folderName,
+          folderPath: folderPath, // Full path for API calls
+          artistKey,
+          artists,
+          imageCount: files.length,
+          thumbnailPath,
+          images: files
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      sortedFolder: resolvedPath,
+      groups,
+      totals: {
+        groups: groups.length,
+        images: groups.reduce((sum, g) => sum + g.imageCount, 0)
+      }
+    });
+  } catch (err) {
+    console.error('Error loading artist groups:', err);
+    res.status(500).json({ error: 'Failed to load artist groups', details: err.message });
+  }
+});
+
+/**
+ * POST /api/artist-gallery/group-images
+ * Returns all images in a specific artist group folder
+ * Request body: { folderPath: string }
+ * Response: { success: boolean, images: string[] }
+ */
+app.post('/api/artist-gallery/group-images', (req, res) => {
+  try {
+    const { folderPath } = req.body;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folderPath' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const files = fs.readdirSync(resolvedPath)
+      .filter(f => fs.statSync(path.join(resolvedPath, f)).isFile() && f.endsWith('.png') && !isMacSystemFile(f));
+
+    res.json({
+      success: true,
+      images: files
+    });
+  } catch (err) {
+    console.error('Error loading group images:', err);
+    res.status(500).json({ error: 'Failed to load group images', details: err.message });
+  }
+});
+
+/**
+ * GET /api/artist-gallery/image-metadata
+ * Extracts metadata from a specific image file
+ * Query params: filePath (encoded full file path)
+ * Response: { success: boolean, filename: string, prompt: string, artists: string[], generationData: string }
+ */
+app.get('/api/artist-gallery/image-metadata', (req, res) => {
+  try {
+    const encodedFilePath = req.query.filePath;
+    if (!encodedFilePath) {
+      return res.status(400).json({ error: 'Missing filePath query parameter' });
+    }
+
+    const filePath = decodeURIComponent(encodedFilePath);
+    const resolvedPath = path.resolve(filePath);
+
+    console.log(`[artist-gallery/image-metadata] filePath: ${filePath}`);
+    console.log(`[artist-gallery/image-metadata] resolvedPath: ${resolvedPath}`);
+    console.log(`[artist-gallery/image-metadata] exists: ${fs.existsSync(resolvedPath)}`);
+
+    // Security: Ensure the path exists and is not trying to escape
+    if (!fs.existsSync(resolvedPath)) {
+      console.error(`[artist-gallery/image-metadata] File not found: ${resolvedPath}`);
+      return res.status(404).json({ error: 'File not found', path: resolvedPath });
+    }
+
+    const filename = path.basename(filePath);
+    const fileBuffer = fs.readFileSync(resolvedPath);
+    const metadata = readPNGMetadata(fileBuffer);
+    
+    let prompt = '';
+    
+    // Try to read embedded PNG metadata first
+    try {
+      // Look for Comment chunk which typically contains JSON with generation parameters
+      if (metadata.comment) {
+        try {
+          const commentData = JSON.parse(metadata.comment);
+          if (commentData.prompt) {
+            prompt = commentData.prompt;
+          }
+        } catch (e) {
+          // Comment is not JSON, try direct text
+          prompt = metadata.comment;
+        }
+      }
+      
+      // Also check Description field
+      if (!prompt && metadata.description) {
+        prompt = metadata.description;
+      }
+    } catch (err) {
+      console.warn('[artist-gallery/image-metadata] Could not parse PNG metadata:', err.message);
+    }
+    
+    // Fall back to extracting from filename if no embedded metadata found
+    if (!prompt) {
+      const match = filename.match(/^(.+?)\s+s-\d+\.png$/i);
+      if (match) {
+        prompt = match[1];
+      }
+    }
+    
+    const artists = extractArtistTags(prompt);
+
+    console.log(`[artist-gallery/image-metadata] Successfully read metadata, prompt length: ${prompt.length}, prompt: ${prompt.substring(0, 100)}`);
+
+    res.json({
+      success: true,
+      filename,
+      prompt,
+      artists,
+      generationData: JSON.stringify(metadata, null, 2)
+    });
+  } catch (err) {
+    console.error('Error reading image metadata:', err);
+    res.status(500).json({ error: 'Failed to read metadata', details: err.message });
+  }
+});
+
+/**
+ * GET /api/artist-gallery/image
+ * Serves the image file
+ * Query params: filePath (encoded full file path)
+ */
+app.get('/api/artist-gallery/image', (req, res) => {
+  try {
+    const encodedFilePath = req.query.filePath;
+    if (!encodedFilePath) {
+      return res.status(400).json({ error: 'Missing filePath query parameter' });
+    }
+
+    const filePath = decodeURIComponent(encodedFilePath);
+    const resolvedPath = path.resolve(filePath);
+
+    console.log(`[artist-gallery/image] filePath: ${filePath}`);
+    console.log(`[artist-gallery/image] resolvedPath: ${resolvedPath}`);
+    console.log(`[artist-gallery/image] exists: ${fs.existsSync(resolvedPath)}`);
+
+    // Security: Ensure the file exists
+    if (!fs.existsSync(resolvedPath)) {
+      console.error(`[artist-gallery/image] File not found: ${resolvedPath}`);
+      return res.status(404).json({ error: 'File not found', path: resolvedPath });
+    }
+
+    // Serve the image file
+    res.sendFile(resolvedPath);
+  } catch (err) {
+    console.error('Error serving image:', err);
+    res.status(500).json({ error: 'Failed to serve image', details: err.message });
+  }
+});
+
+/**
+ * POST /api/pick-folder
+ * Opens a native folder picker dialog and returns the selected folder path
+ * Note: This requires the app to have proper permissions and focuses the window
+ */
+app.post('/api/pick-folder', (req, res) => {
+  try {
+    const { execSync } = require('child_process');
+    const os = require('os');
+    const platform = os.platform();
+
+    console.log('[FolderPicker] Platform:', platform);
+
+    let selectedPath = '';
+    
+    try {
+      if (platform === 'darwin') {
+        // macOS - use AppleScript via -e flag which is more reliable
+        const script = `tell application "System Events"
+  activate
+  set folderPath to POSIX path of (choose folder with prompt "Select a folder:")
+  return folderPath
+end tell`;
+        
+        console.log('[FolderPicker] Using macOS AppleScript');
+        selectedPath = execSync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, {
+          encoding: 'utf8',
+          timeout: 60000,
+          stdio: ['pipe', 'pipe', 'pipe']
+        }).trim();
+        
+      } else if (platform === 'win32') {
+        // Windows - use PowerShell
+        const psCommand = `Add-Type -AssemblyName System.Windows.Forms;` +
+          `$dialog = New-Object System.Windows.Forms.FolderBrowserDialog;` +
+          `$dialog.Description = 'Select a folder';` +
+          `if ($dialog.ShowDialog() -eq 'OK') { Write-Host $dialog.SelectedPath }`;
+        
+        console.log('[FolderPicker] Using Windows PowerShell');
+        selectedPath = execSync(`powershell -NoProfile -Command "${psCommand}"`, {
+          encoding: 'utf8',
+          timeout: 60000,
+          shell: 'powershell'
+        }).trim();
+        
+      } else if (platform === 'linux') {
+        // Linux - try zenity first, then kdialog
+        console.log('[FolderPicker] Using Linux zenity/kdialog');
+        try {
+          selectedPath = execSync(`zenity --file-selection --directory --title "Select a folder"`, {
+            encoding: 'utf8',
+            timeout: 60000,
+            stdio: ['pipe', 'pipe', 'pipe']
+          }).trim();
+        } catch (e) {
+          try {
+            selectedPath = execSync(`kdialog --getexistingdirectory . --title "Select a folder"`, {
+              encoding: 'utf8',
+              timeout: 60000,
+              stdio: ['pipe', 'pipe', 'pipe']
+            }).trim();
+          } catch (e2) {
+            console.log('[FolderPicker] Neither zenity nor kdialog available');
+            throw new Error('No folder picker available on this Linux system');
+          }
+        }
+      } else {
+        return res.status(400).json({ error: 'Unsupported platform for folder picker' });
+      }
+
+      if (!selectedPath) {
+        console.log('[FolderPicker] No path selected (empty output)');
+        return res.json({ success: false, cancelled: true, path: null });
+      }
+
+      console.log('[FolderPicker] Selected path:', selectedPath);
+
+      // Decode the path if needed
+      let decodedPath = selectedPath;
+      try {
+        decodedPath = decodeURIComponent(selectedPath);
+      } catch (e) {
+        // Use original if decoding fails
+      }
+
+      // Verify the path exists and is a directory
+      if (!fs.existsSync(decodedPath)) {
+        console.error('[FolderPicker] Path does not exist:', decodedPath);
+        return res.json({ success: false, error: 'Path does not exist', path: null });
+      }
+
+      const stats = fs.statSync(decodedPath);
+      if (!stats.isDirectory()) {
+        console.error('[FolderPicker] Path is not a directory:', decodedPath);
+        return res.json({ success: false, error: 'Not a directory', path: null });
+      }
+
+      console.log('[FolderPicker] Successfully selected folder:', decodedPath);
+      res.json({ success: true, path: decodedPath });
+      
+    } catch (error) {
+      console.log('[FolderPicker] Execution error:', error.message);
+      // Check if user cancelled (exit code 1 is common for cancelled operations)
+      return res.json({ success: false, cancelled: true, path: null });
+    }
+    
+  } catch (err) {
+    console.error('[FolderPicker] Error in endpoint:', err.message);
+    res.status(500).json({ error: 'Failed to open folder picker', details: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Review server listening on port ${PORT}`);
 });

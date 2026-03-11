@@ -283,6 +283,23 @@
   }
 }
 
+.artist-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  .artist-tag {
+    display: inline-block;
+    background-color: #e3f2fd;
+    color: #1565c0;
+    padding: 0.25rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid #b3e5fc;
+  }
+}
+
 .btn-toggle-sidebar {
   position: absolute;
   right: 10px;
