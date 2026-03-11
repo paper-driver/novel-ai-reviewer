@@ -1,13 +1,38 @@
 <div class="container">
   <h1>Novel AI Image Review</h1>
-  <app-review-form 
-    [editingReview]="editingReview"
-    (reviewCreated)="onReviewChange()"
-    (reviewUpdated)="onReviewChange()"
-  ></app-review-form>
-  <app-filter-panel (filtersChanged)="onFiltersChange($event)"></app-filter-panel>
-  <app-reviews-table 
-    [filters]="filters"
-    (editReview)="onEditReview($event)"
-  ></app-reviews-table>
+  
+  <!-- Navigation Tabs -->
+  <div class="nav-tabs">
+    <button 
+      class="tab-button" 
+      [class.active]="!showArtistGrouping"
+      (click)="showArtistGrouping = false">
+      Reviews
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="showArtistGrouping"
+      (click)="showArtistGrouping = true">
+      Artist Grouping Tool
+    </button>
+  </div>
+
+  <!-- Reviews Section -->
+  <div *ngIf="!showArtistGrouping" class="reviews-section">
+    <app-review-form 
+      [editingReview]="editingReview"
+      (reviewCreated)="onReviewChange()"
+      (reviewUpdated)="onReviewChange()"
+    ></app-review-form>
+    <app-filter-panel (filtersChanged)="onFiltersChange($event)"></app-filter-panel>
+    <app-reviews-table 
+      [filters]="filters"
+      (editReview)="onEditReview($event)"
+    ></app-reviews-table>
+  </div>
+
+  <!-- Artist Grouping Section -->
+  <div *ngIf="showArtistGrouping" class="grouping-section">
+    <app-artist-grouping></app-artist-grouping>
+  </div>
 </div>

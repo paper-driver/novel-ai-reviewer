@@ -1,0 +1,156 @@
+<div class="artist-grouping-container">
+  <h2>Group Images by Artist Tags</h2>
+  
+  <div class="info-box">
+    <p>
+      This tool analyzes image metadata to extract artist tags and groups images based on their artist tag combinations.
+      Select a source folder containing images (PNG, JPG, WebP) and a destination folder where sorted subfolders will be created.
+    </p>
+    <p style="font-size: 0.9rem; color: #666;">
+      <strong>Note:</strong> Supported formats: PNG (with metadata), JPG, WebP. macOS system files (starting with ._) will be automatically skipped.
+    </p>
+  </div>
+
+  <div class="selection-panel">
+    <!-- Source Folder Selection -->
+    <div class="folder-picker-group">
+      <label>📁 Source Folder (Images):</label>
+      <div class="folder-picker-controls">
+        <button 
+          (click)="selectSourceFolder()" 
+          [disabled]="isLoading"
+          class="btn-select-folder"
+          [class.selected]="sourceFolderName">
+          {{ sourceFolderName || 'Click to Select Source Folder' }}
+        </button>
+        <span *ngIf="sourceFolderName" class="folder-path">{{ sourceFolderName }}</span>
+      </div>
+      <small class="help-text">
+        Enter the full path to a folder containing images to be grouped (PNG, JPG, WebP supported).
+      </small>
+    </div>
+
+    <!-- Destination Folder Selection -->
+    <div class="folder-picker-group">
+      <label>📂 Destination Folder (for sorted images):</label>
+      <div class="folder-picker-controls">
+        <button 
+          (click)="selectDestinationFolder()" 
+          [disabled]="isLoading"
+          class="btn-select-folder"
+          [class.selected]="destinationFolderName">
+          {{ destinationFolderName || 'Click to Select Destination Folder' }}
+        </button>
+        <span *ngIf="destinationFolderName" class="folder-path">{{ destinationFolderName }}</span>
+      </div>
+      <small class="help-text">
+        Enter the full path where subfolders will be created for each artist combination.
+      </small>
+    </div>
+
+    <button 
+      (click)="groupByArtists()" 
+      [disabled]="!sourceFolder || !destinationFolder || isLoading"
+      class="btn-group">
+      {{ isLoading ? 'Grouping Images...' : 'Start Grouping by Artist Tags' }}
+    </button>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    <strong>Error:</strong> {{ error }}
+  </div>
+
+  <!-- Loading State with Progress Bar -->
+  <div *ngIf="isLoading || processingProgress > 0" class="loading-state">
+    <p>{{ processingMessage || 'Processing images and extracting artist tags...' }}</p>
+    
+    <!-- Progress Bar Container -->
+    <div class="progress-container">
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar" [style.width.%]="processingProgress"></div>
+      </div>
+      <div class="progress-text">{{ processingProgress }}%</div>
+    </div>
+    
+    <p class="loading-info" *ngIf="isLoading">This may take a moment depending on the number of images.</p>
+  </div>
+
+  <!-- Results -->
+  <div *ngIf="result && !isLoading" class="results-panel">
+    <div class="summary">
+      <h3>✓ Grouping Complete!</h3>
+      <div class="stats">
+        <div class="stat">
+          <span class="label">Total Images Processed:</span>
+          <span class="value">{{ result.totalImages }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Groups Created:</span>
+          <span class="value">{{ result.groupCount }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Unique Artists Found:</span>
+          <span class="value">{{ getTotalArtistsCount() }}</span>
+        </div>
+      </div>
+      <p class="success-message">
+        Images have been organized into <strong>{{ result.groupCount }}</strong> subfolder(s) 
+        at <code>{{ result.sourceFolder }}</code> based on artist tag combinations.
+      </p>
+    </div>
+
+    <!-- Groups Table -->
+    <div class="groups-container">
+      <h4>Artist Groups Created</h4>
+      <table class="groups-table">
+        <thead>
+          <tr>
+            <th>Folder #</th>
+            <th>Artist Combination</th>
+            <th>Image Count</th>
+            <th>Image Files</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let entry of result.groups | keyvalue">
+            <td class="folder-num">{{ entry.key }}</td>
+            <td class="artists-cell">
+              <div *ngIf="entry.value.artists.length > 0" class="artist-list">
+                <span *ngFor="let artist of entry.value.artists" class="artist-tag">
+                  {{ artist }}
+                </span>
+              </div>
+              <div *ngIf="entry.value.artists.length === 0" class="no-artists">
+                No artists found
+              </div>
+            </td>
+            <td class="count">{{ entry.value.count }}</td>
+            <td class="images-cell">
+              <div class="image-list">
+                <span *ngFor="let image of entry.value.images" class="image-name" [title]="image">
+                  {{ image }}
+                </span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Image Metadata Details -->
+    <div class="metadata-details">
+      <h4>All Image Metadata</h4>
+      <div class="metadata-list">
+        <div *ngFor="let img of result.imageMetadata" class="metadata-item">
+          <div class="filename">{{ img.filename }}</div>
+          <div class="artists">
+            <span *ngFor="let artist of img.artists" class="artist-tag small">
+              {{ artist }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

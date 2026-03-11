@@ -45,7 +45,8 @@
         {{ isEditing ? 'Add Additional Images' : 'Upload Images' }}
         <span *ngIf="isEditing" class="optional-text">(optional)</span>
       </label>
-      <input id="images" type="file" (change)="onFileChange($event)" multiple accept="image/*">
+      <input id="images" type="file" (change)="onFileChange($event)" multiple accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
+      <div class="hint-text">Supported formats: PNG, JPG, WebP. (macOS: Files starting with ._ will be automatically skipped)</div>
       <div class="new-images" *ngIf="imageFiles.length > 0">
         <div class="image-item" *ngFor="let file of imageFiles; let i = index">
           <div class="image-info">

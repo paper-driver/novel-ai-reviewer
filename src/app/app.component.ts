@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReviewFormComponent } from './components/review-form/review-form.component';
 import { FilterPanelComponent } from './components/filter-panel/filter-panel.component';
 import { ReviewsTableComponent } from './components/reviews-table/reviews-table.component';
+import { ArtistGroupingComponent } from './components/artist-grouping/artist-grouping.component';
 import { Review } from './services/review.service';
 
 @Component({
@@ -12,7 +13,8 @@ import { Review } from './services/review.service';
     CommonModule,
     ReviewFormComponent,
     FilterPanelComponent,
-    ReviewsTableComponent
+    ReviewsTableComponent,
+    ArtistGroupingComponent
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
@@ -20,6 +22,7 @@ import { Review } from './services/review.service';
 export class AppComponent {
   filters: any = {};
   editingReview: Review | null = null;
+  showArtistGrouping = false;
 
   /**
    * Handler invoked when filters change or when a review is created.

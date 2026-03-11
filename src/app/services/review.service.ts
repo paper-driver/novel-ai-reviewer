@@ -19,6 +19,31 @@ export interface Review {
   thumbnail: string;
 }
 
+export interface ArtistGroupResult {
+  success: boolean;
+  sourceFolder: string;
+  destinationFolder: string;
+  totalSourceImages: number;
+  skippedCount: number;
+  skippedImages: string[];
+  imagesToProcess: number;
+  newFoldersCreated: number;
+  groups: {
+    [folderName: string]: {
+      artistKey: string;
+      artists: string[];
+      newCount: number;
+      totalCount: number;
+      images: string[];
+    }
+  };
+  imageMetadata: Array<{
+    filename: string;
+    artists: string[];
+    artistKey: string;
+  }>;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -63,5 +88,25 @@ export class ReviewService {
    */
   deleteReview(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/reviews/${id}`);
+  }
+
+  /**
+   * Group images in a folder by artist tags from their metadata.
+   * Creates subfolders for each unique artist combination.
+   */
+  groupImagesByArtists(folder: string): Observable<ArtistGroupResult> {
+    return this.http.post<ArtistGroupResult>(`${this.apiUrl}/group-by-artists/${folder}`, {});
+  }
+
+  /**
+   * Group images by artist tags with custom source and destination paths.
+   * @param sourcePath Full path to source folder containing PNG images
+   * @param destinationPath Full path to destination folder where subfolders will be created
+   */
+  groupImagesByArtistsWithPath(sourcePath: string, destinationPath: string): Observable<ArtistGroupResult> {
+    return this.http.post<ArtistGroupResult>(`${this.apiUrl}/group-by-artists-path`, {
+      sourcePath,
+      destinationPath
+    });
   }
 }
