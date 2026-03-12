@@ -1,8 +1,9 @@
-import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { ArtistGalleryService, ArtistGroupInfo, ImageMetadata } from '../../services/artist-gallery.service';
+import { GalleryCacheService } from '../../services/gallery-cache.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 
@@ -13,7 +14,7 @@ import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/im
   templateUrl: './artist-gallery.component.html',
   styleUrls: ['./artist-gallery.component.scss']
 })
-export class ArtistGalleryComponent implements OnInit {
+export class ArtistGalleryComponent implements OnInit, OnDestroy {
   sortedFolderPath: string = '';
   isLoading = false;
   error: string | null = null;
@@ -36,7 +37,8 @@ export class ArtistGalleryComponent implements OnInit {
 
   constructor(
     private galleryService: ArtistGalleryService,
-    private folderPickerService: FolderPickerService
+    private folderPickerService: FolderPickerService,
+    private cacheService: GalleryCacheService
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -47,6 +49,18 @@ export class ArtistGalleryComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Check if we have cached data from previous visit
+    const cachedData = this.cacheService.getArtistGalleryData();
+    if (cachedData && cachedData.groups.length > 0) {
+      // Restore cached data
+      this.sortedFolderPath = cachedData.folderPath;
+      this.groups = cachedData.groups;
+      this.filteredGroups = cachedData.filteredGroups;
+      this.searchText = cachedData.searchText;
+      this.totalImages = cachedData.totalImages;
+      this.isLoading = false;
+    }
+
     // Listen for scroll events to show/hide back-to-top button
     window.addEventListener('scroll', () => {
       this.showBackToTopButton = window.scrollY > 300;
@@ -103,15 +117,31 @@ export class ArtistGalleryComponent implements OnInit {
     this.error = null;
     this.groups = [];
     this.filteredGroups = [];
-    this.searchText = '';
+    // Don't clear searchText here - preserve it across page switches
+    // User must manually clear search by clicking the clear button
 
     this.galleryService.loadArtistGroups(this.sortedFolderPath).subscribe({
       next: (response) => {
         if (response.success) {
           this.groups = response.groups;
-          this.filteredGroups = response.groups;
           this.totalImages = response.totalImages;
           this.isLoading = false;
+          
+          // Re-apply search filter if there's an active search
+          if (this.searchText.trim()) {
+            this.applySearch();
+          } else {
+            this.filteredGroups = response.groups;
+          }
+          
+          // Save to cache after successful load
+          this.cacheService.setArtistGalleryData(
+            this.sortedFolderPath,
+            this.groups,
+            this.filteredGroups,
+            this.searchText,
+            this.totalImages
+          );
         } else {
           this.error = 'Failed to load artist groups';
           this.isLoading = false;
@@ -151,6 +181,14 @@ export class ArtistGalleryComponent implements OnInit {
     
     if (!searchQuery) {
       this.filteredGroups = [...this.groups];
+      // Save to cache
+      this.cacheService.setArtistGalleryData(
+        this.sortedFolderPath,
+        this.groups,
+        this.filteredGroups,
+        this.searchText,
+        this.totalImages
+      );
       return;
     }
 
@@ -211,6 +249,15 @@ export class ArtistGalleryComponent implements OnInit {
       
       return false;
     });
+
+    // Save to cache
+    this.cacheService.setArtistGalleryData(
+      this.sortedFolderPath,
+      this.groups,
+      this.filteredGroups,
+      this.searchText,
+      this.totalImages
+    );
   }
 
   /**
@@ -219,6 +266,15 @@ export class ArtistGalleryComponent implements OnInit {
   clearSearch(): void {
     this.searchText = '';
     this.filteredGroups = [...this.groups];
+    
+    // Save to cache
+    this.cacheService.setArtistGalleryData(
+      this.sortedFolderPath,
+      this.groups,
+      this.filteredGroups,
+      this.searchText,
+      this.totalImages
+    );
   }
 
   getThumbnailUrl(group: ArtistGroupInfo): string {
@@ -291,5 +347,20 @@ export class ArtistGalleryComponent implements OnInit {
     } catch (err) {
       this.error = 'Error opening folder: ' + (err instanceof Error ? err.message : String(err));
     }
+  }
+
+  /**
+   * Save current state to cache before component is destroyed
+   * This ensures data is preserved when user switches to another tab
+   */
+  ngOnDestroy(): void {
+    // Save current state to cache
+    this.cacheService.setArtistGalleryData(
+      this.sortedFolderPath,
+      this.groups,
+      this.filteredGroups,
+      this.searchText,
+      this.totalImages
+    );
   }
 }

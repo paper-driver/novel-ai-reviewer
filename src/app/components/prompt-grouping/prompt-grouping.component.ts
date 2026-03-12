@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { PromptGroupingService, PromptGroupInfo } from '../../services/prompt-grouping.service';
+import { GalleryCacheService } from '../../services/gallery-cache.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 import { Subject, interval, forkJoin, from, of } from 'rxjs';
@@ -68,7 +69,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
 
   constructor(
     private groupingService: PromptGroupingService,
-    private folderPickerService: FolderPickerService
+    private folderPickerService: FolderPickerService,
+    private cacheService: GalleryCacheService
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -79,6 +81,23 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Check if we have cached data from previous visit
+    const cachedData = this.cacheService.getPromptGroupingData();
+    if (cachedData && cachedData.groups.length > 0) {
+      // Restore cached data
+      this.folderPath = cachedData.generatedFolder;
+      this.groups = cachedData.groups;
+      this.filteredGroups = cachedData.filteredGroups;
+      this.filterText = cachedData.searchText;
+      // Restore nickname assignments from cache
+      this.availableNicknames = Object.keys(cachedData.selectedNicknames);
+      // Apply any filter that was active
+      if (this.filterText) {
+        this.applyFilter();
+      }
+      this.isLoading = false;
+    }
+
     // Listen for scroll events to show/hide back-to-top button
     window.addEventListener('scroll', () => {
       this.showBackToTopButton = window.scrollY > 300;
@@ -86,6 +105,21 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Save current state to cache before component is destroyed
+    const selectedNicknames: { [key: string]: string } = {};
+    this.groups.forEach(group => {
+      if (group.groupNickname && group.groupNickname.trim()) {
+        selectedNicknames[group.groupId] = group.groupNickname;
+      }
+    });
+    this.cacheService.setPromptGroupingData(
+      this.folderPath,
+      this.groups,
+      this.filteredGroups,
+      this.filterText,
+      selectedNicknames
+    );
+
     this.destroy$.next();
     this.destroy$.complete();
     if (this.progressSubscription) {
@@ -174,7 +208,6 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       next: (response) => {
         if (response.success) {
           this.groups = response.groups;
-          this.filteredGroups = response.groups;
           this.totalImages = response.totals.images;
           this.extractAvailableNicknames();
           this.isLoading = false;
@@ -190,6 +223,28 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           setTimeout(() => {
             this.progressText = '';
           }, 2000);
+
+          // Re-apply filter if there's an active filter
+          if (this.filterText.trim() || this.showOnlyNoNickname) {
+            this.applyFilter();
+          } else {
+            this.filteredGroups = response.groups;
+          }
+
+          // Save to cache
+          const selectedNicknames: { [key: string]: string } = {};
+          this.groups.forEach(group => {
+            if (group.groupNickname && group.groupNickname.trim()) {
+              selectedNicknames[group.groupId] = group.groupNickname;
+            }
+          });
+          this.cacheService.setPromptGroupingData(
+            this.folderPath,
+            this.groups,
+            this.filteredGroups,
+            this.filterText,
+            selectedNicknames
+          );
         } else {
           this.error = 'Failed to load prompt groups';
           this.isLoading = false;
@@ -497,54 +552,67 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     // Then apply the text filter if there's search text
     if (!this.filterText.trim()) {
       this.filteredGroups = baseGroups;
-      return;
+    } else {
+      // Split by comma and trim each term
+      const allTerms = this.filterText
+        .split(',')
+        .map(term => term.toLowerCase().trim())
+        .filter(term => term.length > 0);
+
+      if (allTerms.length === 0) {
+        this.filteredGroups = baseGroups;
+      } else {
+        // Separate inclusion and exclusion terms
+        const inclusionTerms = allTerms.filter(term => !term.startsWith('-'));
+        const exclusionTerms = allTerms.filter(term => term.startsWith('-')).map(term => term.substring(1)); // Remove the "-" prefix
+
+        this.filteredGroups = baseGroups.filter(group => {
+          const nickname = group.groupNickname ? group.groupNickname.toLowerCase() : '';
+          const groupIdStr = group.groupId.toString();
+          const normalizedPrompt = group.normalizedPrompt ? group.normalizedPrompt.toLowerCase() : '';
+          const samplePrompt = group.sampleOriginalPrompt ? group.sampleOriginalPrompt.toLowerCase() : '';
+          
+          const searchFields = [nickname, groupIdStr, normalizedPrompt, samplePrompt];
+          
+          // If there are inclusion terms, ALL must match in any field (AND logic)
+          if (inclusionTerms.length > 0) {
+            const matchesInclusionTerms = inclusionTerms.every(term =>
+              searchFields.some(field => field.includes(term))
+            );
+            if (!matchesInclusionTerms) {
+              return false;
+            }
+          }
+          
+          // If there are exclusion terms, NONE should match in any field
+          if (exclusionTerms.length > 0) {
+            const matchesExclusionTerms = exclusionTerms.some(term =>
+              searchFields.some(field => field.includes(term))
+            );
+            if (matchesExclusionTerms) {
+              return false;
+            }
+          }
+          
+          return true;
+        });
+      }
     }
 
-    // Split by comma and trim each term
-    const allTerms = this.filterText
-      .split(',')
-      .map(term => term.toLowerCase().trim())
-      .filter(term => term.length > 0);
-
-    if (allTerms.length === 0) {
-      this.filteredGroups = baseGroups;
-      return;
-    }
-
-    // Separate inclusion and exclusion terms
-    const inclusionTerms = allTerms.filter(term => !term.startsWith('-'));
-    const exclusionTerms = allTerms.filter(term => term.startsWith('-')).map(term => term.substring(1)); // Remove the "-" prefix
-
-    this.filteredGroups = baseGroups.filter(group => {
-      const nickname = group.groupNickname ? group.groupNickname.toLowerCase() : '';
-      const groupIdStr = group.groupId.toString();
-      const normalizedPrompt = group.normalizedPrompt ? group.normalizedPrompt.toLowerCase() : '';
-      const samplePrompt = group.sampleOriginalPrompt ? group.sampleOriginalPrompt.toLowerCase() : '';
-      
-      const searchFields = [nickname, groupIdStr, normalizedPrompt, samplePrompt];
-      
-      // If there are inclusion terms, ALL must match in any field (AND logic)
-      if (inclusionTerms.length > 0) {
-        const matchesInclusionTerms = inclusionTerms.every(term =>
-          searchFields.some(field => field.includes(term))
-        );
-        if (!matchesInclusionTerms) {
-          return false;
-        }
+    // Save to cache
+    const selectedNicknames: { [key: string]: string } = {};
+    this.groups.forEach(group => {
+      if (group.groupNickname && group.groupNickname.trim()) {
+        selectedNicknames[group.groupId] = group.groupNickname;
       }
-      
-      // If there are exclusion terms, NONE should match in any field
-      if (exclusionTerms.length > 0) {
-        const matchesExclusionTerms = exclusionTerms.some(term =>
-          searchFields.some(field => field.includes(term))
-        );
-        if (matchesExclusionTerms) {
-          return false;
-        }
-      }
-      
-      return true;
     });
+    this.cacheService.setPromptGroupingData(
+      this.folderPath,
+      this.groups,
+      this.filteredGroups,
+      this.filterText,
+      selectedNicknames
+    );
   }
 
   /**
@@ -562,6 +630,21 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     this.filterText = '';
     this.showOnlyNoNickname = false;
     this.filteredGroups = this.groups;
+
+    // Save to cache
+    const selectedNicknames: { [key: string]: string } = {};
+    this.groups.forEach(group => {
+      if (group.groupNickname && group.groupNickname.trim()) {
+        selectedNicknames[group.groupId] = group.groupNickname;
+      }
+    });
+    this.cacheService.setPromptGroupingData(
+      this.folderPath,
+      this.groups,
+      this.filteredGroups,
+      this.filterText,
+      selectedNicknames
+    );
   }
 
   /**
