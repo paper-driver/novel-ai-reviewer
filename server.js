@@ -891,6 +891,21 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
         const artists = artistKey.split(' | ').filter(a => a && a !== 'no-artists');
         const thumbnailPath = files[0]; // First file as thumbnail
 
+        // Get the latest modification time from all image files
+        let latestModifiedTime = 0;
+        files.forEach(file => {
+          try {
+            const filePath = path.join(folderPath, file);
+            const fileStats = fs.statSync(filePath);
+            const fileModTime = fileStats.mtimeMs || fileStats.mtime.getTime();
+            if (fileModTime > latestModifiedTime) {
+              latestModifiedTime = fileModTime;
+            }
+          } catch (err) {
+            console.warn(`Failed to get mtime for ${file}:`, err.message);
+          }
+        });
+
         groups.push({
           folderName,
           folderPath: folderPath, // Full path for API calls
@@ -898,7 +913,8 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
           artists,
           imageCount: files.length,
           thumbnailPath,
-          images: files
+          images: files,
+          latestModifiedTime: latestModifiedTime || Date.now()
         });
       }
     });

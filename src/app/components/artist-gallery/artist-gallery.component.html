@@ -68,6 +68,9 @@
   <div *ngIf="!isLoading && groups.length > 0" class="gallery-section">
     <div class="gallery-header">
       <h3>Artist Tag Groups ({{ groups.length }} groups, {{ totalImages }} images)</h3>
+      <div class="timezone-info">
+        Timestamps in your local timezone: {{ userTimezone }}
+      </div>
     </div>
 
     <div class="gallery-table-wrapper">
@@ -77,6 +80,7 @@
             <th class="col-artists">Artist Tag Combination</th>
             <th class="col-preview">Preview Thumbnail</th>
             <th class="col-count">Images</th>
+            <th class="col-modified">Latest Modified</th>
           </tr>
         </thead>
         <tbody>
@@ -103,6 +107,11 @@
             <!-- Image Count Column -->
             <td class="col-count">
               <div class="count-badge">{{ group.imageCount }}</div>
+            </td>
+
+            <!-- Latest Modified Column -->
+            <td class="col-modified">
+              <div class="modified-date">{{ formatLatestModifiedDate(group) }}</div>
             </td>
           </tr>
         </tbody>

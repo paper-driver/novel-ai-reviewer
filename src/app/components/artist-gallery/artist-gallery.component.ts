@@ -24,10 +24,20 @@ export class ArtistGalleryComponent implements OnInit {
   showImageViewer = false;
   currentGroupReviewData: ReviewImage | null = null;
 
+  // Timezone info for user reference
+  userTimezone: string = '';
+
   constructor(
     private galleryService: ArtistGalleryService,
     private folderPickerService: FolderPickerService
-  ) {}
+  ) {
+    // Get user's timezone for display
+    const timeZoneOffset = new Date().getTimezoneOffset();
+    const hours = Math.abs(Math.floor(timeZoneOffset / 60));
+    const minutes = Math.abs(timeZoneOffset % 60);
+    const sign = timeZoneOffset > 0 ? '-' : '+';
+    this.userTimezone = `UTC${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
 
   ngOnInit(): void {}
 
@@ -118,6 +128,45 @@ export class ArtistGalleryComponent implements OnInit {
       return 'No Artists';
     }
     return group.artists.join(' | ');
+  }
+
+  /**
+   * Format latest modification date for display
+   * Uses local timezone for accurate date comparisons
+   */
+  formatLatestModifiedDate(group: ArtistGroupInfo): string {
+    if (!group.latestModifiedTime) {
+      return 'Unknown';
+    }
+    
+    // Create dates in local timezone
+    const modDate = new Date(group.latestModifiedTime);
+    const now = new Date();
+    
+    // Get local date parts (ignoring time for day comparison)
+    const modLocalDate = new Date(modDate.getFullYear(), modDate.getMonth(), modDate.getDate());
+    const nowLocalDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const diffMs = nowLocalDate.getTime() - modLocalDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    // Format time portion
+    const timeString = modDate.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    // Show relative time for recent dates, absolute date for older ones
+    if (diffDays === 0) {
+      return 'Today ' + timeString;
+    } else if (diffDays === 1) {
+      return 'Yesterday ' + timeString;
+    } else if (diffDays < 30) {
+      return `${diffDays}d ago`;
+    } else {
+      return modDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+    }
   }
 
   /**

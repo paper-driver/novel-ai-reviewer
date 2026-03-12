@@ -10,6 +10,7 @@ export interface ArtistGroupInfo {
   imageCount: number;
   thumbnailPath: string;
   images: string[];
+  latestModifiedTime?: number; // Unix timestamp (ms) of latest modified image
 }
 
 export interface ArtistGalleryResult {
