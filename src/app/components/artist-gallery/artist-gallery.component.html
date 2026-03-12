@@ -67,9 +67,29 @@
   <!-- Gallery Table -->
   <div *ngIf="!isLoading && groups.length > 0" class="gallery-section">
     <div class="gallery-header">
-      <h3>Artist Tag Groups ({{ groups.length }} groups, {{ totalImages }} images)</h3>
+      <h3>Artist Tag Groups ({{ filteredGroups.length }} / {{ groups.length }} groups, {{ totalImages }} images)</h3>
       <div class="timezone-info">
         Timestamps in your local timezone: {{ userTimezone }}
+      </div>
+    </div>
+
+    <!-- Search Panel -->
+    <div class="search-panel">
+      <div class="search-input-group">
+        <input 
+          type="text" 
+          placeholder="Search artists: try {alice}, alice, 'alice - bob', or full prompt format with 'artist:' keywords"
+          [(ngModel)]="searchText"
+          (input)="applySearch()"
+          class="search-input"
+          title="Search with flexible format: artist names, brackets, separators, or full prompt format. All formats are supported.">
+        <button 
+          *ngIf="searchText"
+          (click)="clearSearch()"
+          class="btn-clear-search"
+          title="Clear search">
+          ✕
+        </button>
       </div>
     </div>
 
@@ -84,7 +104,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let group of groups" class="gallery-row">
+          <tr *ngFor="let group of filteredGroups" class="gallery-row">
             <!-- Artist Tags Column -->
             <td class="col-artists">
               <div class="artist-tags">
@@ -117,6 +137,12 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- No Results State -->
+    <div *ngIf="filteredGroups.length === 0 && groups.length > 0" class="empty-state">
+      <p>No artist groups match your search "{{ searchText }}"</p>
+      <p class="help-text">Try adjusting your search query. Matching is case-insensitive and respects order.</p>
     </div>
   </div>
 

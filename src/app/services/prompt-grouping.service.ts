@@ -95,7 +95,9 @@ export class PromptGroupingService {
    */
   getThumbnailUrl(folderPath: string, filename: string): string {
     const fullFilePath = `${folderPath}/${filename}`;
-    return `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}&thumbnail=true`;
+    // Add cache-busting parameter to force fresh download and bypass stale cached partial files
+    const cacheBuster = 'v2';
+    return `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}&thumbnail=true&v=${cacheBuster}`;
   }
 
   /**

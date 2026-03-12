@@ -1049,7 +1049,7 @@ app.get('/api/artist-gallery/image-metadata', (req, res) => {
 /**
  * GET /api/artist-gallery/image
  * Serves the image file
- * Query params: filePath (encoded full file path), thumbnail (optional - serves 50KB for faster loading)
+ * Query params: filePath (encoded full file path), thumbnail (optional - now serves complete file with caching)
  */
 app.get('/api/artist-gallery/image', (req, res) => {
   try {
@@ -1073,20 +1073,13 @@ app.get('/api/artist-gallery/image', (req, res) => {
       return res.status(404).json({ error: 'File not found', path: resolvedPath });
     }
 
-    // For thumbnails, read only the first 50KB which usually contains the full image header
-    // PNG format stores image dimensions and color info in header, actual data comes later
-    // This significantly reduces bandwidth for thumbnail loading
+    // For thumbnails, serve the complete file but with aggressive caching
+    // PNG files need to be complete to render, partial files won't display
+    // Instead, rely on browser caching and compression to reduce bandwidth
     if (thumbnail === 'true') {
-      const fd = fs.openSync(resolvedPath, 'r');
-      const THUMBNAIL_SIZE = 50 * 1024; // 50KB - enough for most PNG headers and preview
-      const buffer = Buffer.alloc(THUMBNAIL_SIZE);
-      const bytesRead = fs.readSync(fd, buffer, 0, THUMBNAIL_SIZE);
-      fs.closeSync(fd);
-      
-      res.set('Content-Type', 'image/png');
       res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-      res.set('X-Partial-Content', 'true');
-      res.send(buffer.slice(0, bytesRead));
+      res.set('Content-Type', 'image/png');
+      res.sendFile(resolvedPath);
       return;
     }
 
@@ -1803,7 +1796,7 @@ app.post('/api/prompt-grouping/set-nickname', (req, res) => {
 /**
  * GET /api/prompt-grouping/image
  * Serves image file from prompt-grouping folder
- * Optimized with aggressive caching and partial file serving for thumbnails
+ * Optimized with aggressive caching for thumbnails (24-hour browser cache)
  */
 app.get('/api/prompt-grouping/image', (req, res) => {
   try {
@@ -1818,20 +1811,14 @@ app.get('/api/prompt-grouping/image', (req, res) => {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    // For thumbnails, read only the first 50KB which usually contains the full image header
-    // PNG format stores image dimensions and color info in header, actual data comes later
-    // This significantly reduces bandwidth for thumbnail loading
+    // For thumbnails, serve the complete file with aggressive caching
+    // PNG files need to be complete to render, partial files won't display
+    // Instead, rely on browser caching and compression to reduce bandwidth
     if (thumbnail === 'true') {
-      const fd = fs.openSync(filePath, 'r');
-      const THUMBNAIL_SIZE = 50 * 1024; // 50KB - enough for most PNG headers and preview
-      const buffer = Buffer.alloc(THUMBNAIL_SIZE);
-      const bytesRead = fs.readSync(fd, buffer, 0, THUMBNAIL_SIZE);
-      fs.closeSync(fd);
-      
+      const imageBuffer = fs.readFileSync(filePath);
       res.set('Content-Type', 'image/png');
       res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-      res.set('X-Partial-Content', 'true');
-      res.send(buffer.slice(0, bytesRead));
+      res.send(imageBuffer);
       return;
     }
 

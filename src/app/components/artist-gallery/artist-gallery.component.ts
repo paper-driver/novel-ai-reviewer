@@ -18,6 +18,7 @@ export class ArtistGalleryComponent implements OnInit {
   isLoading = false;
   error: string | null = null;
   groups: ArtistGroupInfo[] = [];
+  filteredGroups: ArtistGroupInfo[] = [];
   totalImages = 0;
   
   // Image viewer modal - using shared component
@@ -29,6 +30,9 @@ export class ArtistGalleryComponent implements OnInit {
 
   // Back to top button
   showBackToTopButton = false;
+
+  // Search functionality
+  searchText: string = '';
 
   constructor(
     private galleryService: ArtistGalleryService,
@@ -98,11 +102,14 @@ export class ArtistGalleryComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
     this.groups = [];
+    this.filteredGroups = [];
+    this.searchText = '';
 
     this.galleryService.loadArtistGroups(this.sortedFolderPath).subscribe({
       next: (response) => {
         if (response.success) {
           this.groups = response.groups;
+          this.filteredGroups = response.groups;
           this.totalImages = response.totalImages;
           this.isLoading = false;
         } else {
@@ -132,6 +139,86 @@ export class ArtistGalleryComponent implements OnInit {
   closeImageViewer(): void {
     this.showImageViewer = false;
     this.currentGroupReviewData = null;
+  }
+
+  /**
+   * Apply search filter to artist groups.
+   * Searches for artist tag combinations with intelligent parsing.
+   * Supports multiple search formats and handles whitespace variations.
+   */
+  applySearch(): void {
+    let searchQuery = this.searchText.trim();
+    
+    if (!searchQuery) {
+      this.filteredGroups = [...this.groups];
+      return;
+    }
+
+    // Comprehensive normalization of search query
+    // Step 1: Remove "artist:" keywords
+    searchQuery = searchQuery.replace(/artist:\s*/gi, '').trim();
+    
+    // Step 2: Normalize all separators to spaces then to dashes
+    // This handles: commas, pipes, and any mixture
+    searchQuery = searchQuery.replace(/[,|]/g, ' - ').trim();
+    
+    // Step 3: Remove spaces around brackets to handle "[[[item ]]]" vs "[[[item]]]"
+    // This is key for matching variations with extra whitespace
+    searchQuery = searchQuery.replace(/\s+([}\]\)])/g, '$1').replace(/([{\[\(])\s+/g, '$1');
+    
+    // Create lowercase version for searching
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Also normalize with spaces inside brackets removed
+    const searchNormalized = searchLower.replace(/\s+([}\]\)])/g, '$1').replace(/([{\[\(])\s+/g, '$1');
+
+    this.filteredGroups = this.groups.filter(group => {
+      // Get the full artist tag combination as displayed
+      const artistDisplay = this.getArtistTagDisplay(group);
+      const displayLower = artistDisplay.toLowerCase();
+      
+      // Normalize display: remove spaces around brackets
+      const displayNormalized = displayLower.replace(/\s+([}\]\)])/g, '$1').replace(/([{\[\(])\s+/g, '$1');
+      
+      // Strategy 1: Try exact substring match on normalized versions
+      if (displayNormalized.includes(searchNormalized)) {
+        return true;
+      }
+      
+      // Strategy 2: Try with original lowercased versions
+      if (displayLower.includes(searchLower)) {
+        return true;
+      }
+      
+      // Strategy 3: Term-based matching (split by separators and match individual artists)
+      const searchTerms = searchNormalized
+        .split(/\s*[-|,]\s*/)
+        .map(term => term.toLowerCase().trim())
+        .filter(term => term.length > 0);
+      
+      const displayTerms = displayNormalized
+        .split(/\s*[-|,]\s*/)
+        .map(term => term.toLowerCase().trim());
+      
+      // All search terms must be found in display terms (AND logic)
+      if (searchTerms.length > 0) {
+        return searchTerms.every(searchTerm => 
+          displayTerms.some(displayTerm => 
+            displayTerm.includes(searchTerm)
+          )
+        );
+      }
+      
+      return false;
+    });
+  }
+
+  /**
+   * Clear search and show all groups
+   */
+  clearSearch(): void {
+    this.searchText = '';
+    this.filteredGroups = [...this.groups];
   }
 
   getThumbnailUrl(group: ArtistGroupInfo): string {
