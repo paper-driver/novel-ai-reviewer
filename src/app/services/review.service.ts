@@ -100,7 +100,8 @@ export class ReviewService {
 
   /**
    * Group images by artist tags with custom source and destination paths.
-   * @param sourcePath Full path to source folder containing PNG images
+   * Automatically detects if source folder is pre-sorted by checking for _artist_mapping.json
+   * @param sourcePath Full path to source folder containing PNG images or pre-sorted subdirectories
    * @param destinationPath Full path to destination folder where subfolders will be created
    */
   groupImagesByArtistsWithPath(sourcePath: string, destinationPath: string): Observable<ArtistGroupResult> {

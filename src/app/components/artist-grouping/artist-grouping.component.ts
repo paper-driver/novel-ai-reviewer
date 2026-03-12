@@ -147,7 +147,7 @@ export class ArtistGroupingComponent implements OnInit {
       if (progress < 30) {
         this.processingMessage = 'Reading source folder...';
       } else if (progress < 60) {
-        this.processingMessage = 'Extracting artist tags...';
+        this.processingMessage = 'Processing images...';
       } else {
         this.processingMessage = 'Organizing files...';
       }

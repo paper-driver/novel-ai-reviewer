@@ -105,4 +105,23 @@ export class ArtistGalleryService {
       };
     }
   }
+
+  /**
+   * Copy artist groups and images from source sorted folder to destination folder
+   * Merges artist mapping files and copies all image files and folders
+   */
+  copyFromSourceFolder(sourcePath: string, destinationPath: string): Observable<{ 
+    success: boolean; 
+    message: string; 
+    copiedGroups?: number;
+    copiedImages?: number;
+    mergedMapping?: boolean;
+    error?: string;
+  }> {
+    return this.http.post<any>(
+      'http://localhost:3000/api/artist-gallery/copy-from-source',
+      { sourcePath, destinationPath }
+    );
+  }
 }
+

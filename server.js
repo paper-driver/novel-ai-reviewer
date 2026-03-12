@@ -569,7 +569,7 @@ app.post('/api/group-by-artists/:folder', (req, res) => {
 // Supports incremental sorting: skips existing images and reuses existing artist folders
 app.post('/api/group-by-artists-path', (req, res) => {
   try {
-    const { sourcePath, destinationPath } = req.body;
+    const { sourcePath, destinationPath, usePreSorted } = req.body;
     
     // Validate input
     if (!sourcePath || !destinationPath) {
@@ -618,6 +618,287 @@ app.post('/api/group-by-artists-path', (req, res) => {
     Object.entries(existingMapping).forEach(([folderName, artistKey]) => {
       artistKeyToFolder[artistKey] = folderName;
     });
+
+    // AUTO-DETECT: Check if source folder has _artist_mapping.json (pre-sorted)
+    const sourceMappingFile = path.join(resolvedSourcePath, '_artist_mapping.json');
+    const isSourcePreSorted = fs.existsSync(sourceMappingFile);
+    
+    // Use fast path if either explicitly requested OR auto-detected
+    const shouldUseFastPath = usePreSorted || isSourcePreSorted;
+
+    // === FAST PATH: USE PRE-SORTED SOURCE ===
+    if (shouldUseFastPath) {
+      // Check if source has mapping file
+      const sourceMappingFile = path.join(resolvedSourcePath, '_artist_mapping.json');
+      let sourceMapping = {};
+      let results = {};
+      let newFoldersCreated = 0;
+      let copiedImages = 0;
+      const imageMetadata = [];
+      const skippedImages = [];
+
+      if (fs.existsSync(sourceMappingFile)) {
+        try {
+          sourceMapping = JSON.parse(fs.readFileSync(sourceMappingFile, 'utf8'));
+        } catch (e) {
+          console.warn('Could not load source mapping:', e.message);
+        }
+      }
+
+      // If mapping is empty, scan subdirectories directly
+      if (Object.keys(sourceMapping).length === 0) {
+        const allItems = fs.readdirSync(resolvedSourcePath);
+        allItems.forEach(item => {
+          const itemPath = path.join(resolvedSourcePath, item);
+          try {
+            if (fs.statSync(itemPath).isDirectory() && !item.startsWith('.')) {
+              // This is a subdirectory - treat it as an artist group
+              // For auto-scanned folders, artistKey and folderName are the same
+              sourceMapping[item] = item;
+            }
+          } catch (e) {
+            // Skip if can't stat
+          }
+        });
+      }
+
+      // Get all folders from source that are in the mapping
+      // sourceMapping is: { artistKey: folderName }
+      Object.entries(sourceMapping).forEach(([artistKey, folderName]) => {
+        const sourceFolderPath = path.join(resolvedSourcePath, folderName);
+        
+        if (!fs.existsSync(sourceFolderPath)) {
+          return; // Skip if folder doesn't exist
+        }
+
+        // Determine destination folder name
+        let destFolderName = folderName;
+        if (artistKeyToFolder[artistKey]) {
+          destFolderName = artistKeyToFolder[artistKey];
+        } else {
+          newFoldersCreated++;
+          artistKeyToFolder[artistKey] = folderName;
+        }
+
+        const destFolderPath = path.join(resolvedDestPath, destFolderName);
+
+        // Create destination folder if needed
+        if (!fs.existsSync(destFolderPath)) {
+          fs.mkdirSync(destFolderPath, { recursive: true });
+        }
+
+        // Copy images from source folder
+        const sourceFiles = fs.readdirSync(sourceFolderPath)
+          .filter(f => f.endsWith('.png') && !isMacSystemFile(f));
+
+        let copiedCount = 0;
+        sourceFiles.forEach(filename => {
+          // Skip if image already exists
+          if (existingImages.has(filename)) {
+            skippedImages.push(filename);
+            return;
+          }
+
+          const srcFilePath = path.join(sourceFolderPath, filename);
+          const destFilePath = path.join(destFolderPath, filename);
+
+          try {
+            fs.copyFileSync(srcFilePath, destFilePath);
+            copiedImages++;
+            copiedCount++;
+            existingImages.add(filename);
+            imageMetadata.push({
+              filename,
+              artists: artistKey === 'no-artists' ? [] : artistKey.split(' | '),
+              artistKey
+            });
+          } catch (err) {
+            console.warn(`Error copying ${filename}:`, err.message);
+          }
+        });
+
+        results[destFolderName] = {
+          artistKey,
+          artists: artistKey === 'no-artists' ? [] : artistKey.split(' | '),
+          newCount: copiedCount,
+          totalCount: sourceFiles.length,
+          images: sourceFiles
+        };
+      });
+
+      // Note: .prompt_mapping.json is not merged because it contains groupIds 
+      // that are specific to the source folder's prompt grouping structure.
+      // In this context, we're doing artist-based grouping, not prompt-based grouping,
+      // so the prompt mapping from source doesn't apply to destination groups.
+
+      // Update destination mapping
+      fs.writeFileSync(mappingFile, JSON.stringify(artistKeyToFolder, null, 2));
+
+      return res.json({
+        success: true,
+        sourceFolder: resolvedSourcePath,
+        destinationFolder: resolvedDestPath,
+        totalSourceImages: imageMetadata.length + skippedImages.length,
+        skippedImages: skippedImages,
+        skippedCount: skippedImages.length,
+        imagesToProcess: imageMetadata.length,
+        newFoldersCreated,
+        groups: results,
+        imageMetadata: imageMetadata
+      });
+    }
+
+    // === SLOW PATH: READ IMAGE METADATA ===
+    // STEP 2: Read all image files from the source folder, filtering out macOS system files
+    const srcFiles = fs.readdirSync(resolvedSourcePath)
+      .filter(f => f.endsWith('.png') && !isMacSystemFile(f));
+    
+    if (srcFiles.length === 0) {
+      // Check if this might be a pre-sorted folder with subdirectories
+      const allItems = fs.readdirSync(resolvedSourcePath);
+      console.log(`[GroupByArtists] Source folder contents: ${allItems.join(', ')}`);
+      
+      const hasSubdirectories = allItems.some(item => {
+        try {
+          return fs.statSync(path.join(resolvedSourcePath, item)).isDirectory() && !item.startsWith('.');
+        } catch (e) {
+          return false;
+        }
+      });
+      
+      console.log(`[GroupByArtists] Has subdirectories: ${hasSubdirectories}`);
+      console.log(`[GroupByArtists] Is pre-sorted: ${isSourcePreSorted}`);
+      
+      if (hasSubdirectories) {
+        return res.status(400).json({ 
+          error: 'No PNG files found at the root level. The source folder appears to be organized with subdirectories. If these are artist groups, make sure the folder contains _artist_mapping.json file for automatic detection, or ensure PNG files are at the root level.' 
+        });
+      }
+      
+      return res.status(400).json({ error: 'No PNG files found in the source folder' });
+    }
+    
+    // STEP 3: Process files, group by artist combination, and identify which are new
+    const srcArtistGroups = {};
+    const srcImageMetadata = [];
+    const srcSkippedImages = [];
+    let srcImagesToProcess = 0;
+    
+    srcFiles.forEach(filename => {
+      // Check if image already exists in destination
+      if (existingImages.has(filename)) {
+        srcSkippedImages.push(filename);
+        return; // Skip this image
+      }
+      
+      srcImagesToProcess++;
+      
+      try {
+        const imagePath = path.join(resolvedSourcePath, filename);
+        const imageBuffer = fs.readFileSync(imagePath);
+        const metadata = readPNGMetadata(imageBuffer);
+        
+        let artists = [];
+        let prompt = null;
+        
+        // Extract generation data
+        if (metadata.comment) {
+          try {
+            const commentData = JSON.parse(metadata.comment);
+            prompt = commentData.prompt || '';
+          } catch (e) {
+            prompt = metadata.comment;
+          }
+        }
+        
+        // Extract artist tags from prompt
+        if (prompt) {
+          artists = extractArtistTags(prompt);
+        }
+        
+        // Create a canonical key from artist combination (preserving order and bracket types)
+        const artistKey = artists.length > 0 
+          ? artists.join(' | ')
+          : 'no-artists';
+        
+        if (!srcArtistGroups[artistKey]) {
+          srcArtistGroups[artistKey] = [];
+        }
+        srcArtistGroups[artistKey].push(filename);
+        
+        srcImageMetadata.push({
+          filename,
+          artists,
+          artistKey
+        });
+      } catch (err) {
+        console.warn(`Error processing image ${filename}:`, err.message);
+      }
+    });
+    
+    // STEP 4: Create/reuse subfolder structure and copy new images
+    const srcResults = {};
+    let srcNewFoldersCreated = 0;
+    
+    Object.entries(srcArtistGroups).forEach(([artistKey, imageFilenames]) => {
+      // Check if we already have a folder for this artist combination
+      let folderName;
+      
+      if (artistKeyToFolder[artistKey]) {
+        // Reuse existing folder for this artist combination
+        folderName = artistKeyToFolder[artistKey];
+      } else {
+        // Create new folder name for this artist combination
+        folderName = sanitizeFolderName(artistKey);
+        
+        // If folder name would exceed 255 chars, truncate and add hash for uniqueness
+        if (folderName.length > 255) {
+          const crypto = require('crypto');
+          const hash = crypto.createHash('md5').update(artistKey).digest('hex').substring(0, 8);
+          const maxNameLength = 255 - hash.length - 1; // Reserve space for hash and separator
+          folderName = sanitizeFolderName(artistKey.substring(0, maxNameLength)) + '_' + hash;
+        }
+        
+        srcNewFoldersCreated++;
+        artistKeyToFolder[artistKey] = folderName;
+      }
+      
+      const subfolder = path.join(resolvedDestPath, folderName);
+      
+      // Create subfolder if it doesn't exist
+      if (!fs.existsSync(subfolder)) {
+        fs.mkdirSync(subfolder, { recursive: true });
+      }
+      
+      // Copy new images to the subfolder
+      let copiedCount = 0;
+      imageFilenames.forEach(filename => {
+        try {
+          const srcPath = path.join(resolvedSourcePath, filename);
+          const destPath = path.join(subfolder, filename);
+          
+          // Only copy if not already there (double-check)
+          if (!fs.existsSync(destPath)) {
+            fs.copyFileSync(srcPath, destPath);
+            copiedCount++;
+          }
+        } catch (err) {
+          console.warn(`Error copying ${filename}:`, err.message);
+        }
+      });
+      
+      srcResults[folderName] = {
+        artistKey,
+        artists: artistKey.split(' | ').filter(a => a !== 'no-artists'),
+        newCount: copiedCount,
+        totalCount: imageFilenames.length,
+        images: imageFilenames
+      };
+    });
+    
+    // STEP 5: Update and write mapping file with all folders (old + new)
+    fs.writeFileSync(mappingFile, JSON.stringify(artistKeyToFolder, null, 2));
+    
     
     // STEP 2: Read all image files from the source folder, filtering out macOS system files
     const files = fs.readdirSync(resolvedSourcePath)
@@ -745,6 +1026,11 @@ app.post('/api/group-by-artists-path', (req, res) => {
       };
     });
     
+    // Note: .prompt_mapping.json is not merged because it contains groupIds 
+    // that are specific to the source folder's prompt grouping structure.
+    // In this context, we're doing artist-based grouping, not prompt-based grouping,
+    // so the prompt mapping from source doesn't apply to destination groups.
+    
     // STEP 5: Update and write mapping file with all folders (old + new)
     fs.writeFileSync(mappingFile, JSON.stringify(artistKeyToFolder, null, 2));
     
@@ -752,13 +1038,13 @@ app.post('/api/group-by-artists-path', (req, res) => {
       success: true,
       sourceFolder: resolvedSourcePath,
       destinationFolder: resolvedDestPath,
-      totalSourceImages: files.length,
-      skippedImages: skippedImages,
-      skippedCount: skippedImages.length,
-      imagesToProcess: imagesToProcess,
-      newFoldersCreated,
-      groups: results,
-      imageMetadata: imageMetadata
+      totalSourceImages: srcFiles.length,
+      skippedImages: srcSkippedImages,
+      skippedCount: srcSkippedImages.length,
+      imagesToProcess: srcImagesToProcess,
+      newFoldersCreated: srcNewFoldersCreated,
+      groups: srcResults,
+      imageMetadata: srcImageMetadata
     });
   } catch (err) {
     console.error('Error grouping images by artists:', err);
@@ -1047,7 +1333,7 @@ app.get('/api/artist-gallery/image-metadata', (req, res) => {
 });
 
 /**
- * GET /api/artist-gallery/image
+ * POST /api/artist-gallery/image
  * Serves the image file
  * Query params: filePath (encoded full file path), thumbnail (optional - now serves complete file with caching)
  */
@@ -1089,6 +1375,146 @@ app.get('/api/artist-gallery/image', (req, res) => {
   } catch (err) {
     console.error('Error serving image:', err);
     res.status(500).json({ error: 'Failed to serve image', details: err.message });
+  }
+});
+
+/**
+ * POST /api/artist-gallery/copy-from-source
+ * Copies artist groups and images from source sorted folder to destination
+ * Merges artist mapping files and avoids duplicate images
+ * Request body: { sourcePath: string, destinationPath: string }
+ * Response: { success: boolean, message: string, copiedGroups?: number, copiedImages?: number, mergedMapping?: boolean, error?: string }
+ */
+app.post('/api/artist-gallery/copy-from-source', (req, res) => {
+  try {
+    const { sourcePath, destinationPath } = req.body;
+
+    if (!sourcePath || !destinationPath) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Both sourcePath and destinationPath are required' 
+      });
+    }
+
+    const resolvedSourcePath = path.resolve(sourcePath);
+    const resolvedDestPath = path.resolve(destinationPath);
+
+    // Validate source folder exists
+    if (!fs.existsSync(resolvedSourcePath)) {
+      return res.status(404).json({
+        success: false,
+        error: `Source folder not found: ${sourcePath}`
+      });
+    }
+
+    // Create destination folder if it doesn't exist
+    if (!fs.existsSync(resolvedDestPath)) {
+      fs.mkdirSync(resolvedDestPath, { recursive: true });
+    }
+
+    // Load source mapping file to get artist-to-folder mapping
+    const sourceMappingFile = path.join(resolvedSourcePath, '.artist-mapping.json');
+    let sourceMapping = {};
+    if (fs.existsSync(sourceMappingFile)) {
+      try {
+        sourceMapping = JSON.parse(fs.readFileSync(sourceMappingFile, 'utf8'));
+      } catch (err) {
+        console.warn('Failed to read source mapping:', err.message);
+      }
+    }
+
+    // Load existing destination mapping
+    const destMappingFile = path.join(resolvedDestPath, '_artist_mapping.json');
+    let destMapping = {};
+    let existingImages = new Set();
+
+    if (fs.existsSync(destMappingFile)) {
+      try {
+        destMapping = JSON.parse(fs.readFileSync(destMappingFile, 'utf8'));
+        // Build set of existing images
+        Object.values(destMapping).forEach(folderName => {
+          const folderPath = path.join(resolvedDestPath, folderName);
+          if (fs.existsSync(folderPath)) {
+            fs.readdirSync(folderPath)
+              .filter(f => f.endsWith('.png') && !isMacSystemFile(f))
+              .forEach(file => existingImages.add(file));
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to read destination mapping:', err.message);
+      }
+    }
+
+    let copiedImages = 0;
+    let copiedGroups = 0;
+
+    // Copy all artist group folders and images
+    const sourceSubfolders = fs.readdirSync(resolvedSourcePath)
+      .filter(f => {
+        const fullPath = path.join(resolvedSourcePath, f);
+        return fs.statSync(fullPath).isDirectory() && f !== '.git' && f !== 'node_modules';
+      });
+
+    sourceSubfolders.forEach(folderName => {
+      const sourceFolderPath = path.join(resolvedSourcePath, folderName);
+      const destFolderPath = path.join(resolvedDestPath, folderName);
+
+      // Create destination folder if needed
+      if (!fs.existsSync(destFolderPath)) {
+        fs.mkdirSync(destFolderPath, { recursive: true });
+        copiedGroups++;
+      }
+
+      // Copy images from this folder
+      const sourceFiles = fs.readdirSync(sourceFolderPath)
+        .filter(f => f.endsWith('.png') && !isMacSystemFile(f));
+
+      sourceFiles.forEach(filename => {
+        // Skip if image already exists
+        if (existingImages.has(filename)) {
+          return;
+        }
+
+        const srcFilePath = path.join(sourceFolderPath, filename);
+        const destFilePath = path.join(destFolderPath, filename);
+
+        try {
+          fs.copyFileSync(srcFilePath, destFilePath);
+          copiedImages++;
+          existingImages.add(filename);
+        } catch (err) {
+          console.warn(`Failed to copy image ${filename}:`, err.message);
+        }
+      });
+
+      // Merge artist mapping: find artist key for this folder in source
+      const artistKey = Object.keys(sourceMapping).find(key => sourceMapping[key] === folderName);
+      if (artistKey && !destMapping[folderName]) {
+        destMapping[folderName] = artistKey;
+      }
+    });
+
+    // Save merged mapping file
+    try {
+      fs.writeFileSync(destMappingFile, JSON.stringify(destMapping, null, 2));
+    } catch (err) {
+      console.warn('Failed to save destination mapping:', err.message);
+    }
+
+    res.json({
+      success: true,
+      message: `Imported ${copiedImages} images into ${copiedGroups} groups`,
+      copiedGroups,
+      copiedImages,
+      mergedMapping: Object.keys(destMapping).length > 0
+    });
+  } catch (err) {
+    console.error('Error copying from source:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to copy from source folder',
+      details: err.message
+    });
   }
 });
 

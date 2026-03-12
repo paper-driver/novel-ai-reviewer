@@ -135,4 +135,22 @@ export class PromptGroupingService {
       { folderPath, groupId, nickname }
     );
   }
+
+  /**
+   * Copy prompt groups and images from source sorted folder to destination
+   * Merges prompt mapping files and avoids duplicate images
+   */
+  copyFromSourceFolder(sourcePath: string, destinationPath: string): Observable<{
+    success: boolean;
+    message: string;
+    copiedGroups?: number;
+    copiedImages?: number;
+    mergedMapping?: boolean;
+    error?: string;
+  }> {
+    return this.http.post<any>(
+      'http://localhost:3000/api/prompt-grouping/copy-from-source',
+      { sourcePath, destinationPath }
+    );
+  }
 }

@@ -90,7 +90,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       this.filteredGroups = cachedData.filteredGroups;
       this.filterText = cachedData.searchText;
       // Restore nickname assignments from cache
-      this.availableNicknames = Object.keys(cachedData.selectedNicknames);
+      // selectedNicknames is { groupId: nickname }, so we need values not keys
+      this.availableNicknames = Array.from(new Set(Object.values(cachedData.selectedNicknames).filter(n => n && n.trim()))).sort();
       // Apply any filter that was active
       if (this.filterText) {
         this.applyFilter();
