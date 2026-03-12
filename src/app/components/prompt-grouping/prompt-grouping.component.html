@@ -96,7 +96,7 @@
           <div class="filter-input-wrapper">
             <input 
               type="text"
-              placeholder="Search by nickname or Group ID..."
+              placeholder="Search by nickname, Group ID, or prompt (use '-' to exclude, e.g., 'portrait, -red')..."
               [(ngModel)]="filterText"
               (input)="onFilterChange()"
               class="filter-input"
@@ -133,6 +133,13 @@
             title="Clear filter and show all groups">
             ✕ Clear
           </button>
+          <button 
+            class="btn-no-nickname-filter"
+            [class.active]="showOnlyNoNickname"
+            (click)="toggleShowOnlyNoNickname()"
+            title="Show only groups with no nickname assigned">
+            {{ showOnlyNoNickname ? '✓ No Nickname' : '⊘ No Nickname' }}
+          </button>
         </div>
         <div class="filter-info">
           <span *ngIf="filteredGroups.length === groups.length">
@@ -147,6 +154,61 @@
           <span *ngIf="availableNicknames.length > 0" class="nickname-count">
             • {{ availableNicknames.length }} nicknames available
           </span>
+        </div>
+
+        <!-- Bulk Nickname Assignment Section -->
+        <div *ngIf="filteredGroups.length > 0 && filteredGroups.length < groups.length" class="bulk-assign-section">
+          <div class="bulk-assign-title">Assign nickname to all {{ filteredGroups.length }} filtered group(s):</div>
+          <div class="bulk-assign-controls">
+            <div class="bulk-assign-input-wrapper">
+              <input 
+                type="text"
+                [(ngModel)]="bulkAssignNickname"
+                (input)="onBulkAssignInputChange()"
+                (focus)="onBulkAssignInputChange()"
+                (keydown)="onBulkAssignKeydown($event)"
+                placeholder="Enter or select nickname"
+                class="bulk-assign-input"
+                [disabled]="isAssigningBulkNickname"
+                autocomplete="off">
+              <button 
+                class="btn-bulk-assign-dropdown"
+                (click)="toggleBulkAssignDropdown()"
+                [disabled]="availableNicknames.length === 0 || isAssigningBulkNickname"
+                title="Show suggested nicknames">
+                ▼
+              </button>
+              <!-- Bulk Assignment Nickname Dropdown -->
+              <div class="bulk-assign-dropdown" *ngIf="showBulkAssignDropdown && filteredBulkAssignNicknames.length > 0">
+                <div class="dropdown-header">
+                  <strong>{{ bulkAssignNickname.trim() ? 'Matching Nicknames:' : 'Available Nicknames:' }}</strong>
+                </div>
+                <div class="dropdown-items">
+                  <div 
+                    *ngFor="let nickname of filteredBulkAssignNicknames; let i = index"
+                    class="dropdown-item"
+                    [class.selected]="i === selectedBulkIndex"
+                    (click)="selectBulkNickname(nickname)">
+                    {{ nickname }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button 
+              class="btn-bulk-assign"
+              (click)="assignNicknameToAllFiltered()"
+              [disabled]="!bulkAssignNickname.trim() || isAssigningBulkNickname"
+              title="Assign this nickname to all filtered groups">
+              {{ isAssigningBulkNickname ? 'Assigning...' : '✓ Assign to All' }}
+            </button>
+          </div>
+          <!-- Bulk Assignment Progress Bar -->
+          <div *ngIf="isAssigningBulkNickname" class="bulk-progress-container">
+            <div class="bulk-progress-bar">
+              <div class="bulk-progress-fill" [style.width.%]="bulkAssignProgress"></div>
+            </div>
+            <div class="bulk-progress-text">{{ bulkAssignProgressText }}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -182,29 +244,36 @@
                     <input 
                       type="text" 
                       [(ngModel)]="editingNickname"
-                      placeholder="Enter nickname"
+                      (input)="onEditingNicknameChange()"
+                      (focus)="onEditingNicknameChange()"
+                      (keydown)="onNicknameInputKeydown($event, group.groupId)"
+                      placeholder="Enter or select nickname (Use ↓↑ Tab or Enter)"
                       class="nickname-input"
-                      (keyup.enter)="saveGroupNickname(group.groupId)"
-                      (keyup.escape)="cancelEditingNickname()">
+                      (keyup.escape)="cancelEditingNickname()"
+                      autocomplete="off">
                     <button 
                       class="btn-nickname-assign-dropdown"
                       (click)="toggleNicknameAssignDropdown()"
                       [disabled]="availableNicknames.length === 0"
-                      title="Select from existing nicknames">
+                      title="Show suggested nicknames">
                       ▼
                     </button>
-                    <!-- Nickname Assignment Dropdown -->
-                    <div class="nickname-assign-dropdown" *ngIf="showNicknameAssignDropdown && availableNicknames.length > 0">
-                      <div class="dropdown-header">
-                        <strong>Available Nicknames:</strong>
+                    <!-- Nickname Assignment Dropdown with Filtered Suggestions -->
+                    <div class="nickname-assign-dropdown" *ngIf="showNicknameAssignDropdown">
+                      <div class="dropdown-header" *ngIf="filteredEditingNicknames.length > 0">
+                        <strong>{{ editingNickname.trim() ? 'Matching Nicknames:' : 'Available Nicknames:' }}</strong>
                       </div>
-                      <div class="dropdown-items">
+                      <div class="dropdown-items" *ngIf="filteredEditingNicknames.length > 0">
                         <div 
-                          *ngFor="let nickname of availableNicknames"
+                          *ngFor="let nickname of filteredEditingNicknames; let i = index"
                           class="dropdown-item"
+                          [class.selected]="i === selectedSuggestionIndex"
                           (click)="assignNicknameFromDropdown(nickname)">
                           {{ nickname }}
                         </div>
+                      </div>
+                      <div class="dropdown-empty" *ngIf="filteredEditingNicknames.length === 0 && editingNickname.trim()">
+                        <div class="empty-message">No matching nicknames</div>
                       </div>
                     </div>
                   </div>
@@ -227,7 +296,8 @@
                   [alt]="'Group ' + group.groupId"
                   class="thumbnail-image"
                   (click)="openImageViewer(group)"
-                  title="Click to view images">
+                  title="Click to view images"
+                  loading="lazy">
               </div>
             </td>
 
@@ -265,4 +335,13 @@
     [reviewData]="currentGroupReviewData"
     (closeModal)="closeImageViewer()">
   </app-image-viewer-modal>
+
+  <!-- Back to Top Button -->
+  <button 
+    *ngIf="showBackToTopButton"
+    class="back-to-top-btn"
+    (click)="scrollToTop()"
+    title="Scroll back to top">
+    ↑ Top
+  </button>
 </div>

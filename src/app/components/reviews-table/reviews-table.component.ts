@@ -19,10 +19,27 @@ export class ReviewsTableComponent implements OnInit, OnChanges {
   isModalOpen: boolean = false;
   selectedReview: any = null;
 
+  // Back to top button
+  showBackToTopButton = false;
+
   constructor(private reviewService: ReviewService) {}
 
   ngOnInit(): void {
     this.loadReviews();
+    // Listen for scroll events to show/hide back-to-top button
+    window.addEventListener('scroll', () => {
+      this.showBackToTopButton = window.scrollY > 300;
+    });
+  }
+
+  /**
+   * Scroll back to top of the page smoothly
+   */
+  scrollToTop(): void {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {

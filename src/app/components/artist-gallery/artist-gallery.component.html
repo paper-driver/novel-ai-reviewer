@@ -100,7 +100,8 @@
                   [alt]="getArtistTagDisplay(group)"
                   class="thumbnail-image"
                   (click)="openImageViewer(group)"
-                  title="Click to view images">
+                  title="Click to view images"
+                  loading="lazy">
               </div>
             </td>
 
@@ -131,4 +132,13 @@
     [reviewData]="currentGroupReviewData"
     (closeModal)="closeImageViewer()">
   </app-image-viewer-modal>
+
+  <!-- Back to Top Button -->
+  <button 
+    *ngIf="showBackToTopButton"
+    class="back-to-top-btn"
+    (click)="scrollToTop()"
+    title="Scroll back to top">
+    ↑ Top
+  </button>
 </div>

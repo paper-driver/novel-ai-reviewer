@@ -5,8 +5,8 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { PromptGroupingService, PromptGroupInfo } from '../../services/prompt-grouping.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
-import { Subject, interval } from 'rxjs';
-import { takeUntil, switchMap } from 'rxjs/operators';
+import { Subject, interval, forkJoin, from, of } from 'rxjs';
+import { takeUntil, switchMap, mergeMap, map, catchError } from 'rxjs/operators';
 
 @Component({
   selector: 'app-prompt-grouping',
@@ -35,14 +35,29 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   editingNickname: string = '';
   savingNickname = false;
   showNicknameAssignDropdown = false;
+  filteredEditingNicknames: string[] = []; // Filtered suggestions while editing
+  selectedSuggestionIndex: number = -1; // Track selected suggestion via keyboard
 
   // Filter state
   filterText: string = '';
   showFilters = false;
+  showOnlyNoNickname = false;
+
+  // Bulk nickname assignment state
+  showBulkAssignDropdown = false;
+  bulkAssignNickname: string = '';
+  filteredBulkAssignNicknames: string[] = [];
+  selectedBulkIndex: number = -1;
+  isAssigningBulkNickname = false;
+  bulkAssignProgress = 0;
+  bulkAssignProgressText = '';
 
   // Nickname dropdown
   availableNicknames: string[] = [];
   showNicknameDropdown = false;
+
+  // Back to top button
+  showBackToTopButton = false;
 
   // Progress tracking
   showProgress = false;
@@ -63,7 +78,12 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     this.userTimezone = `UTC${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // Listen for scroll events to show/hide back-to-top button
+    window.addEventListener('scroll', () => {
+      this.showBackToTopButton = window.scrollY > 300;
+    });
+  }
 
   ngOnDestroy(): void {
     this.destroy$.next();
@@ -71,6 +91,16 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     if (this.progressSubscription) {
       this.progressSubscription.unsubscribe();
     }
+  }
+
+  /**
+   * Scroll back to top of the page smoothly
+   */
+  scrollToTop(): void {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   }
 
   async selectFolder(): Promise<void> {
@@ -265,6 +295,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   startEditingNickname(group: PromptGroupInfo): void {
     this.editingGroupId = group.groupId;
     this.editingNickname = group.groupNickname || '';
+    this.selectedSuggestionIndex = -1;
+    this.updateFilteredEditingNicknames();
   }
 
   /**
@@ -274,6 +306,7 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     this.editingGroupId = null;
     this.editingNickname = '';
     this.showNicknameAssignDropdown = false;
+    this.selectedSuggestionIndex = -1;
   }
 
   /**
@@ -285,6 +318,94 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       this.addNicknameToAvailable(this.editingNickname);
     }
     this.showNicknameAssignDropdown = !this.showNicknameAssignDropdown;
+  }
+
+  /**
+   * Update filtered nicknames based on current editing input
+   */
+  updateFilteredEditingNicknames(): void {
+    if (!this.editingNickname.trim()) {
+      // Show all available nicknames if input is empty
+      this.filteredEditingNicknames = [...this.availableNicknames];
+      return;
+    }
+
+    const searchTerm = this.editingNickname.toLowerCase().trim();
+    this.filteredEditingNicknames = this.availableNicknames.filter(nickname =>
+      nickname.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  /**
+   * Handle editing nickname input change
+   */
+  onEditingNicknameChange(): void {
+    this.updateFilteredEditingNicknames();
+    // Auto-show dropdown if user has typed something (even if no matches)
+    if (this.editingNickname.trim()) {
+      this.showNicknameAssignDropdown = true;
+      this.selectedSuggestionIndex = -1; // Reset selection when filter changes
+    }
+  }
+
+  /**
+   * Handle keyboard navigation in nickname suggestions
+   */
+  onNicknameInputKeydown(event: KeyboardEvent, groupId: number): void {
+    // Special handling for Enter key - allow custom nicknames
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      // If a suggestion is selected, use it
+      if (this.selectedSuggestionIndex >= 0 && this.selectedSuggestionIndex < this.filteredEditingNicknames.length) {
+        const selectedNickname = this.filteredEditingNicknames[this.selectedSuggestionIndex];
+        this.assignNicknameFromDropdown(selectedNickname);
+      } else if (this.editingNickname.trim()) {
+        // Otherwise, save the custom nickname entered
+        this.showNicknameAssignDropdown = false;
+      }
+      this.saveGroupNickname(groupId);
+      return;
+    }
+
+    // Handle Escape key
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.showNicknameAssignDropdown = false;
+      this.selectedSuggestionIndex = -1;
+      return;
+    }
+
+    // Handle Tab and Arrow keys only if dropdown is visible with suggestions
+    if (!this.showNicknameAssignDropdown || this.filteredEditingNicknames.length === 0) {
+      if (event.key === 'Tab') {
+        // Allow Tab to navigate normally if no dropdown
+        return;
+      }
+      return;
+    }
+
+    switch (event.key) {
+      case 'Tab':
+      case 'ArrowDown':
+        event.preventDefault();
+        // Move to next suggestion
+        if (this.selectedSuggestionIndex < this.filteredEditingNicknames.length - 1) {
+          this.selectedSuggestionIndex++;
+        } else {
+          this.selectedSuggestionIndex = 0; // Wrap around
+        }
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        // Move to previous suggestion
+        if (this.selectedSuggestionIndex > 0) {
+          this.selectedSuggestionIndex--;
+        } else {
+          this.selectedSuggestionIndex = this.filteredEditingNicknames.length - 1; // Wrap around
+        }
+        break;
+    }
   }
 
   /**
@@ -361,20 +482,77 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Apply filter to groups based on nickname (case-insensitive)
+   * Apply filter to groups based on nickname, Group ID, and prompt text (case-insensitive)
+   * Supports multiple search terms separated by commas (AND logic - match ALL terms)
+   * Supports exclusion filters by prefixing with "-" (e.g., "-red, blue" = includes blue but NOT red)
+   * Also supports filtering for groups with no nickname
    */
   applyFilter(): void {
+    // First, apply the no-nickname filter if enabled
+    let baseGroups = this.groups;
+    if (this.showOnlyNoNickname) {
+      baseGroups = this.groups.filter(group => !group.groupNickname || !group.groupNickname.trim());
+    }
+
+    // Then apply the text filter if there's search text
     if (!this.filterText.trim()) {
-      this.filteredGroups = this.groups;
+      this.filteredGroups = baseGroups;
       return;
     }
 
-    const searchTerm = this.filterText.toLowerCase().trim();
-    this.filteredGroups = this.groups.filter(group => {
+    // Split by comma and trim each term
+    const allTerms = this.filterText
+      .split(',')
+      .map(term => term.toLowerCase().trim())
+      .filter(term => term.length > 0);
+
+    if (allTerms.length === 0) {
+      this.filteredGroups = baseGroups;
+      return;
+    }
+
+    // Separate inclusion and exclusion terms
+    const inclusionTerms = allTerms.filter(term => !term.startsWith('-'));
+    const exclusionTerms = allTerms.filter(term => term.startsWith('-')).map(term => term.substring(1)); // Remove the "-" prefix
+
+    this.filteredGroups = baseGroups.filter(group => {
       const nickname = group.groupNickname ? group.groupNickname.toLowerCase() : '';
       const groupIdStr = group.groupId.toString();
-      return nickname.includes(searchTerm) || groupIdStr.includes(searchTerm);
+      const normalizedPrompt = group.normalizedPrompt ? group.normalizedPrompt.toLowerCase() : '';
+      const samplePrompt = group.sampleOriginalPrompt ? group.sampleOriginalPrompt.toLowerCase() : '';
+      
+      const searchFields = [nickname, groupIdStr, normalizedPrompt, samplePrompt];
+      
+      // If there are inclusion terms, ALL must match in any field (AND logic)
+      if (inclusionTerms.length > 0) {
+        const matchesInclusionTerms = inclusionTerms.every(term =>
+          searchFields.some(field => field.includes(term))
+        );
+        if (!matchesInclusionTerms) {
+          return false;
+        }
+      }
+      
+      // If there are exclusion terms, NONE should match in any field
+      if (exclusionTerms.length > 0) {
+        const matchesExclusionTerms = exclusionTerms.some(term =>
+          searchFields.some(field => field.includes(term))
+        );
+        if (matchesExclusionTerms) {
+          return false;
+        }
+      }
+      
+      return true;
     });
+  }
+
+  /**
+   * Toggle the "show only no nickname" filter
+   */
+  toggleShowOnlyNoNickname(): void {
+    this.showOnlyNoNickname = !this.showOnlyNoNickname;
+    this.applyFilter();
   }
 
   /**
@@ -382,6 +560,7 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
    */
   clearFilter(): void {
     this.filterText = '';
+    this.showOnlyNoNickname = false;
     this.filteredGroups = this.groups;
   }
 
@@ -427,5 +606,181 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
    */
   closeNicknameDropdown(): void {
     this.showNicknameDropdown = false;
+  }
+
+  /**
+   * Toggle bulk nickname assignment dropdown
+   */
+  toggleBulkAssignDropdown(): void {
+    this.showBulkAssignDropdown = !this.showBulkAssignDropdown;
+    if (this.showBulkAssignDropdown) {
+      this.updateFilteredBulkNicknames();
+    }
+  }
+
+  /**
+   * Update filtered nicknames for bulk assignment based on input
+   */
+  updateFilteredBulkNicknames(): void {
+    if (!this.bulkAssignNickname.trim()) {
+      this.filteredBulkAssignNicknames = [...this.availableNicknames];
+      return;
+    }
+
+    const searchTerm = this.bulkAssignNickname.toLowerCase().trim();
+    this.filteredBulkAssignNicknames = this.availableNicknames.filter(nickname =>
+      nickname.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  /**
+   * Handle bulk assignment input change
+   */
+  onBulkAssignInputChange(): void {
+    this.updateFilteredBulkNicknames();
+    if (this.bulkAssignNickname.trim() && this.filteredBulkAssignNicknames.length > 0) {
+      this.showBulkAssignDropdown = true;
+      this.selectedBulkIndex = -1;
+    }
+  }
+
+  /**
+   * Select nickname for bulk assignment
+   */
+  selectBulkNickname(nickname: string): void {
+    this.bulkAssignNickname = nickname;
+    this.showBulkAssignDropdown = false;
+  }
+
+  /**
+   * Assign the same nickname to all filtered groups with progress tracking
+   */
+  assignNicknameToAllFiltered(): void {
+    if (!this.bulkAssignNickname.trim()) {
+      this.error = 'Please enter or select a nickname';
+      return;
+    }
+
+    if (this.filteredGroups.length === 0) {
+      this.error = 'No groups to assign nickname to';
+      return;
+    }
+
+    this.isAssigningBulkNickname = true;
+    this.bulkAssignProgress = 0;
+    this.bulkAssignProgressText = '0%';
+    this.error = null;
+
+    const nicknameToAssign = this.bulkAssignNickname.trim();
+    const totalGroups = this.filteredGroups.length;
+    let completedCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Use mergeMap with concurrency limit (5 parallel requests at a time)
+    from(this.filteredGroups)
+      .pipe(
+        mergeMap(
+          group =>
+            this.groupingService.setGroupNickname(this.folderPath, group.groupId, nicknameToAssign).pipe(
+              map(response => ({ response, group })),
+              catchError(err => of({ response: { success: false }, group, error: err }))
+            ),
+          5 // 5 concurrent requests
+        ),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (result) => {
+          completedCount++;
+          const { response, group } = result;
+
+          if (response.success) {
+            group.groupNickname = response.nickname;
+            // Also update in the main groups array
+            const mainGroup = this.groups.find(g => g.groupId === group.groupId);
+            if (mainGroup) {
+              mainGroup.groupNickname = response.nickname;
+            }
+            successCount++;
+          } else {
+            errorCount++;
+          }
+
+          // Update progress
+          this.bulkAssignProgress = Math.round((completedCount / totalGroups) * 100);
+          this.bulkAssignProgressText = `${this.bulkAssignProgress}% (${completedCount}/${totalGroups})`;
+        },
+        error: (err) => {
+          this.isAssigningBulkNickname = false;
+          this.error = 'Failed to assign nickname to some groups. Please try again.';
+          console.error('Error during bulk assignment:', err);
+        },
+        complete: () => {
+          this.isAssigningBulkNickname = false;
+          this.bulkAssignProgress = 100;
+
+          if (errorCount === 0) {
+            // Success - update available nicknames and close dialog
+            this.addNicknameToAvailable(nicknameToAssign);
+            this.bulkAssignNickname = '';
+            this.showBulkAssignDropdown = false;
+            this.selectedBulkIndex = -1;
+            this.bulkAssignProgressText = '';
+            alert(`Successfully assigned "${nicknameToAssign}" to ${successCount} group(s)`);
+          } else {
+            this.error = `Assigned nickname to ${successCount} group(s), but ${errorCount} failed`;
+            this.bulkAssignProgressText = '';
+          }
+        }
+      });
+  }
+
+  /**
+   * Handle keyboard navigation in bulk assignment dropdown
+   */
+  onBulkAssignKeydown(event: KeyboardEvent): void {
+    if (!this.showBulkAssignDropdown || this.filteredBulkAssignNicknames.length === 0) {
+      if (event.key === 'Enter' && this.bulkAssignNickname.trim()) {
+        event.preventDefault();
+        this.assignNicknameToAllFiltered();
+      }
+      return;
+    }
+
+    switch (event.key) {
+      case 'Tab':
+      case 'ArrowDown':
+        event.preventDefault();
+        if (this.selectedBulkIndex < this.filteredBulkAssignNicknames.length - 1) {
+          this.selectedBulkIndex++;
+        } else {
+          this.selectedBulkIndex = 0;
+        }
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        if (this.selectedBulkIndex > 0) {
+          this.selectedBulkIndex--;
+        } else {
+          this.selectedBulkIndex = this.filteredBulkAssignNicknames.length - 1;
+        }
+        break;
+
+      case 'Enter':
+        event.preventDefault();
+        if (this.selectedBulkIndex >= 0 && this.selectedBulkIndex < this.filteredBulkAssignNicknames.length) {
+          this.selectBulkNickname(this.filteredBulkAssignNicknames[this.selectedBulkIndex]);
+        }
+        this.assignNicknameToAllFiltered();
+        break;
+
+      case 'Escape':
+        event.preventDefault();
+        this.showBulkAssignDropdown = false;
+        this.selectedBulkIndex = -1;
+        break;
+    }
   }
 }

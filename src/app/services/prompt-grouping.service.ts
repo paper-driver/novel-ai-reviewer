@@ -91,11 +91,11 @@ export class PromptGroupingService {
   }
 
   /**
-   * Get thumbnail URL for an image
+   * Get thumbnail URL for an image (loads optimized partial file for faster display)
    */
   getThumbnailUrl(folderPath: string, filename: string): string {
     const fullFilePath = `${folderPath}/${filename}`;
-    return `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}`;
+    return `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}&thumbnail=true`;
   }
 
   /**

@@ -46,3 +46,12 @@
   [reviewData]="selectedReview"
   (closeModal)="closeImageViewer()"
 ></app-image-viewer-modal>
+
+<!-- Back to Top Button -->
+<button 
+  *ngIf="showBackToTopButton"
+  class="back-to-top-btn"
+  (click)="scrollToTop()"
+  title="Scroll back to top">
+  ↑ Top
+</button>

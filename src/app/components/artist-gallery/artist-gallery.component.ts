@@ -27,6 +27,9 @@ export class ArtistGalleryComponent implements OnInit {
   // Timezone info for user reference
   userTimezone: string = '';
 
+  // Back to top button
+  showBackToTopButton = false;
+
   constructor(
     private galleryService: ArtistGalleryService,
     private folderPickerService: FolderPickerService
@@ -39,7 +42,22 @@ export class ArtistGalleryComponent implements OnInit {
     this.userTimezone = `UTC${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // Listen for scroll events to show/hide back-to-top button
+    window.addEventListener('scroll', () => {
+      this.showBackToTopButton = window.scrollY > 300;
+    });
+  }
+
+  /**
+   * Scroll back to top of the page smoothly
+   */
+  scrollToTop(): void {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
 
   async selectSortedFolder(): Promise<void> {
     try {
