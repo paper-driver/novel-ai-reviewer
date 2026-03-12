@@ -1,0 +1,268 @@
+<div class="prompt-grouping-container">
+  <h2>Prompt-Based Grouping</h2>
+  
+  <div class="info-box">
+    <p>
+      Browse and view images organized by generation prompts (excluding artist tags).
+      Select a folder to load all prompt groups with thumbnails.
+    </p>
+  </div>
+
+  <!-- Folder Selection -->
+  <div class="selection-panel">
+    <div class="folder-picker-group">
+      <label>📁 Select Folder:</label>
+      <div class="folder-picker-controls">
+        <input 
+          type="text" 
+          placeholder="Enter path or click folder icon"
+          [(ngModel)]="folderPath"
+          (blur)="onFolderInputBlur()"
+          [disabled]="isLoading"
+          class="folder-path-input"
+          title="Click the folder icon to pick a folder, or paste/type the full path here"
+        />
+        <button 
+          (click)="selectFolder()" 
+          [disabled]="isLoading"
+          class="btn-folder-icon"
+          title="Click to open folder picker">
+          🗂️
+        </button>
+      </div>
+      <small class="help-text">
+        Click the folder icon to open the native folder picker, or enter a path directly.
+      </small>
+    </div>
+
+    <button 
+      (click)="loadGroups()" 
+      [disabled]="!folderPath || isLoading"
+      class="btn-load">
+      {{ isLoading ? 'Loading Groups...' : 'Load Prompt Groups' }}
+    </button>
+
+    <button 
+      (click)="openFolderInFinder()" 
+      [disabled]="!folderPath || isLoading"
+      class="btn-open-folder"
+      title="Open this folder in Finder">
+      📂 Open in Finder
+    </button>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    <strong>Error:</strong> {{ error }}
+  </div>
+
+  <!-- Loading State with Progress Bar -->
+  <div *ngIf="isLoading" class="loading-state">
+    <div class="progress-container">
+      <h3>Loading Prompt Groups...</h3>
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="progressPercentage"></div>
+        </div>
+        <div class="progress-percentage">{{ progressPercentage }}%</div>
+      </div>
+      <p class="progress-text">{{ progressText }}</p>
+    </div>
+  </div>
+
+  <!-- Gallery Table -->
+  <div *ngIf="!isLoading && groups.length > 0" class="gallery-section">
+    <div class="gallery-header">
+      <h3>Prompt Groups ({{ groups.length }} groups, {{ totalImages }} images)</h3>
+      <div class="timezone-info">
+        Timestamps in your local timezone: {{ userTimezone }}
+      </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-section">
+      <button 
+        class="btn-filter-toggle"
+        (click)="toggleFilterPanel()"
+        title="Toggle filter panel">
+        🔍 Filter by Nickname
+        <span class="filter-count" *ngIf="filteredGroups.length < groups.length">
+          ({{ filteredGroups.length }}/{{ groups.length }})
+        </span>
+      </button>
+      
+      <div class="filter-panel" *ngIf="showFilters">
+        <div class="filter-controls">
+          <div class="filter-input-wrapper">
+            <input 
+              type="text"
+              placeholder="Search by nickname or Group ID..."
+              [(ngModel)]="filterText"
+              (input)="onFilterChange()"
+              class="filter-input"
+              autocomplete="off"
+            />
+            <!-- Nickname Dropdown Button -->
+            <button 
+              class="btn-nickname-dropdown"
+              (click)="toggleNicknameDropdown()"
+              [disabled]="availableNicknames.length === 0"
+              title="Show available nicknames">
+              ▼
+            </button>
+            
+            <!-- Nickname Dropdown Menu -->
+            <div class="nickname-dropdown" *ngIf="showNicknameDropdown && availableNicknames.length > 0">
+              <div class="dropdown-header">
+                <strong>Available Nicknames:</strong>
+              </div>
+              <div class="dropdown-items">
+                <div 
+                  *ngFor="let nickname of availableNicknames"
+                  class="dropdown-item"
+                  (click)="selectNickname(nickname)">
+                  {{ nickname }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <button 
+            class="btn-clear-filter"
+            (click)="clearFilter()"
+            [disabled]="!filterText && filteredGroups.length === groups.length"
+            title="Clear filter and show all groups">
+            ✕ Clear
+          </button>
+        </div>
+        <div class="filter-info">
+          <span *ngIf="filteredGroups.length === groups.length">
+            No filters applied
+          </span>
+          <span *ngIf="filteredGroups.length < groups.length && filteredGroups.length > 0">
+            Showing {{ filteredGroups.length }} of {{ groups.length }} groups
+          </span>
+          <span *ngIf="filteredGroups.length === 0 && filterText">
+            No groups match your filter
+          </span>
+          <span *ngIf="availableNicknames.length > 0" class="nickname-count">
+            • {{ availableNicknames.length }} nicknames available
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gallery-table-wrapper">
+      <table class="gallery-table">
+        <thead>
+          <tr>
+            <th class="col-group-id">Group ID / Nickname</th>
+            <th class="col-preview">Preview Thumbnail</th>
+            <th class="col-count">Images</th>
+            <th class="col-prompt">Normalized Prompt</th>
+            <th class="col-modified">Latest Modified</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let group of filteredGroups" class="gallery-row">
+            <!-- Group ID / Nickname Column -->
+            <td class="col-group-id">
+              <div class="group-id-wrapper">
+                <div *ngIf="editingGroupId !== group.groupId" class="group-id-display">
+                  <div class="group-id">{{ group.groupId }}</div>
+                  <div class="group-nickname" *ngIf="group.groupNickname">{{ group.groupNickname }}</div>
+                  <button 
+                    class="btn-edit-nickname"
+                    (click)="startEditingNickname(group)"
+                    title="Edit nickname for this group">
+                    ✎
+                  </button>
+                </div>
+                <div *ngIf="editingGroupId === group.groupId" class="group-id-edit">
+                  <div class="nickname-edit-wrapper">
+                    <input 
+                      type="text" 
+                      [(ngModel)]="editingNickname"
+                      placeholder="Enter nickname"
+                      class="nickname-input"
+                      (keyup.enter)="saveGroupNickname(group.groupId)"
+                      (keyup.escape)="cancelEditingNickname()">
+                    <button 
+                      class="btn-nickname-assign-dropdown"
+                      (click)="toggleNicknameAssignDropdown()"
+                      [disabled]="availableNicknames.length === 0"
+                      title="Select from existing nicknames">
+                      ▼
+                    </button>
+                    <!-- Nickname Assignment Dropdown -->
+                    <div class="nickname-assign-dropdown" *ngIf="showNicknameAssignDropdown && availableNicknames.length > 0">
+                      <div class="dropdown-header">
+                        <strong>Available Nicknames:</strong>
+                      </div>
+                      <div class="dropdown-items">
+                        <div 
+                          *ngFor="let nickname of availableNicknames"
+                          class="dropdown-item"
+                          (click)="assignNicknameFromDropdown(nickname)">
+                          {{ nickname }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    class="btn-cancel-nickname"
+                    (click)="cancelEditingNickname()"
+                    [disabled]="savingNickname"
+                    title="Cancel (ESC)">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </td>
+
+            <!-- Thumbnail Column -->
+            <td class="col-preview">
+              <div class="thumbnail-container">
+                <img 
+                  [src]="getThumbnailUrl(group)" 
+                  [alt]="'Group ' + group.groupId"
+                  class="thumbnail-image"
+                  (click)="openImageViewer(group)"
+                  title="Click to view images">
+              </div>
+            </td>
+
+            <!-- Image Count Column -->
+            <td class="col-count">
+              <div class="count-badge">{{ group.imageCount }}</div>
+            </td>
+
+            <!-- Normalized Prompt Column -->
+            <td class="col-prompt">
+              <div class="prompt-text" [title]="group.normalizedPrompt">
+                {{ group.normalizedPrompt }}
+              </div>
+            </td>
+
+            <!-- Latest Modified Column -->
+            <td class="col-modified">
+              <div class="modified-date">{{ formatLatestModifiedDate(group) }}</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && folderPath && groups.length === 0" class="empty-state">
+    <p>No prompt groups found in the selected folder.</p>
+    <p class="help-text">Make sure you've selected a folder with PNG image files.</p>
+  </div>
+
+  <!-- Image Viewer Modal - Reusable Component -->
+  <app-image-viewer-modal 
+    [isOpen]="showImageViewer"
+    [reviewData]="currentGroupReviewData"
+    (closeModal)="closeImageViewer()">
+  </app-image-viewer-modal>
+</div>

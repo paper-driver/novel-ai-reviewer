@@ -1328,6 +1328,551 @@ app.post('/api/open-file', (req, res) => {
   }
 });
 
+/**
+ * Helper function: Normalize prompt by removing artist tags
+ * Removes patterns like {artist: ...}, [artist: ...}, artist: ..., etc.
+ */
+function normalizePrompt(prompt) {
+  if (!prompt) return '';
+  
+  // Remove all artist tag patterns:
+  // {artist: ...}, [artist: ...}, artist: ..., etc.
+  let normalized = prompt
+    .replace(/\{+artist:\s*[^}]*\}+/gi, '') // {artist: ...}
+    .replace(/\[artist:\s*[^\]]*\]/gi, '')   // [artist: ...]
+    .replace(/artist:\s*[^,})\]]+/gi, '')    // artist: ... (standalone)
+    .replace(/,+\s*/g, ', ')                  // normalize commas
+    .replace(/\s+/g, ' ')                     // normalize spaces
+    .trim();
+  
+  // Remove leading/trailing commas and spaces
+  normalized = normalized.replace(/^[\s,]+|[\s,]+$/g, '');
+  
+  return normalized.toLowerCase();
+}
+
+/**
+ * Helper: Recursively scan folder for PNG files (including nested folders)
+ * Returns array of objects with { filename, relativePath, fullPath, mtime }
+ */
+function scanPNGFilesRecursive(folderPath, basePath = folderPath) {
+  const results = [];
+  
+  try {
+    const entries = fs.readdirSync(folderPath);
+    
+    for (const entry of entries) {
+      if (isMacSystemFile(entry)) continue;
+      
+      const fullPath = path.join(folderPath, entry);
+      const stats = fs.statSync(fullPath);
+      
+      if (stats.isDirectory()) {
+        // Recursively scan subdirectories
+        const subResults = scanPNGFilesRecursive(fullPath, basePath);
+        results.push(...subResults);
+      } else if (stats.isFile() && entry.endsWith('.png')) {
+        const relativePath = path.relative(basePath, fullPath);
+        results.push({
+          filename: entry,
+          relativePath: relativePath,
+          fullPath: fullPath,
+          mtime: stats.mtimeMs || stats.mtime.getTime()
+        });
+      }
+    }
+  } catch (err) {
+    console.warn(`[PromptGrouping] Error scanning folder ${folderPath}:`, err.message);
+  }
+  
+  return results;
+}
+
+/**
+ * Track loading progress for each folder
+ * Key: folderPath, Value: { totalFiles, processedFiles, status }
+ */
+const loadingProgress = new Map();
+
+/**
+ * POST /api/prompt-grouping/load-groups
+ * Scans a folder (including nested folders), extracts prompts, normalizes them (removes artist tags),
+ * and groups images by matching prompt content. Uses cached mapping when available for speed.
+ * Request body: { folderPath: string, useCache?: boolean }
+ * Response: { success: boolean, folder: string, groups: PromptGroupInfo[], totals: {...}, cached?: boolean }
+ */
+app.post('/api/prompt-grouping/load-groups', (req, res) => {
+  try {
+    const { folderPath, useCache = true } = req.body;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folderPath' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+    
+    const stats = fs.statSync(resolvedPath);
+    if (!stats.isDirectory()) {
+      return res.status(400).json({ error: 'Path is not a directory' });
+    }
+
+    const mappingFile = path.join(resolvedPath, '.prompt-mapping.json');
+    
+    // Try to use cached mapping if available
+    if (useCache && fs.existsSync(mappingFile)) {
+      try {
+        const mapping = JSON.parse(fs.readFileSync(mappingFile, 'utf8'));
+        
+        // Validate cache: Check if any files have been modified since last update
+        const pngFiles = scanPNGFilesRecursive(resolvedPath);
+        const lastUpdated = mapping.lastUpdated ? new Date(mapping.lastUpdated).getTime() : 0;
+        const hasModifiedFiles = pngFiles.some(f => f.mtime > lastUpdated);
+        
+        if (!hasModifiedFiles && mapping.groups && Object.keys(mapping.groups).length > 0) {
+          // Cache is valid, use it
+          console.log(`[PromptGrouping] Using cached mapping for ${resolvedPath}`);
+          
+          const groupNicknames = mapping.groupNicknames || {};
+          const promptGroups = mapping.groups || {};
+          
+          // Convert to array and add metadata
+          const groupsArray = Object.values(promptGroups).map(group => {
+            if (!group.images || group.images.length === 0) return null;
+            
+            // Use cached mtime or recalculate if needed
+            let latestModifiedTime = group.latestModifiedTime || 0;
+            if (!latestModifiedTime) {
+              group.images.forEach(imgFile => {
+                try {
+                  const filePath = path.join(resolvedPath, imgFile);
+                  if (fs.existsSync(filePath)) {
+                    const fileStats = fs.statSync(filePath);
+                    const fileModTime = fileStats.mtimeMs || fileStats.mtime.getTime();
+                    if (fileModTime > latestModifiedTime) {
+                      latestModifiedTime = fileModTime;
+                    }
+                  }
+                } catch (err) {
+                  // Ignore errors
+                }
+              });
+            }
+            
+            return {
+              groupId: group.groupId,
+              groupName: group.groupName,
+              groupNickname: groupNicknames[group.groupId] || '',
+              normalizedPrompt: group.normalizedPrompt,
+              sampleOriginalPrompt: group.sampleOriginalPrompt,
+              images: group.images,
+              imageCount: group.images.length,
+              thumbnailPath: group.images[0],
+              latestModifiedTime: latestModifiedTime || Date.now()
+            };
+          }).filter(g => g !== null);
+
+          return res.json({
+            success: true,
+            folder: resolvedPath,
+            groups: groupsArray,
+            totals: {
+              groups: groupsArray.length,
+              images: groupsArray.reduce((sum, g) => sum + g.imageCount, 0)
+            },
+            cached: true
+          });
+        }
+      } catch (err) {
+        console.warn('[PromptGrouping] Cache validation failed, will reprocess:', err.message);
+      }
+    }
+
+    // Full reprocessing needed
+    console.log(`[PromptGrouping] Reprocessing ${resolvedPath} (cache not available or disabled)`);
+    
+    let promptGroups = {};
+    let promptToGroupId = {};
+    let groupNicknames = {};
+    
+    if (fs.existsSync(mappingFile)) {
+      try {
+        const mapping = JSON.parse(fs.readFileSync(mappingFile, 'utf8'));
+        promptGroups = mapping.groups || {};
+        promptToGroupId = mapping.promptToGroupId || {};
+        groupNicknames = mapping.groupNicknames || {};
+      } catch (err) {
+        console.warn('[PromptGrouping] Failed to read mapping file:', err.message);
+      }
+    }
+
+    // Scan all PNG files recursively
+    const pngFiles = scanPNGFilesRecursive(resolvedPath);
+    console.log(`[PromptGrouping] Found ${pngFiles.length} PNG files in ${resolvedPath}`);
+    
+    // Initialize progress tracking
+    const folderKey = resolvedPath;
+    loadingProgress.set(folderKey, {
+      totalFiles: pngFiles.length,
+      processedFiles: 0,
+      status: 'processing'
+    });
+
+    // Process each file to extract prompt
+    const processedImages = {};
+    pngFiles.forEach((fileInfo, index) => {
+      try {
+        const fileBuffer = fs.readFileSync(fileInfo.fullPath);
+        const metadata = readPNGMetadata(fileBuffer);
+        
+        let prompt = null;
+        
+        // Try to read embedded PNG metadata
+        if (metadata.comment) {
+          try {
+            const commentData = JSON.parse(metadata.comment);
+            if (commentData.prompt) {
+              prompt = commentData.prompt;
+            }
+          } catch (e) {
+            prompt = metadata.comment;
+          }
+        }
+        
+        if (!prompt && metadata.description) {
+          prompt = metadata.description;
+        }
+        
+        // Fall back to filename extraction
+        if (!prompt) {
+          const match = fileInfo.filename.match(/^(.+?)\s+s-\d+\.png$/i);
+          if (match) {
+            prompt = match[1];
+          }
+        }
+        
+        if (prompt) {
+          const normalizedPrompt = normalizePrompt(prompt);
+          processedImages[fileInfo.relativePath] = {
+            originalPrompt: prompt,
+            normalizedPrompt: normalizedPrompt,
+            fullPath: fileInfo.fullPath,
+            mtime: fileInfo.mtime
+          };
+        }
+      } catch (err) {
+        console.warn(`[PromptGrouping] Failed to process ${fileInfo.relativePath}:`, err.message);
+      }
+      
+      // Update progress
+      loadingProgress.set(folderKey, {
+        totalFiles: pngFiles.length,
+        processedFiles: index + 1,
+        status: 'processing'
+      });
+    });
+
+    // Group images by normalized prompt
+    const nextGroupId = Math.max(0, ...Object.keys(promptGroups).map(Number)) + 1;
+    let currentGroupId = nextGroupId;
+
+    for (const [relativePath, imgData] of Object.entries(processedImages)) {
+      const normalized = imgData.normalizedPrompt;
+      
+      // Check if this normalized prompt already has a group
+      if (promptToGroupId[normalized]) {
+        const groupId = promptToGroupId[normalized];
+        if (promptGroups[groupId]) {
+          promptGroups[groupId].images.push(relativePath);
+        }
+      } else {
+        // Create new group
+        const groupId = currentGroupId++;
+        promptToGroupId[normalized] = groupId;
+        promptGroups[groupId] = {
+          groupId: groupId,
+          groupName: `Group ${groupId}`,
+          normalizedPrompt: normalized,
+          images: [relativePath],
+          sampleOriginalPrompt: imgData.originalPrompt
+        };
+      }
+    }
+
+    // Convert to array and add metadata
+    const groupsArray = Object.values(promptGroups).map(group => {
+      if (!group.images || group.images.length === 0) return null;
+      
+      // Get latest modification time
+      let latestModifiedTime = 0;
+      group.images.forEach(imgFile => {
+        try {
+          const filePath = path.join(resolvedPath, imgFile);
+          if (fs.existsSync(filePath)) {
+            const fileStats = fs.statSync(filePath);
+            const fileModTime = fileStats.mtimeMs || fileStats.mtime.getTime();
+            if (fileModTime > latestModifiedTime) {
+              latestModifiedTime = fileModTime;
+            }
+          }
+        } catch (err) {
+          // Ignore errors
+        }
+      });
+      
+      return {
+        groupId: group.groupId,
+        groupName: group.groupName,
+        groupNickname: groupNicknames[group.groupId] || '',
+        normalizedPrompt: group.normalizedPrompt,
+        sampleOriginalPrompt: group.sampleOriginalPrompt,
+        images: group.images,
+        imageCount: group.images.length,
+        thumbnailPath: group.images[0],
+        latestModifiedTime: latestModifiedTime || Date.now()
+      };
+    }).filter(g => g !== null);
+
+    // Save mapping file for future reference (with mtime info for cache validation)
+    try {
+      const mappingToSave = {
+        groups: Object.fromEntries(Object.entries(promptGroups).map(([id, g]) => {
+          return [id, {
+            ...g,
+            latestModifiedTime: groupsArray.find(ga => ga.groupId === parseInt(id))?.latestModifiedTime
+          }];
+        })),
+        promptToGroupId: promptToGroupId,
+        groupNicknames: groupNicknames,
+        lastUpdated: new Date().toISOString()
+      };
+      fs.writeFileSync(mappingFile, JSON.stringify(mappingToSave, null, 2));
+      console.log('[PromptGrouping] Mapping file saved:', mappingFile);
+    } catch (err) {
+      console.warn('[PromptGrouping] Failed to save mapping file:', err.message);
+    }
+
+    // Clear progress tracking
+    loadingProgress.delete(folderKey);
+
+    res.json({
+      success: true,
+      folder: resolvedPath,
+      groups: groupsArray,
+      totals: {
+        groups: groupsArray.length,
+        images: groupsArray.reduce((sum, g) => sum + g.imageCount, 0)
+      },
+      cached: false
+    });
+  } catch (err) {
+    console.error('[PromptGrouping] Error loading groups:', err);
+    res.status(500).json({ error: 'Failed to load prompt groups', details: err.message });
+  }
+});
+
+/**
+ * GET /api/prompt-grouping/progress
+ * Get the current loading progress for a folder
+ * Query params: { folderPath: string }
+ */
+app.get('/api/prompt-grouping/progress', (req, res) => {
+  try {
+    const { folderPath } = req.query;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folderPath' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    const progress = loadingProgress.get(resolvedPath);
+
+    if (!progress) {
+      return res.json({
+        status: 'idle',
+        totalFiles: 0,
+        processedFiles: 0,
+        percentage: 0
+      });
+    }
+
+    res.json({
+      status: progress.status,
+      totalFiles: progress.totalFiles,
+      processedFiles: progress.processedFiles,
+      percentage: Math.round((progress.processedFiles / progress.totalFiles) * 100)
+    });
+  } catch (err) {
+    console.error('[PromptGrouping] Error getting progress:', err);
+    res.status(500).json({ error: 'Failed to get progress', details: err.message });
+  }
+});
+
+/**
+ * POST /api/prompt-grouping/set-nickname
+ * Set a nickname for a group ID
+ * Request body: { folderPath: string, groupId: number, nickname: string }
+ */
+app.post('/api/prompt-grouping/set-nickname', (req, res) => {
+  try {
+    const { folderPath, groupId, nickname } = req.body;
+    
+    if (!folderPath || groupId === undefined) {
+      return res.status(400).json({ error: 'Missing folderPath or groupId' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const mappingFile = path.join(resolvedPath, '.prompt-mapping.json');
+    let mapping = {
+      groups: {},
+      promptToGroupId: {},
+      groupNicknames: {}
+    };
+
+    if (fs.existsSync(mappingFile)) {
+      try {
+        mapping = JSON.parse(fs.readFileSync(mappingFile, 'utf8'));
+      } catch (err) {
+        console.warn('[PromptGrouping] Failed to read mapping file:', err.message);
+      }
+    }
+
+    // Ensure groupNicknames exists
+    if (!mapping.groupNicknames) {
+      mapping.groupNicknames = {};
+    }
+
+    // Update nickname
+    if (nickname && nickname.trim()) {
+      mapping.groupNicknames[groupId] = nickname.trim();
+    } else {
+      delete mapping.groupNicknames[groupId];
+    }
+
+    // Save updated mapping
+    mapping.lastUpdated = new Date().toISOString();
+    fs.writeFileSync(mappingFile, JSON.stringify(mapping, null, 2));
+
+    res.json({
+      success: true,
+      groupId: groupId,
+      nickname: mapping.groupNicknames[groupId] || ''
+    });
+  } catch (err) {
+    console.error('[PromptGrouping] Error setting nickname:', err);
+    res.status(500).json({ error: 'Failed to set nickname', details: err.message });
+  }
+});
+
+/**
+ * POST /api/prompt-grouping/load-groups
+ * Scans a folder (including nested folders), extracts prompts, normalizes them (removes artist tags),
+ * and groups images by matching prompt content
+ * Request body: { folderPath: string }
+ * Response: { success: boolean, folder: string, groups: PromptGroupInfo[], totals: {...} }
+ */
+// NOTE: This endpoint is defined above, removing duplicate definition
+
+/**
+ * GET /api/prompt-grouping/image
+ * Serves image file from prompt-grouping folder
+ */
+app.get('/api/prompt-grouping/image', (req, res) => {
+  try {
+    const { filePath: encodedPath } = req.query;
+    const filePath = decodeURIComponent(encodedPath);
+    
+    if (!filePath || !filePath.endsWith('.png')) {
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const imageBuffer = fs.readFileSync(filePath);
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(imageBuffer);
+  } catch (err) {
+    console.error('[PromptGrouping] Error serving image:', err);
+    res.status(500).json({ error: 'Failed to serve image', details: err.message });
+  }
+});
+
+/**
+ * GET /api/prompt-grouping/image-metadata
+ * Serves image metadata including original prompt and artist tags
+ */
+app.get('/api/prompt-grouping/image-metadata', (req, res) => {
+  try {
+    const { filePath: encodedPath } = req.query;
+    const filePath = decodeURIComponent(encodedPath);
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'Missing filePath' });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const filename = path.basename(filePath);
+    const imageBuffer = fs.readFileSync(filePath);
+    const metadata = readPNGMetadata(imageBuffer);
+    
+    let prompt = null;
+    
+    // Try to read embedded PNG metadata first
+    if (metadata.comment) {
+      try {
+        const commentData = JSON.parse(metadata.comment);
+        if (commentData.prompt) {
+          prompt = commentData.prompt;
+        }
+      } catch (e) {
+        prompt = metadata.comment;
+      }
+    }
+    
+    if (!prompt && metadata.description) {
+      prompt = metadata.description;
+    }
+    
+    // Fall back to filename extraction
+    if (!prompt) {
+      const match = filename.match(/^(.+?)\s+s-\d+\.png$/i);
+      if (match) {
+        prompt = match[1];
+      }
+    }
+    
+    const artists = extractArtistTags(prompt);
+    const normalizedPrompt = normalizePrompt(prompt);
+
+    console.log(`[PromptGrouping/image-metadata] Extracted prompt, artists: ${artists.join(', ')}`);
+
+    res.json({
+      success: true,
+      filename,
+      originalPrompt: prompt,
+      normalizedPrompt: normalizedPrompt,
+      artists,
+      generationData: JSON.stringify(metadata, null, 2)
+    });
+  } catch (err) {
+    console.error('[PromptGrouping/image-metadata] Error reading metadata:', err);
+    res.status(500).json({ error: 'Failed to read metadata', details: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Review server listening on port ${PORT}`);
 });

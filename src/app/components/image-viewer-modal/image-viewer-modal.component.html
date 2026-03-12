@@ -77,8 +77,16 @@
               {{ prompt || '(loading prompt...)' }}
             </span>
           </div>
+          <div class="metadata-item" *ngIf="artists && artists.length > 0">
+            <span class="metadata-label">Artist Tags</span>
+            <div class="artist-tags">
+              <span *ngFor="let artist of artists" class="artist-tag">
+                {{ artist }}
+              </span>
+            </div>
+          </div>
           <div class="metadata-item" *ngIf="reviewData?.artists && reviewData.artists.length > 0">
-            <span class="metadata-label">Artists</span>
+            <span class="metadata-label">Additional Artists</span>
             <div class="artist-tags">
               <span *ngFor="let artist of reviewData.artists" class="artist-tag">
                 {{ artist }}

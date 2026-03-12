@@ -10,8 +10,10 @@ export interface ReviewImage {
   // For artist gallery support
   artists?: string[];
   title?: string; // Used for artist tag display instead of prompt
-  // API type: 'reviews' (default) or 'artist-gallery'
-  apiType?: 'reviews' | 'artist-gallery';
+  // API type: 'reviews', 'artist-gallery', or 'prompt-grouping'
+  apiType?: 'reviews' | 'artist-gallery' | 'prompt-grouping';
+  // Additional data for specific API types
+  additionalData?: any;
 }
 
 @Component({
@@ -53,6 +55,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   
   // Metadata
   prompt: string = '';
+  artists: string[] = [];
   openFinderError: string = '';
 
   constructor(private http: HttpClient) {}
@@ -115,15 +118,17 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       
       // Clear previous metadata when switching images
       this.prompt = '';
+      this.artists = [];
       
       // Build image URL based on API type
       const apiType = this.reviewData.apiType || 'reviews';
       console.log(`[ImageViewer] Updating current image to: ${fileName}, apiType: ${apiType}`);
       
-      if (apiType === 'artist-gallery') {
-        // For artist-gallery: use the artist-gallery endpoint with encoded file path
+      if (apiType === 'artist-gallery' || apiType === 'prompt-grouping') {
+        // For artist-gallery and prompt-grouping: use the respective endpoints with encoded file path
         const fullFilePath = `${this.reviewData.folder}/${fileName}`;
-        this.currentImageUrl = `http://localhost:3000/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}`;
+        const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
+        this.currentImageUrl = `http://localhost:3000/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
       } else {
         // For reviews: use the standard images endpoint
         this.currentImageUrl = `http://localhost:3000/api/images/${this.reviewData.folder}/${fileName}`;
@@ -160,10 +165,11 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       const apiType = this.reviewData.apiType || 'reviews';
       let metadataUrl: string;
       
-      if (apiType === 'artist-gallery') {
-        // For artist-gallery: use artist-gallery endpoint with encoded file path
+      if (apiType === 'artist-gallery' || apiType === 'prompt-grouping') {
+        // For artist-gallery and prompt-grouping: use respective endpoints with encoded file path
         const fullFilePath = `${this.reviewData.folder}/${this.currentImageName}`;
-        metadataUrl = `http://localhost:3000/api/artist-gallery/image-metadata?filePath=${encodeURIComponent(fullFilePath)}`;
+        const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
+        metadataUrl = `http://localhost:3000/api/${endpoint}/image-metadata?filePath=${encodeURIComponent(fullFilePath)}`;
       } else {
         // For reviews: use standard endpoint
         metadataUrl = `http://localhost:3000/api/image-metadata/${this.reviewData.folder}/${this.currentImageName}`;
@@ -181,11 +187,23 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
         })
         .then(data => {
           console.log(`[ImageViewer] Metadata response:`, data);
+          // Support both 'prompt' and 'originalPrompt' fields
           if (data.prompt) {
             this.prompt = data.prompt;
             console.log('Prompt extracted:', this.prompt.substring(0, 100) + '...');
+          } else if (data.originalPrompt) {
+            this.prompt = data.originalPrompt;
+            console.log('Original prompt extracted:', this.prompt.substring(0, 100) + '...');
           } else {
             console.warn('No prompt in metadata:', data);
+          }
+          
+          // Extract artist tags if available
+          if (data.artists && Array.isArray(data.artists)) {
+            this.artists = data.artists;
+            console.log('Artists extracted:', this.artists);
+          } else {
+            this.artists = [];
           }
         })
         .catch(err => console.error('Error extracting image prompt:', err));
@@ -293,10 +311,11 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     
     const apiType = this.reviewData.apiType || 'reviews';
     let url: string;
-    if (apiType === 'artist-gallery') {
-      // For artist-gallery: use the artist-gallery endpoint with encoded file path
+    if (apiType === 'artist-gallery' || apiType === 'prompt-grouping') {
+      // For artist-gallery and prompt-grouping: use respective endpoints with encoded file path
       const fullFilePath = `${this.reviewData.folder}/${image}`;
-      url = `http://localhost:3000/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}`;
+      const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
+      url = `http://localhost:3000/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
     } else {
       // For reviews: use the standard images endpoint
       url = `http://localhost:3000/api/images/${this.reviewData.folder}/${image}`;

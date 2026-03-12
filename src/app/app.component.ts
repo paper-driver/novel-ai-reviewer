@@ -5,6 +5,7 @@ import { FilterPanelComponent } from './components/filter-panel/filter-panel.com
 import { ReviewsTableComponent } from './components/reviews-table/reviews-table.component';
 import { ArtistGroupingComponent } from './components/artist-grouping/artist-grouping.component';
 import { ArtistGalleryComponent } from './components/artist-gallery/artist-gallery.component';
+import { PromptGroupingComponent } from './components/prompt-grouping/prompt-grouping.component';
 import { Review } from './services/review.service';
 
 @Component({
@@ -16,7 +17,8 @@ import { Review } from './services/review.service';
     FilterPanelComponent,
     ReviewsTableComponent,
     ArtistGroupingComponent,
-    ArtistGalleryComponent
+    ArtistGalleryComponent,
+    PromptGroupingComponent
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
@@ -24,7 +26,7 @@ import { Review } from './services/review.service';
 export class AppComponent {
   filters: any = {};
   editingReview: Review | null = null;
-  currentTab: 'reviews' | 'grouping' | 'gallery' = 'reviews';
+  currentTab: 'reviews' | 'grouping' | 'gallery' | 'prompt-grouping' = 'reviews';
 
   /**
    * Handler invoked when filters change or when a review is created.

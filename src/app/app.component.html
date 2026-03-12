@@ -21,6 +21,12 @@
       (click)="currentTab = 'gallery'">
       Artist Gallery
     </button>
+    <button 
+      class="tab-button" 
+      [class.active]="currentTab === 'prompt-grouping'"
+      (click)="currentTab = 'prompt-grouping'">
+      Prompt-Based Grouping
+    </button>
   </div>
 
   <!-- Reviews Section -->
@@ -45,5 +51,10 @@
   <!-- Artist Gallery Section -->
   <div *ngIf="currentTab === 'gallery'" class="gallery-section">
     <app-artist-gallery></app-artist-gallery>
+  </div>
+
+  <!-- Prompt-Based Grouping Section -->
+  <div *ngIf="currentTab === 'prompt-grouping'" class="prompt-grouping-section">
+    <app-prompt-grouping></app-prompt-grouping>
   </div>
 </div>
