@@ -13,17 +13,25 @@
     <div class="folder-picker-group">
       <label>📁 Select Sorted Folder:</label>
       <div class="folder-picker-controls">
+        <input 
+          type="text" 
+          placeholder="Enter path or click folder icon"
+          [(ngModel)]="sortedFolderPath"
+          (blur)="onSortedFolderInputBlur()"
+          [disabled]="isLoading"
+          class="folder-path-input"
+          title="Click the folder icon to pick a folder, or paste/type the full path here"
+        />
         <button 
           (click)="selectSortedFolder()" 
           [disabled]="isLoading"
-          class="btn-select-folder"
-          [class.selected]="sortedFolderPath">
-          {{ sortedFolderPath || 'Click to Select Sorted Folder' }}
+          class="btn-folder-icon"
+          title="Click to open folder picker">
+          🗂️
         </button>
-        <span *ngIf="sortedFolderPath" class="folder-path">{{ sortedFolderPath }}</span>
       </div>
       <small class="help-text">
-        Click to open the native folder picker and select the sorted folder containing artist subfolders.
+        Click the folder icon to open the native folder picker, or enter a path directly.
       </small>
     </div>
 
@@ -32,6 +40,14 @@
       [disabled]="!sortedFolderPath || isLoading"
       class="btn-load">
       {{ isLoading ? 'Loading Groups...' : 'Load Artist Groups' }}
+    </button>
+
+    <button 
+      (click)="openFolderInFinder()" 
+      [disabled]="!sortedFolderPath || isLoading"
+      class="btn-open-folder"
+      title="Open this folder in Finder">
+      📂 Open in Finder
     </button>
   </div>
 

@@ -1,5 +1,6 @@
-import { Component, Input, Output, EventEmitter, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 
 export interface ReviewImage {
   images: string[];
@@ -16,11 +17,11 @@ export interface ReviewImage {
 @Component({
   selector: 'app-image-viewer-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, HttpClientModule],
   templateUrl: './image-viewer-modal.component.html',
   styleUrls: ['./image-viewer-modal.component.scss']
 })
-export class ImageViewerModalComponent implements OnInit {
+export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   @Input() isOpen: boolean = false;
   @Input() reviewData: ReviewImage | null = null;
   @Output() closeModal = new EventEmitter<void>();
@@ -52,9 +53,16 @@ export class ImageViewerModalComponent implements OnInit {
   
   // Metadata
   prompt: string = '';
+  openFinderError: string = '';
+
+  constructor(private http: HttpClient) {}
 
   ngOnInit() {
     this.updateCurrentImage();
+  }
+
+  ngOnDestroy() {
+    // Cleanup if needed
   }
 
   ngOnChanges() {
@@ -64,6 +72,39 @@ export class ImageViewerModalComponent implements OnInit {
       this.resetPan();
       this.prompt = this.reviewData.prompt || '';
       this.updateCurrentImage();
+    }
+  }
+
+  /**
+   * Handle keyboard events for navigation and controls
+   * Arrow Right / Arrow Down: Next image
+   * Arrow Left / Arrow Up: Previous image
+   * Escape: Close modal
+   */
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent) {
+    // Only handle keyboard when modal is open
+    if (!this.isOpen) {
+      return;
+    }
+
+    console.log(`[ImageViewer] Key pressed: ${event.key}`);
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        this.nextImage();
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        this.prevImage();
+        break;
+      case 'Escape':
+        event.preventDefault();
+        this.close();
+        break;
     }
   }
 
@@ -278,6 +319,37 @@ export class ImageViewerModalComponent implements OnInit {
   onBackdropClick(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       this.close();
+    }
+  }
+
+  /**
+   * Open the current image in Finder (macOS) or default file manager
+   */
+  async openImageInFinder(): Promise<void> {
+    if (!this.reviewData) {
+      this.openFinderError = 'No image data available';
+      return;
+    }
+
+    // Build the full file path
+    const fullFilePath = `${this.reviewData.folder}/${this.currentImageName}`;
+    
+    try {
+      this.openFinderError = '';
+      const response = await this.http.post<{ success: boolean; error?: string }>(
+        'http://localhost:3000/api/open-file',
+        { path: fullFilePath }
+      ).toPromise();
+
+      if (!response?.success) {
+        this.openFinderError = response?.error || 'Failed to open file in Finder';
+        console.error('[ImageViewer] Failed to open file:', this.openFinderError);
+      } else {
+        console.log('[ImageViewer] Successfully opened file in Finder:', fullFilePath);
+      }
+    } catch (err) {
+      this.openFinderError = err instanceof Error ? err.message : 'Unknown error opening file';
+      console.error('[ImageViewer] Error opening file:', err);
     }
   }
 }

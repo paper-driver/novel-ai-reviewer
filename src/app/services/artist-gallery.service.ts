@@ -27,6 +27,11 @@ export interface ImageMetadata {
   generationData: any;
 }
 
+export interface OpenFolderResponse {
+  success: boolean;
+  error?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -78,5 +83,23 @@ export class ArtistGalleryService {
   getImageUrl(folderPath: string, filename: string): string {
     const fullFilePath = `${folderPath}/${filename}`;
     return `http://localhost:3000/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}`;
+  }
+
+  /**
+   * Open a folder in the system file explorer
+   */
+  async openFolderInFinder(folderPath: string): Promise<OpenFolderResponse> {
+    try {
+      const response = await this.http.post<OpenFolderResponse>(
+        'http://localhost:3000/api/open-folder',
+        { path: folderPath }
+      ).toPromise();
+      return response || { success: false, error: 'No response from server' };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error opening folder'
+      };
+    }
   }
 }

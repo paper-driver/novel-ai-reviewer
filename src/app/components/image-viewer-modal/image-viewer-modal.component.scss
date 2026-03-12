@@ -300,6 +300,49 @@
   }
 }
 
+.action-item {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.btn-open-in-finder {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #1976D2;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.error-message {
+  padding: 0.5rem;
+  background-color: #ffebee;
+  color: #c62828;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ef5350;
+}
+
 .btn-toggle-sidebar {
   position: absolute;
   right: 10px;

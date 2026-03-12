@@ -1,7 +1,7 @@
 import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { ArtistGalleryService, ArtistGroupInfo, ImageMetadata } from '../../services/artist-gallery.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
@@ -33,18 +33,31 @@ export class ArtistGalleryComponent implements OnInit {
 
   async selectSortedFolder(): Promise<void> {
     try {
-      const folderName = await this.folderPickerService.pickFolder();
+      const folderPath = await this.folderPickerService.pickFolder();
 
-      if (!folderName) {
+      if (!folderPath) {
         this.error = 'No folder selected';
         return;
       }
 
-      this.sortedFolderPath = folderName;
+      this.sortedFolderPath = folderPath;
       this.error = null;
       this.loadGroups();
     } catch (err) {
       this.error = 'Error selecting folder: ' + (err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  /**
+   * Handle manual path input for sorted folder
+   */
+  onSortedFolderInputBlur(): void {
+    const trimmedPath = this.sortedFolderPath.trim();
+    if (trimmedPath) {
+      this.sortedFolderPath = trimmedPath;
+      this.error = null;
+    } else {
+      this.sortedFolderPath = '';
     }
   }
 
@@ -105,5 +118,24 @@ export class ArtistGalleryComponent implements OnInit {
       return 'No Artists';
     }
     return group.artists.join(' | ');
+  }
+
+  /**
+   * Open the sorted folder in the system file explorer
+   */
+  async openFolderInFinder(): Promise<void> {
+    if (!this.sortedFolderPath) {
+      this.error = 'Please select a folder first';
+      return;
+    }
+
+    try {
+      const response = await this.galleryService.openFolderInFinder(this.sortedFolderPath);
+      if (!response.success) {
+        this.error = 'Failed to open folder: ' + (response.error || 'Unknown error');
+      }
+    } catch (err) {
+      this.error = 'Error opening folder: ' + (err instanceof Error ? err.message : String(err));
+    }
   }
 }

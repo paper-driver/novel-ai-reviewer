@@ -16,17 +16,25 @@
     <div class="folder-picker-group">
       <label>📁 Source Folder (Images):</label>
       <div class="folder-picker-controls">
+        <input 
+          type="text" 
+          placeholder="Enter path or click folder icon"
+          [(ngModel)]="sourceFolderName"
+          (blur)="onSourceFolderInputBlur()"
+          [disabled]="isLoading"
+          class="folder-path-input"
+          title="Click the folder icon to pick a folder, or paste/type the full path here"
+        />
         <button 
           (click)="selectSourceFolder()" 
           [disabled]="isLoading"
-          class="btn-select-folder"
-          [class.selected]="sourceFolderName">
-          {{ sourceFolderName || 'Click to Select Source Folder' }}
+          class="btn-folder-icon"
+          title="Click to open folder picker">
+          🗂️
         </button>
-        <span *ngIf="sourceFolderName" class="folder-path">{{ sourceFolderName }}</span>
       </div>
       <small class="help-text">
-        Click to open the native folder picker and select a folder containing images (PNG, JPG, WebP supported).
+        Click the folder icon to open the native folder picker, or enter a path directly.
       </small>
     </div>
 
@@ -34,17 +42,25 @@
     <div class="folder-picker-group">
       <label>📂 Destination Folder (for sorted images):</label>
       <div class="folder-picker-controls">
+        <input 
+          type="text" 
+          placeholder="Enter path or click folder icon"
+          [(ngModel)]="destinationFolderName"
+          (blur)="onDestinationFolderInputBlur()"
+          [disabled]="isLoading"
+          class="folder-path-input"
+          title="Click the folder icon to pick a folder, or paste/type the full path here"
+        />
         <button 
           (click)="selectDestinationFolder()" 
           [disabled]="isLoading"
-          class="btn-select-folder"
-          [class.selected]="destinationFolderName">
-          {{ destinationFolderName || 'Click to Select Destination Folder' }}
+          class="btn-folder-icon"
+          title="Click to open folder picker">
+          🗂️
         </button>
-        <span *ngIf="destinationFolderName" class="folder-path">{{ destinationFolderName }}</span>
       </div>
       <small class="help-text">
-        Click to open the native folder picker and select where subfolders will be created for each artist combination.
+        Click the folder icon to open the native folder picker, or enter a path directly.
       </small>
     </div>
 

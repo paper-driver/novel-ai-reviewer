@@ -16,7 +16,7 @@ export class FolderPickerService {
   /**
    * Attempt to get a folder path using native picker or fallback to manual input
    * On macOS/Windows/Linux: Tries native system folder picker first
-   * Fallback: Prompts user to enter folder path manually
+   * Does NOT fall back to prompt - user can manually type path in the input field
    */
   async pickFolder(): Promise<string | null> {
     try {
@@ -31,36 +31,16 @@ export class FolderPickerService {
         return response.path;
       }
       
-      console.log('[FolderPicker] Native picker unavailable, using fallback');
-      return this.promptForFolderPath();
+      if (response && response.cancelled) {
+        console.log('[FolderPicker] User cancelled folder picker - no fallback');
+        return null;
+      }
+
+      console.log('[FolderPicker] Native picker failed, returning null');
+      return null;
     } catch (err) {
-      console.warn('[FolderPicker] Native picker error, using fallback:', err);
-      return this.promptForFolderPath();
-    }
-  }
-
-  /**
-   * Fallback: Prompt user to manually enter folder path with helpful instructions
-   */
-  private promptForFolderPath(): string | null {
-    const message = `Please enter the full path to your folder:
-
-Examples:
-  macOS:  /Users/yourname/Desktop/photos
-  Windows: C:\\Users\\yourname\\Desktop\\photos
-  Linux:   /home/yourname/Desktop/photos
-
-Tip: You can copy the path from your file manager and paste it here.`;
-
-    const path = prompt(message);
-    
-    if (!path || !path.trim()) {
-      console.log('[FolderPicker] User cancelled manual path entry');
+      console.warn('[FolderPicker] Native picker error:', err);
       return null;
     }
-
-    const trimmedPath = path.trim();
-    console.log('[FolderPicker] Using manually entered path:', trimmedPath);
-    return trimmedPath;
   }
 }

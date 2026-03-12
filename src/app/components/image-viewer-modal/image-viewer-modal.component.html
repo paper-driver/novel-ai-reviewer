@@ -8,7 +8,7 @@
         <button class="zoom-btn" (click)="zoomIn()" [disabled]="zoomLevel === maxZoom" title="Zoom in" aria-label="Zoom in">+</button>
         <button class="zoom-btn reset-btn" (click)="resetZoom()" title="Reset zoom" aria-label="Reset zoom">↻</button>
       </div>
-      <div class="help-text">Scroll to zoom • Drag to move</div>
+      <div class="help-text">Scroll to zoom • Drag to move • ← → to navigate • Esc to close</div>
       <button class="close-btn" (click)="close()" aria-label="Close modal">×</button>
     </div>
 
@@ -104,6 +104,14 @@
           <div class="metadata-item">
             <span class="metadata-label">Image #</span>
             <span class="metadata-value">{{ currentImageIndex + 1 }} of {{ reviewData?.images.length }}</span>
+          </div>
+          <div class="metadata-item action-item">
+            <button class="btn-open-in-finder" (click)="openImageInFinder()" title="Open image file in Finder">
+              📂 Open in Finder
+            </button>
+          </div>
+          <div *ngIf="openFinderError" class="error-message">
+            {{ openFinderError }}
           </div>
         </div>
       </div>

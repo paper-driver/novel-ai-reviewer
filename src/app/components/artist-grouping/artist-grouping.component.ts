@@ -34,15 +34,15 @@ export class ArtistGroupingComponent implements OnInit {
 
   async selectSourceFolder(): Promise<void> {
     try {
-      const folderName = await this.folderPickerService.pickFolder();
+      const folderPath = await this.folderPickerService.pickFolder();
 
-      if (!folderName) {
+      if (!folderPath) {
         this.error = 'No source folder selected';
         return;
       }
 
-      this.sourceFolder = folderName;
-      this.sourceFolderName = folderName;
+      this.sourceFolder = folderPath;
+      this.sourceFolderName = folderPath;
       this.error = null;
     } catch (err) {
       this.error = 'Error selecting source folder: ' + (err instanceof Error ? err.message : String(err));
@@ -51,18 +51,44 @@ export class ArtistGroupingComponent implements OnInit {
 
   async selectDestinationFolder(): Promise<void> {
     try {
-      const folderName = await this.folderPickerService.pickFolder();
+      const folderPath = await this.folderPickerService.pickFolder();
 
-      if (!folderName) {
+      if (!folderPath) {
         this.error = 'No destination folder selected';
         return;
       }
 
-      this.destinationFolder = folderName;
-      this.destinationFolderName = folderName;
+      this.destinationFolder = folderPath;
+      this.destinationFolderName = folderPath;
       this.error = null;
     } catch (err) {
       this.error = 'Error selecting destination folder: ' + (err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  /**
+   * Handle manual path input for source folder
+   */
+  onSourceFolderInputBlur(): void {
+    const trimmedPath = this.sourceFolderName.trim();
+    if (trimmedPath) {
+      this.sourceFolder = trimmedPath;
+      this.error = null;
+    } else {
+      this.sourceFolder = '';
+    }
+  }
+
+  /**
+   * Handle manual path input for destination folder
+   */
+  onDestinationFolderInputBlur(): void {
+    const trimmedPath = this.destinationFolderName.trim();
+    if (trimmedPath) {
+      this.destinationFolder = trimmedPath;
+      this.error = null;
+    } else {
+      this.destinationFolder = '';
     }
   }
 

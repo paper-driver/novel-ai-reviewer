@@ -1175,6 +1175,143 @@ end tell`;
   }
 });
 
+/**
+ * POST /api/open-folder
+ * Opens a folder in the system file explorer (Finder on macOS, Explorer on Windows, etc.)
+ * Body: { path: "/path/to/folder" }
+ */
+app.post('/api/open-folder', (req, res) => {
+  try {
+    const { path: folderPath } = req.body;
+
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Folder path is required' });
+    }
+
+    // Verify path exists and is a directory
+    if (!fs.existsSync(folderPath)) {
+      console.error('[OpenFolder] Path does not exist:', folderPath);
+      return res.status(400).json({ error: 'Folder does not exist' });
+    }
+
+    const stats = fs.statSync(folderPath);
+    if (!stats.isDirectory()) {
+      console.error('[OpenFolder] Path is not a directory:', folderPath);
+      return res.status(400).json({ error: 'Path is not a directory' });
+    }
+
+    const { execSync } = require('child_process');
+    const os = require('os');
+    const platform = os.platform();
+
+    console.log('[OpenFolder] Opening folder:', folderPath, 'on platform:', platform);
+
+    try {
+      if (platform === 'darwin') {
+        // macOS - use open command
+        execSync(`open "${folderPath}"`, { stdio: 'ignore' });
+      } else if (platform === 'win32') {
+        // Windows - use explorer
+        execSync(`explorer "${folderPath}"`, { stdio: 'ignore', shell: 'cmd.exe' });
+      } else if (platform === 'linux') {
+        // Linux - try various file managers
+        try {
+          execSync(`xdg-open "${folderPath}"`, { stdio: 'ignore' });
+        } catch (e) {
+          try {
+            execSync(`nautilus "${folderPath}"`, { stdio: 'ignore' });
+          } catch (e2) {
+            try {
+              execSync(`dolphin "${folderPath}"`, { stdio: 'ignore' });
+            } catch (e3) {
+              console.warn('[OpenFolder] Could not open folder with any file manager');
+              return res.status(500).json({ error: 'No file manager available' });
+            }
+          }
+        }
+      }
+
+      console.log('[OpenFolder] Successfully opened folder:', folderPath);
+      res.json({ success: true, message: 'Folder opened in file explorer' });
+    } catch (execError) {
+      console.error('[OpenFolder] Execution error:', execError.message);
+      res.status(500).json({ error: 'Failed to open folder', details: execError.message });
+    }
+  } catch (err) {
+    console.error('[OpenFolder] Error in endpoint:', err.message);
+    res.status(500).json({ error: 'Failed to open folder', details: err.message });
+  }
+});
+
+/**
+ * POST /api/open-file
+ * Opens a file in the system file explorer (Finder on macOS, etc.)
+ * Body: { path: "/path/to/file.png" }
+ */
+app.post('/api/open-file', (req, res) => {
+  try {
+    const { path: filePath } = req.body;
+
+    if (!filePath) {
+      return res.status(400).json({ error: 'File path is required' });
+    }
+
+    // Verify path exists and is a file
+    if (!fs.existsSync(filePath)) {
+      console.error('[OpenFile] Path does not exist:', filePath);
+      return res.status(400).json({ error: 'File does not exist' });
+    }
+
+    const stats = fs.statSync(filePath);
+    if (!stats.isFile()) {
+      console.error('[OpenFile] Path is not a file:', filePath);
+      return res.status(400).json({ error: 'Path is not a file' });
+    }
+
+    const { execSync } = require('child_process');
+    const os = require('os');
+    const platform = os.platform();
+
+    console.log('[OpenFile] Opening file:', filePath, 'on platform:', platform);
+
+    try {
+      if (platform === 'darwin') {
+        // macOS - use open -R to reveal in Finder
+        execSync(`open -R "${filePath}"`, { stdio: 'ignore' });
+      } else if (platform === 'win32') {
+        // Windows - use explorer to open folder and select file
+        const dir = require('path').dirname(filePath);
+        execSync(`explorer /select,"${filePath}"`, { stdio: 'ignore', shell: 'cmd.exe' });
+      } else if (platform === 'linux') {
+        // Linux - try various file managers
+        try {
+          execSync(`xdg-open "${filePath}"`, { stdio: 'ignore' });
+        } catch (e) {
+          try {
+            execSync(`nautilus "${filePath}"`, { stdio: 'ignore' });
+          } catch (e2) {
+            try {
+              execSync(`dolphin "${filePath}"`, { stdio: 'ignore' });
+            } catch (e3) {
+              console.warn('[OpenFile] Could not open file with any file manager');
+              return res.status(500).json({ error: 'No file manager available' });
+            }
+          }
+        }
+      }
+
+      console.log('[OpenFile] Successfully opened file:', filePath);
+      res.json({ success: true, message: 'File opened in file explorer' });
+    } catch (execError) {
+      console.error('[OpenFile] Execution error:', execError.message);
+      res.status(500).json({ error: 'Failed to open file', details: execError.message });
+    }
+  } catch (err) {
+    console.error('[OpenFile] Error in endpoint:', err.message);
+    res.status(500).json({ error: 'Failed to open file', details: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Review server listening on port ${PORT}`);
 });
