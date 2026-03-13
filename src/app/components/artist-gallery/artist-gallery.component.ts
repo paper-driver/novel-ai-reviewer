@@ -2,9 +2,12 @@ import { Component, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/c
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { ArtistGalleryService, ArtistGroupInfo, ImageMetadata } from '../../services/artist-gallery.service';
 import { GalleryCacheService } from '../../services/gallery-cache.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
+import { RatingsStateService } from '../../services/ratings-state.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 
 @Component({
@@ -36,10 +39,14 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
   // Search functionality
   searchText: string = '';
 
+  // For unsubscribing from observables on component destroy
+  private destroy$ = new Subject<void>();
+
   constructor(
     private galleryService: ArtistGalleryService,
     private folderPickerService: FolderPickerService,
-    private cacheService: GalleryCacheService
+    private cacheService: GalleryCacheService,
+    private ratingsStateService: RatingsStateService
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -65,6 +72,18 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       
       this.isLoading = false;
     }
+
+    // Listen for ratings updates from other components (e.g., prompt-grouping)
+    this.ratingsStateService.ratingsUpdated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(({ folder, ratings }) => {
+        console.log('[ArtistGallery] Detected ratings update from other component:', folder);
+        // Only refresh if the folder matches our current folder
+        if (folder === this.sortedFolderPath || folder === this.baseFolder) {
+          console.log('[ArtistGallery] Ratings match our folder, refreshing display...');
+          this.refreshAverageRatings();
+        }
+      });
 
     // Listen for scroll events to show/hide back-to-top button
     window.addEventListener('scroll', () => {
@@ -248,7 +267,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     const ratingsToUse = this.latestModalRatings || (this.currentGroupReviewData?.imageRatings);
     
     // Save ratings to base folder (where prompt grouping also saves)
-    if (ratingsToUse && Object.keys(ratingsToUse).length > 0) {
+    // Save even if empty to persist rating deletions
+    if (ratingsToUse !== undefined && ratingsToUse !== null) {
       console.log('[ArtistGallery] Ratings to save:', ratingsToUse);
       
       // Send ratings as-is (flat structure: { filename: rating })
@@ -259,6 +279,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       this.galleryService.saveRatings(ratingsFolder, ratingsToSave).subscribe({
         next: (response) => {
           console.log('[ArtistGallery] Ratings saved successfully:', response);
+          // Notify other components about the ratings update
+          this.ratingsStateService.notifyRatingsSaved(ratingsFolder, ratingsToSave);
           // Refresh average ratings for display
           this.refreshAverageRatings();
         },
@@ -469,6 +491,9 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       this.searchText,
       this.totalImages
     );
+    // Complete the destroy subject to unsubscribe from all observables
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   /**

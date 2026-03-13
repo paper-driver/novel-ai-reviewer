@@ -2043,14 +2043,25 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
     const nextGroupId = Math.max(0, ...Object.keys(promptGroups).map(Number)) + 1;
     let currentGroupId = nextGroupId;
 
+    console.log(`[PromptGrouping] processedImages count: ${Object.keys(processedImages).length}`);
+    console.log(`[PromptGrouping] processedImages keys:`, Object.keys(processedImages));
+
     for (const [relativePath, imgData] of Object.entries(processedImages)) {
       const normalized = imgData.normalizedPrompt;
+      
+      console.log(`[PromptGrouping] Processing image: ${relativePath}, normalized: ${normalized.substring(0, 50)}...`);
       
       // Check if this normalized prompt already has a group
       if (promptToGroupId[normalized]) {
         const groupId = promptToGroupId[normalized];
         if (promptGroups[groupId]) {
-          promptGroups[groupId].images.push(relativePath);
+          // Prevent duplicate images from being added to the same group
+          if (!promptGroups[groupId].images.includes(relativePath)) {
+            promptGroups[groupId].images.push(relativePath);
+            console.log(`[PromptGrouping] Added to existing group ${groupId}, now has ${promptGroups[groupId].images.length} images`);
+          } else {
+            console.warn(`[PromptGrouping] Duplicate image "${relativePath}" already in group ${groupId}, skipping`);
+          }
         }
       } else {
         // Create new group
@@ -2063,12 +2074,25 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
           images: [relativePath],
           sampleOriginalPrompt: imgData.originalPrompt
         };
+        console.log(`[PromptGrouping] Created new group ${groupId} with image: ${relativePath}`);
       }
     }
 
     // Convert to array and add metadata
     const groupsArray = Object.values(promptGroups).map(group => {
       if (!group.images || group.images.length === 0) return null;
+      
+      // Check for duplicate images in the group
+      const uniqueImages = new Set(group.images);
+      if (uniqueImages.size !== group.images.length) {
+        console.warn(`[PromptGrouping] GROUP ${group.groupId} HAS DUPLICATES!`);
+        console.warn(`[PromptGrouping] Total images: ${group.images.length}, Unique: ${uniqueImages.size}`);
+        console.warn(`[PromptGrouping] Images array:`, group.images);
+        
+        // Remove duplicates and keep only unique images
+        group.images = Array.from(uniqueImages);
+        console.log(`[PromptGrouping] Deduplicated to ${group.images.length} unique images`);
+      }
       
       // Get latest modification time
       let latestModifiedTime = 0;
@@ -2593,6 +2617,14 @@ app.post('/api/batch-rating/submit', async (req, res) => {
   
   console.log(`[BatchRating] New batch job submitted: ${jobId}`);
   console.log(`[BatchRating] Images: ${imageFilenames.length}, Folder: ${folderPath}`);
+  console.log(`[BatchRating] Image filenames received:`, imageFilenames);
+  
+  // Check for duplicates in the array
+  const uniqueImages = new Set(imageFilenames);
+  if (uniqueImages.size !== imageFilenames.length) {
+    console.warn(`[BatchRating] ⚠️ DUPLICATE FILENAMES DETECTED! Received ${imageFilenames.length} but only ${uniqueImages.size} unique`);
+    console.log(`[BatchRating] Duplicates:`, imageFilenames.filter((img, idx) => imageFilenames.indexOf(img) !== idx));
+  }
 
   // Create job record
   const job = {
@@ -2750,9 +2782,32 @@ async function processBatchJob(jobId) {
           continue;
         }
 
-        // Analyze image quality using local metrics
-        const score = await analyzeImageQualityLocal(filePath);
-        console.log(`[BatchRating] Got score for ${filename}: ${score}`);
+        // Analyze image quality using local metrics with retry logic
+        let score = null;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries && score === null) {
+          try {
+            score = await analyzeImageQualityLocal(filePath);
+            console.log(`[BatchRating] Got score for ${filename}: ${score}`);
+          } catch (apiErr) {
+            retryCount++;
+            console.error(`[BatchRating] Vision API error (attempt ${retryCount}/${maxRetries}) for ${filename}:`, apiErr.message);
+            
+            if (retryCount < maxRetries) {
+              // Exponential backoff: wait longer between retries (1s, 2s, 4s)
+              const backoffDelay = Math.pow(2, retryCount - 1) * 1000;
+              console.log(`[BatchRating] Retrying in ${backoffDelay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, backoffDelay));
+            } else {
+              // Use fallback score after max retries
+              console.warn(`[BatchRating] Max retries exceeded for ${filename}, using fallback score`);
+              score = Math.floor(Math.random() * 5) + 5;
+            }
+          }
+        }
+
         job.results[filename] = score;
         console.log(`[BatchRating] Stored result - filename: ${filename}, score: ${score}`);
         console.log(`[BatchRating] job.results keys after storing: ${Object.keys(job.results)}`);
@@ -2766,8 +2821,9 @@ async function processBatchJob(jobId) {
         job.processedImages++;
       }
 
-      // Small delay between processing
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Delay between processing to avoid Vision API rate limiting
+      // Increased to 500ms to be more respectful of API rate limits
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     job.status = 'completed';

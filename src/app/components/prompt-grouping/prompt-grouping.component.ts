@@ -5,6 +5,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { PromptGroupingService, PromptGroupInfo } from '../../services/prompt-grouping.service';
 import { GalleryCacheService } from '../../services/gallery-cache.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
+import { RatingsStateService } from '../../services/ratings-state.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 import { Subject, interval, forkJoin, from, of } from 'rxjs';
 import { takeUntil, switchMap, mergeMap, map, catchError } from 'rxjs/operators';
@@ -70,7 +71,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   constructor(
     private groupingService: PromptGroupingService,
     private folderPickerService: FolderPickerService,
-    private cacheService: GalleryCacheService
+    private cacheService: GalleryCacheService,
+    private ratingsStateService: RatingsStateService
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -102,6 +104,18 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       }
       this.isLoading = false;
     }
+
+    // Listen for ratings updates from other components (e.g., artist-gallery)
+    this.ratingsStateService.ratingsUpdated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(({ folder, ratings }) => {
+        console.log('[PromptGrouping] Detected ratings update from other component:', folder);
+        // Only refresh if the folder matches our current folder
+        if (folder === this.folderPath) {
+          console.log('[PromptGrouping] Ratings match our folder, refreshing display...');
+          this.refreshAverageRatings();
+        }
+      });
 
     // Listen for scroll events to show/hide back-to-top button
     window.addEventListener('scroll', () => {
@@ -346,6 +360,17 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
               sampleOriginalPrompt: group.sampleOriginalPrompt
             }
           };
+          console.log('[PromptGrouping] Review data set with images:', group.images);
+          console.log('[PromptGrouping] Total images in group:', group.images.length);
+          
+          // Check for duplicates
+          const uniqueImages = new Set(group.images);
+          if (uniqueImages.size !== group.images.length) {
+            console.warn('[PromptGrouping] ⚠️ DUPLICATE IMAGES IN GROUP!');
+            console.warn('[PromptGrouping] Received:', group.images.length, 'Unique:', uniqueImages.size);
+            console.warn('[PromptGrouping] Images:', group.images);
+          }
+          
           console.log('[PromptGrouping] Review data set with ratings:', this.currentGroupReviewData.imageRatings);
           this.showImageViewer = true;
         }
@@ -395,7 +420,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     
     // Save ratings back to server before closing
     // Store ratings flat by filename only (not by group ID) so ratings are shared across all features
-    if (ratingsToUse && Object.keys(ratingsToUse).length > 0) {
+    // Save even if empty to persist rating deletions
+    if (ratingsToUse !== undefined && ratingsToUse !== null) {
       console.log('[PromptGrouping] Ratings to save:', ratingsToUse);
       
       // Send ratings as-is (flat structure: { filename: rating })
@@ -405,6 +431,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       this.groupingService.saveRatings(this.folderPath, ratingsToSave).subscribe({
         next: (response) => {
           console.log('[PromptGrouping] Ratings saved successfully:', response);
+          // Notify other components about the ratings update
+          this.ratingsStateService.notifyRatingsSaved(this.folderPath, ratingsToSave);
           // Refresh average ratings for display
           this.refreshAverageRatings();
         },
@@ -1025,14 +1053,10 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
             }
           });
 
-          // Re-filter to update display
-          this.filteredGroups = this.groups.filter(group =>
-            this.filterText === '' || 
-            group.groupId.toString().includes(this.filterText) ||
-            (group.groupNickname && group.groupNickname.toLowerCase().includes(this.filterText.toLowerCase())) ||
-            (group.normalizedPrompt && group.normalizedPrompt.toLowerCase().includes(this.filterText.toLowerCase()))
-          );
-          console.log('[PromptGrouping] Average ratings refreshed');
+          // Re-apply the existing filter to update display with new average ratings
+          // This preserves any active filters (search text, no-nickname toggle, etc.)
+          this.applyFilter();
+          console.log('[PromptGrouping] Average ratings refreshed, filtered to', this.filteredGroups.length, 'groups');
         }
       },
       error: (err) => {

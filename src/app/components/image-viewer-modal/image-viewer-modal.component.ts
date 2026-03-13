@@ -48,6 +48,8 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   // Rating system (0-10)
   currentImageRating: number = 0; // 0 means no rating
   imageRatings: { [filename: string]: number } = {};
+  // Track if ratings have been modified during this modal session
+  ratingsModified: boolean = false;
   
   zoomLevel: number = 100;
   minZoom: number = 50;
@@ -103,6 +105,8 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       this.zoomLevel = 100;
       this.resetPan();
       this.prompt = this.reviewData.prompt || '';
+      // Reset the ratings modified flag when opening modal
+      this.ratingsModified = false;
       // Merge ratings from reviewData with existing ratings to preserve local changes
       if (this.reviewData.imageRatings) {
         this.imageRatings = { ...this.imageRatings, ...this.reviewData.imageRatings };
@@ -553,6 +557,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     
     this.currentImageRating = rating;
     this.imageRatings[fileBasename] = rating;  // Store using basename only
+    this.ratingsModified = true;  // Mark that ratings have changed
     
     console.log(`[Modal] After setRating:`);
     console.log(`  - currentImageRating: ${this.currentImageRating}`);
@@ -585,6 +590,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     if (this.reviewData && this.reviewData.imageRatings) {
       delete this.reviewData.imageRatings[fileBasename];
     }
+    this.ratingsModified = true;  // Mark that ratings have changed
     console.log(`[ImageViewer] Cleared rating for ${this.currentImageName} (basename: ${fileBasename})`);
   }
 
@@ -742,12 +748,14 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     console.log('[Modal] imageRatings object:', this.imageRatings);
     console.log('[Modal] imageRatings keys:', Object.keys(this.imageRatings));
     console.log('[Modal] imageRatings size:', Object.keys(this.imageRatings).length);
+    console.log('[Modal] ratingsModified:', this.ratingsModified);
     
-    if (Object.keys(this.imageRatings).length > 0) {
+    // Emit ratings if there are any, OR if ratings were modified (e.g., cleared)
+    if (Object.keys(this.imageRatings).length > 0 || this.ratingsModified) {
       console.log('[Modal] Emitting ratingsChanged with:', this.imageRatings);
       this.ratingsChanged.emit(this.imageRatings);
     } else {
-      console.log('[Modal] No ratings to emit (empty object)');
+      console.log('[Modal] No ratings to emit');
     }
     console.log('[Modal] Emitting closeModal event');
     this.closeModal.emit();
