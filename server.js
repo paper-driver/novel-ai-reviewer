@@ -3178,7 +3178,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
     // --- Safety & Content Checks ---
     if (safeSearch.adult === 'VERY_LIKELY' || safeSearch.adult === 'LIKELY') {
       issues.push('Adult content detected');
-      anatomyScore = Math.max(1, anatomyScore - 3);
+      // Note: Adult content does not affect anatomy scoring - adult images can have excellent anatomy
     }
     if (safeSearch.violence === 'VERY_LIKELY' || safeSearch.violence === 'LIKELY') {
       issues.push('Violence detected');
@@ -3336,7 +3336,7 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
         const safeSearch = result.safeSearchAnnotation || {};
         if (safeSearch.adult === 'VERY_LIKELY' || safeSearch.adult === 'LIKELY') {
           issues.push('Adult content');
-          anatomyScore = Math.max(1, anatomyScore - 3);
+          // Note: Adult content does not affect anatomy scoring - adult images can have excellent anatomy
         }
 
         anatomyScore = Math.max(1, Math.min(10, Math.round(anatomyScore)));
