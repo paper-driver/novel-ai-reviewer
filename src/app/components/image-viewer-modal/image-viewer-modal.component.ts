@@ -14,6 +14,8 @@ export interface ReviewImage {
   apiType?: 'reviews' | 'artist-gallery' | 'prompt-grouping';
   // Additional data for specific API types
   additionalData?: any;
+  // Image ratings: filename -> rating (0-10)
+  imageRatings?: { [filename: string]: number };
 }
 
 @Component({
@@ -27,6 +29,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   @Input() isOpen: boolean = false;
   @Input() reviewData: ReviewImage | null = null;
   @Output() closeModal = new EventEmitter<void>();
+  @Output() ratingsChanged = new EventEmitter<{ [filename: string]: number }>();
   @ViewChild('imageElement') imageElement: ElementRef<HTMLImageElement> | null = null;
 
   currentImageIndex: number = 0;
@@ -35,6 +38,10 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   imageWidth: number = 0;
   imageHeight: number = 0;
   imageSizeKB: number = 0;
+  
+  // Rating system (0-10)
+  currentImageRating: number = 0; // 0 means no rating
+  imageRatings: { [filename: string]: number } = {};
   
   zoomLevel: number = 100;
   minZoom: number = 50;
@@ -74,6 +81,8 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       this.zoomLevel = 100;
       this.resetPan();
       this.prompt = this.reviewData.prompt || '';
+      // Initialize ratings from reviewData if available
+      this.imageRatings = this.reviewData.imageRatings || {};
       this.updateCurrentImage();
     }
   }
@@ -116,13 +125,20 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       const fileName = this.reviewData.images[this.currentImageIndex];
       this.currentImageName = fileName;
       
+      // For ratings, we need to use just the basename (filename only) for cross-feature compatibility
+      // This ensures ratings are the same whether accessed via prompt-grouping or artist-gallery
+      const fileBasename = fileName.includes('/') ? fileName.split('/').pop()! : fileName;
+      
+      // Load rating for current image - try both full path and basename
+      this.currentImageRating = this.imageRatings[fileBasename] || this.imageRatings[fileName] || 0;
+      
       // Clear previous metadata when switching images
       this.prompt = '';
       this.artists = [];
       
       // Build image URL based on API type
       const apiType = this.reviewData.apiType || 'reviews';
-      console.log(`[ImageViewer] Updating current image to: ${fileName}, apiType: ${apiType}`);
+      console.log(`[ImageViewer] Updating current image to: ${fileName}, basename: ${fileBasename}, apiType: ${apiType}`);
       
       if (apiType === 'artist-gallery' || apiType === 'prompt-grouping') {
         // For artist-gallery and prompt-grouping: use the respective endpoints with encoded file path
@@ -324,7 +340,80 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     return url;
   }
 
+  /**
+   * Set rating for current image (0-10)
+   */
+  setRating(rating: number): void {
+    console.log(`[Modal] setRating called with: ${rating}`);
+    console.log(`[Modal] Current image: ${this.currentImageName}`);
+    
+    if (rating < 0) rating = 0;
+    if (rating > 10) rating = 10;
+    
+    // Extract just the basename for rating storage (for cross-feature compatibility)
+    const fileBasename = this.currentImageName.includes('/') 
+      ? this.currentImageName.split('/').pop()! 
+      : this.currentImageName;
+    
+    this.currentImageRating = rating;
+    this.imageRatings[fileBasename] = rating;  // Store using basename only
+    
+    console.log(`[Modal] After setRating:`);
+    console.log(`  - currentImageRating: ${this.currentImageRating}`);
+    console.log(`  - Full path: ${this.currentImageName}`);
+    console.log(`  - Basename: ${fileBasename}`);
+    console.log(`  - imageRatings[${fileBasename}]: ${this.imageRatings[fileBasename]}`);
+    console.log(`  - Full imageRatings:`, this.imageRatings);
+    
+    // Update reviewData if it exists
+    if (this.reviewData) {
+      if (!this.reviewData.imageRatings) {
+        this.reviewData.imageRatings = {};
+      }
+      this.reviewData.imageRatings[fileBasename] = rating;  // Store using basename only
+      console.log(`[Modal] reviewData.imageRatings updated:`, this.reviewData.imageRatings);
+    }
+  }
+
+  /**
+   * Clear rating for current image
+   */
+  clearRating(): void {
+    // Extract basename for consistency
+    const fileBasename = this.currentImageName.includes('/') 
+      ? this.currentImageName.split('/').pop()! 
+      : this.currentImageName;
+    
+    this.currentImageRating = 0;
+    delete this.imageRatings[fileBasename];
+    if (this.reviewData && this.reviewData.imageRatings) {
+      delete this.reviewData.imageRatings[fileBasename];
+    }
+    console.log(`[ImageViewer] Cleared rating for ${this.currentImageName} (basename: ${fileBasename})`);
+  }
+
+  /**
+   * Get all ratings for external use (for calculating group averages)
+   */
+  getRatings(): { [filename: string]: number } {
+    return this.imageRatings;
+  }
+
   close() {
+    // Emit ratings before closing
+    console.log('[Modal] Closing modal...');
+    console.log('[Modal] currentImageRating:', this.currentImageRating);
+    console.log('[Modal] imageRatings object:', this.imageRatings);
+    console.log('[Modal] imageRatings keys:', Object.keys(this.imageRatings));
+    console.log('[Modal] imageRatings size:', Object.keys(this.imageRatings).length);
+    
+    if (Object.keys(this.imageRatings).length > 0) {
+      console.log('[Modal] Emitting ratingsChanged with:', this.imageRatings);
+      this.ratingsChanged.emit(this.imageRatings);
+    } else {
+      console.log('[Modal] No ratings to emit (empty object)');
+    }
+    console.log('[Modal] Emitting closeModal event');
     this.closeModal.emit();
   }
 

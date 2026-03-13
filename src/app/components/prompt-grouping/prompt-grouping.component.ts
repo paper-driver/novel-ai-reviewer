@@ -92,6 +92,10 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       // Restore nickname assignments from cache
       // selectedNicknames is { groupId: nickname }, so we need values not keys
       this.availableNicknames = Array.from(new Set(Object.values(cachedData.selectedNicknames).filter(n => n && n.trim()))).sort();
+      
+      // Load and calculate average ratings from localStorage
+      this.refreshAverageRatings();
+      
       // Apply any filter that was active
       if (this.filterText) {
         this.applyFilter();
@@ -211,6 +215,10 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           this.groups = response.groups;
           this.totalImages = response.totals.images;
           this.extractAvailableNicknames();
+          
+          // Load and calculate average ratings
+          this.refreshAverageRatings();
+          
           this.isLoading = false;
           this.showProgress = false;
           
@@ -300,23 +308,120 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   }
 
   openImageViewer(group: PromptGroupInfo): void {
-    this.currentGroupReviewData = {
-      images: group.images,
-      folder: this.folderPath,
-      title: `Group ${group.groupId}`,
-      apiType: 'prompt-grouping',
-      // Store additional metadata for display
-      additionalData: {
-        normalizedPrompt: group.normalizedPrompt,
-        sampleOriginalPrompt: group.sampleOriginalPrompt
+    console.log('[PromptGrouping] openImageViewer called for group:', group.groupId);
+    console.log('[PromptGrouping] folderPath:', this.folderPath);
+    
+    // Load ratings from server if they exist
+    this.groupingService.loadRatings(this.folderPath).subscribe({
+      next: (response) => {
+        console.log('[PromptGrouping] Ratings loaded:', response);
+        if (response.success) {
+          // Ratings are now stored flat by filename (basename only): { filename: rating }
+          const allRatings = response.ratings as { [filename: string]: number };
+          console.log('[PromptGrouping] All ratings keys:', Object.keys(allRatings));
+          
+          // Filter to only ratings for images in this group
+          const groupRatings: { [filename: string]: number } = {};
+          if (group.images && allRatings) {
+            group.images.forEach(fullPath => {
+              // Extract basename since ratings are stored by basename only
+              const basename = fullPath.includes('/') ? fullPath.split('/').pop()! : fullPath;
+              console.log('[PromptGrouping] Checking image:', fullPath, '-> basename:', basename);
+              if (allRatings[basename]) {
+                groupRatings[basename] = allRatings[basename];
+                console.log('[PromptGrouping] Found rating for', basename, ':', allRatings[basename]);
+              }
+            });
+          }
+          
+          this.currentGroupReviewData = {
+            images: group.images,
+            folder: this.folderPath,
+            title: `Group ${group.groupId}`,
+            apiType: 'prompt-grouping',
+            imageRatings: groupRatings,
+            // Store additional metadata for display
+            additionalData: {
+              normalizedPrompt: group.normalizedPrompt,
+              sampleOriginalPrompt: group.sampleOriginalPrompt
+            }
+          };
+          console.log('[PromptGrouping] Review data set with ratings:', this.currentGroupReviewData.imageRatings);
+          this.showImageViewer = true;
+        }
+      },
+      error: (err) => {
+        console.error('[PromptGrouping] Failed to load ratings:', err);
+        // Still open the viewer, just without ratings
+        this.currentGroupReviewData = {
+          images: group.images,
+          folder: this.folderPath,
+          title: `Group ${group.groupId}`,
+          apiType: 'prompt-grouping',
+          imageRatings: {},
+          additionalData: {
+            normalizedPrompt: group.normalizedPrompt,
+            sampleOriginalPrompt: group.sampleOriginalPrompt
+          }
+        };
+        this.showImageViewer = true;
       }
-    };
-    this.showImageViewer = true;
+    });
+  }
+
+  // Store latest ratings received from modal
+  private latestModalRatings: { [filename: string]: number } | null = null;
+
+  /**
+   * Handle ratings changed from modal
+   */
+  onRatingsChanged(ratings: { [filename: string]: number }): void {
+    // Store ratings in current group review data AND in a separate property
+    console.log('[PromptGrouping] Ratings changed:', ratings);
+    this.latestModalRatings = ratings;
+    if (this.currentGroupReviewData) {
+      this.currentGroupReviewData.imageRatings = ratings;
+      console.log('[PromptGrouping] Stored ratings in review data:', this.currentGroupReviewData.imageRatings);
+    }
   }
 
   closeImageViewer(): void {
+    console.log('[PromptGrouping] Closing image viewer');
+    console.log('[PromptGrouping] Current review data:', this.currentGroupReviewData);
+    console.log('[PromptGrouping] Latest modal ratings:', this.latestModalRatings);
+    
+    // Use ratings from either currentGroupReviewData or latestModalRatings
+    const ratingsToUse = this.latestModalRatings || (this.currentGroupReviewData?.imageRatings);
+    
+    // Save ratings back to server before closing
+    // Store ratings flat by filename only (not by group ID) so ratings are shared across all features
+    if (ratingsToUse && Object.keys(ratingsToUse).length > 0) {
+      console.log('[PromptGrouping] Ratings to save:', ratingsToUse);
+      
+      // Send ratings as-is (flat structure: { filename: rating })
+      const ratingsToSave = ratingsToUse as { [filename: string]: number };
+
+      console.log('[PromptGrouping] Calling saveRatings with:', ratingsToSave);
+      this.groupingService.saveRatings(this.folderPath, ratingsToSave).subscribe({
+        next: (response) => {
+          console.log('[PromptGrouping] Ratings saved successfully:', response);
+          // Refresh average ratings for display
+          this.refreshAverageRatings();
+        },
+        error: (err) => {
+          console.error('[PromptGrouping] Failed to save ratings:', err);
+          // Still refresh to update the UI
+          this.refreshAverageRatings();
+        }
+      });
+    } else {
+      console.log('[PromptGrouping] No ratings to save');
+      this.refreshAverageRatings();
+    }
+
     this.showImageViewer = false;
     this.currentGroupReviewData = null;
+    this.latestModalRatings = null;
   }
 
   getThumbnailUrl(group: PromptGroupInfo): string {
@@ -866,5 +971,73 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
         this.selectedBulkIndex = -1;
         break;
     }
+  }
+
+  /**
+   * Calculate average rating for a group based on image ratings
+   * Ignores images with no rating (0 or undefined)
+   */
+  calculateAverageRating(imageRatings: { [filename: string]: number } | undefined): number | undefined {
+    if (!imageRatings || Object.keys(imageRatings).length === 0) {
+      return undefined;
+    }
+
+    const ratedValues = Object.values(imageRatings).filter(rating => rating && rating > 0);
+    if (ratedValues.length === 0) {
+      return undefined;
+    }
+
+    const sum = ratedValues.reduce((acc, rating) => acc + rating, 0);
+    return sum / ratedValues.length;
+  }
+
+  /**
+   * Refresh average ratings for all groups based on stored ratings from server
+   */
+  refreshAverageRatings(): void {
+    console.log('[PromptGrouping] Refreshing average ratings for folder:', this.folderPath);
+    this.groupingService.loadRatings(this.folderPath).subscribe({
+      next: (response) => {
+        console.log('[PromptGrouping] Loaded ratings from server:', response);
+        if (response.success && response.ratings) {
+          // Get all image ratings from flat structure (filename: rating)
+          const allImageRatings = response.ratings as { [filename: string]: number };
+          console.log('[PromptGrouping] All image ratings:', allImageRatings);
+          
+          this.groups.forEach(group => {
+            const oldRating = group.averageRating;
+            
+            // Calculate average based on images in this group
+            if (group.images && group.images.length > 0) {
+              // Convert array of filenames to object of {filename: rating}
+              const groupRatingsObj: { [filename: string]: number } = {};
+              group.images.forEach((fullPath: string) => {
+                // Extract basename since ratings are keyed by basename only
+                const basename = fullPath.includes('/') ? fullPath.split('/').pop()! : fullPath;
+                if (allImageRatings[basename]) {
+                  groupRatingsObj[fullPath] = allImageRatings[basename];
+                }
+              });
+              
+              group.averageRating = this.calculateAverageRating(groupRatingsObj);
+              const ratedCount = Object.keys(groupRatingsObj).length;
+              console.log(`[PromptGrouping] Group ${group.groupId}: images=${group.images.length}, rated=${ratedCount}, average=${group.averageRating} (was ${oldRating})`);
+            }
+          });
+
+          // Re-filter to update display
+          this.filteredGroups = this.groups.filter(group =>
+            this.filterText === '' || 
+            group.groupId.toString().includes(this.filterText) ||
+            (group.groupNickname && group.groupNickname.toLowerCase().includes(this.filterText.toLowerCase())) ||
+            (group.normalizedPrompt && group.normalizedPrompt.toLowerCase().includes(this.filterText.toLowerCase()))
+          );
+          console.log('[PromptGrouping] Average ratings refreshed');
+        }
+      },
+      error: (err) => {
+        console.error('[PromptGrouping] Failed to load ratings:', err);
+      }
+    });
   }
 }

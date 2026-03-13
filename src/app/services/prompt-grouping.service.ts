@@ -12,6 +12,7 @@ export interface PromptGroupInfo {
   imageCount: number;
   thumbnailPath: string;
   latestModifiedTime?: number;
+  averageRating?: number; // Average rating for images in this group (0-10, or undefined if no ratings)
 }
 
 export interface PromptGroupingResult {
@@ -151,6 +152,31 @@ export class PromptGroupingService {
     return this.http.post<any>(
       'http://localhost:3000/api/prompt-grouping/copy-from-source',
       { sourcePath, destinationPath }
+    );
+  }
+
+  /**
+   * Save image ratings for a prompt group
+   * Ratings are stored in a separate file: .image-ratings.json (unified for all grouping types)
+   * Using flat structure: { filename: rating } so ratings are universal across all features
+   */
+  saveRatings(folderPath: string, ratings: { [filename: string]: number }): Observable<any> {
+    console.log('[PromptGroupingService] Saving ratings:', { folderPath, ratings });
+    return this.http.post<any>(
+      'http://localhost:3000/api/ratings/save',
+      { folderPath, ratings }
+    );
+  }
+
+  /**
+   * Load image ratings for a prompt group
+   * Ratings are loaded from the file: .image-ratings.json (unified for all grouping types)
+   * Using flat structure: { filename: rating } so ratings are universal across all features
+   */
+  loadRatings(folderPath: string): Observable<{ success: boolean; ratings: { [filename: string]: number } }> {
+    console.log('[PromptGroupingService] Loading ratings from:', folderPath);
+    return this.http.get<any>(
+      `http://localhost:3000/api/ratings/load?folderPath=${encodeURIComponent(folderPath)}`
     );
   }
 }

@@ -71,6 +71,28 @@
           <button class="btn-close-sidebar" (click)="toggleSidebar()" title="Close sidebar">✕</button>
         </div>
         <div class="metadata-content">
+          <div class="metadata-item rating-item">
+            <span class="metadata-label">Rating</span>
+            <div class="rating-controls">
+              <div class="rating-stars">
+                <button 
+                  *ngFor="let i of [1,2,3,4,5,6,7,8,9,10]"
+                  class="star-btn"
+                  [class.active]="i <= currentImageRating"
+                  (click)="setRating(i)"
+                  [title]="i + '/10'"
+                  aria-label="Rate {{ i }}"
+                >
+                  ★
+                </button>
+              </div>
+              <div class="rating-display">
+                <span *ngIf="currentImageRating > 0" class="rating-score">{{ currentImageRating }}/10</span>
+                <span *ngIf="currentImageRating === 0" class="rating-none">No rating</span>
+                <button *ngIf="currentImageRating > 0" class="btn-clear-rating" (click)="clearRating()" title="Clear rating">✕</button>
+              </div>
+            </div>
+          </div>
           <div class="metadata-item prompt-item">
             <span class="metadata-label">Generation Prompt</span>
             <span class="metadata-value prompt-text">

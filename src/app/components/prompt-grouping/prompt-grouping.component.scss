@@ -800,6 +800,11 @@
               width: 15%;
               text-align: center;
             }
+
+            &.col-rating {
+              width: 12%;
+              text-align: center;
+            }
           }
         }
       }
@@ -1071,6 +1076,18 @@
                 color: #666;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 padding: 4px 0;
+              }
+            }
+
+            &.col-rating {
+              text-align: center;
+
+              .rating-display {
+                font-size: 13px;
+                font-weight: 500;
+                color: #f57c00;
+                padding: 4px 0;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
               }
             }
           }

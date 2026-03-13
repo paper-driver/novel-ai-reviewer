@@ -1127,7 +1127,7 @@ function extractArtistTags(prompt) {
  * POST /api/artist-gallery/load-groups
  * Scans a sorted folder and loads all artist groups with metadata
  * Request body: { folderPath: string }
- * Response: { success: boolean, sortedFolder: string, groups: ArtistGroupInfo[], totals: { groups: number, images: number } }
+ * Response: { success: boolean, sortedFolder: string, baseFolder: string (for ratings), groups: ArtistGroupInfo[], totals: { groups: number, images: number } }
  */
 app.post('/api/artist-gallery/load-groups', (req, res) => {
   try {
@@ -1147,6 +1147,12 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
     if (!stats.isDirectory()) {
       return res.status(400).json({ error: 'Path is not a directory' });
     }
+
+    // For ratings storage, always use the selected sorted folder itself
+    // This ensures ratings are stored where the user expects them
+    const baseFolder = resolvedPath;
+    
+    console.log(`[artist-gallery/load-groups] Resolved sorted folder: ${resolvedPath}, base folder for ratings: ${baseFolder}`);
 
     // Load mapping file if it exists
     const mappingFile = path.join(resolvedPath, '.artist-mapping.json');
@@ -1208,6 +1214,7 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
     res.json({
       success: true,
       sortedFolder: resolvedPath,
+      baseFolder: baseFolder,  // NEW: Include base folder for ratings storage
       groups,
       totals: {
         groups: groups.length,
@@ -2322,6 +2329,225 @@ app.get('/api/prompt-grouping/image-metadata', (req, res) => {
   } catch (err) {
     console.error('[PromptGrouping/image-metadata] Error reading metadata:', err);
     res.status(500).json({ error: 'Failed to read metadata', details: err.message });
+  }
+});
+
+/**
+ * POST /api/prompt-grouping/save-ratings
+ * Save image ratings for a prompt group to a separate file
+ */
+app.post('/api/prompt-grouping/save-ratings', (req, res) => {
+  try {
+    const { folderPath, ratings } = req.body;
+    if (!folderPath || !ratings) {
+      return res.status(400).json({ error: 'Missing folderPath or ratings' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const ratingsFile = path.join(resolvedPath, '.prompt-ratings.json');
+    
+    try {
+      fs.writeFileSync(ratingsFile, JSON.stringify(ratings, null, 2));
+      console.log('[PromptGrouping] Ratings saved to:', ratingsFile);
+      res.json({ success: true, message: 'Ratings saved' });
+    } catch (err) {
+      console.error('[PromptGrouping] Failed to save ratings:', err);
+      res.status(500).json({ error: 'Failed to save ratings', details: err.message });
+    }
+  } catch (err) {
+    console.error('[PromptGrouping] Error in save-ratings:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
+/**
+ * GET /api/prompt-grouping/load-ratings
+ * Load image ratings for a prompt group from file
+ */
+app.get('/api/prompt-grouping/load-ratings', (req, res) => {
+  try {
+    const { folderPath } = req.query;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folderPath' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const ratingsFile = path.join(resolvedPath, '.prompt-ratings.json');
+    
+    try {
+      if (fs.existsSync(ratingsFile)) {
+        const ratings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
+        res.json({ success: true, ratings });
+      } else {
+        res.json({ success: true, ratings: {} });
+      }
+    } catch (err) {
+      console.error('[PromptGrouping] Failed to load ratings:', err);
+      res.status(500).json({ error: 'Failed to load ratings', details: err.message });
+    }
+  } catch (err) {
+    console.error('[PromptGrouping] Error in load-ratings:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
+/**
+ * POST /api/artist-gallery/save-ratings
+ * Save image ratings for an artist group to a separate file
+ */
+app.post('/api/artist-gallery/save-ratings', (req, res) => {
+  try {
+    const { folderPath, ratings } = req.body;
+    if (!folderPath || !ratings) {
+      return res.status(400).json({ error: 'Missing folderPath or ratings' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const ratingsFile = path.join(resolvedPath, '.artist-ratings.json');
+    
+    try {
+      fs.writeFileSync(ratingsFile, JSON.stringify(ratings, null, 2));
+      console.log('[ArtistGallery] Ratings saved to:', ratingsFile);
+      res.json({ success: true, message: 'Ratings saved' });
+    } catch (err) {
+      console.error('[ArtistGallery] Failed to save ratings:', err);
+      res.status(500).json({ error: 'Failed to save ratings', details: err.message });
+    }
+  } catch (err) {
+    console.error('[ArtistGallery] Error in save-ratings:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
+/**
+ * GET /api/artist-gallery/load-ratings
+ * Load image ratings for an artist group from file
+ */
+app.get('/api/artist-gallery/load-ratings', (req, res) => {
+  try {
+    const folderPath = req.query.folderPath;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folderPath' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const ratingsFile = path.join(resolvedPath, '.artist-ratings.json');
+    
+    try {
+      if (fs.existsSync(ratingsFile)) {
+        const ratings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
+        res.json({ success: true, ratings });
+      } else {
+        res.json({ success: true, ratings: {} });
+      }
+    } catch (err) {
+      console.error('[ArtistGallery] Failed to load ratings:', err);
+      res.status(500).json({ error: 'Failed to load ratings', details: err.message });
+    }
+  } catch (err) {
+    console.error('[ArtistGallery] Error in load-ratings:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
+/**
+ * POST /api/ratings/save
+ * Save image ratings to a unified ratings file (works for both prompt grouping and artist gallery)
+ * File: .image-ratings.json
+ */
+app.post('/api/ratings/save', (req, res) => {
+  try {
+    const { folderPath, ratings } = req.body;
+    if (!folderPath || !ratings) {
+      return res.status(400).json({ error: 'Missing folderPath or ratings' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const ratingsFile = path.join(resolvedPath, '.image-ratings.json');
+    
+    try {
+      fs.writeFileSync(ratingsFile, JSON.stringify(ratings, null, 2));
+      console.log('[Ratings] Unified ratings saved to:', ratingsFile);
+      res.json({ success: true, message: 'Ratings saved' });
+    } catch (err) {
+      console.error('[Ratings] Failed to save ratings:', err);
+      res.status(500).json({ error: 'Failed to save ratings', details: err.message });
+    }
+  } catch (err) {
+    console.error('[Ratings] Error in save:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
+  }
+});
+
+/**
+ * GET /api/ratings/load
+ * Load image ratings from unified ratings file (works for both prompt grouping and artist gallery)
+ * File: .image-ratings.json
+ */
+app.get('/api/ratings/load', (req, res) => {
+  try {
+    const folderPath = req.query.folderPath;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folderPath' });
+    }
+
+    const resolvedPath = path.resolve(folderPath);
+    
+    // Security: Ensure the path exists and is a directory
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const ratingsFile = path.join(resolvedPath, '.image-ratings.json');
+    
+    try {
+      if (fs.existsSync(ratingsFile)) {
+        const ratings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
+        console.log('[Ratings] Loaded unified ratings from:', ratingsFile);
+        console.log('[Ratings] File contents (first 500 chars):', JSON.stringify(ratings).substring(0, 500));
+        console.log('[Ratings] Filenames in ratings:', Object.keys(ratings));
+        res.json({ success: true, ratings });
+      } else {
+        console.log('[Ratings] No ratings file found at:', ratingsFile);
+        res.json({ success: true, ratings: {} });
+      }
+    } catch (err) {
+      console.error('[Ratings] Failed to load ratings:', err);
+      res.status(500).json({ error: 'Failed to load ratings', details: err.message });
+    }
+  } catch (err) {
+    console.error('[Ratings] Error in load:', err);
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 });
 

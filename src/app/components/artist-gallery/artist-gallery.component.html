@@ -101,6 +101,7 @@
             <th class="col-preview">Preview Thumbnail</th>
             <th class="col-count">Images</th>
             <th class="col-modified">Latest Modified</th>
+            <th class="col-rating">Rating</th>
           </tr>
         </thead>
         <tbody>
@@ -134,6 +135,13 @@
             <td class="col-modified">
               <div class="modified-date">{{ formatLatestModifiedDate(group) }}</div>
             </td>
+
+            <!-- Rating Column -->
+            <td class="col-rating">
+              <div class="rating-display">
+                {{ group.averageRating ? (group.averageRating | number:'1.1-1') + '/10' : 'N/A' }}
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -156,7 +164,8 @@
   <app-image-viewer-modal 
     [isOpen]="showImageViewer"
     [reviewData]="currentGroupReviewData"
-    (closeModal)="closeImageViewer()">
+    (closeModal)="closeImageViewer()"
+    (ratingsChanged)="onRatingsChanged($event)">
   </app-image-viewer-modal>
 
   <!-- Back to Top Button -->

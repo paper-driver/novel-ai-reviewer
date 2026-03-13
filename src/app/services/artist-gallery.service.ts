@@ -11,11 +11,13 @@ export interface ArtistGroupInfo {
   thumbnailPath: string;
   images: string[];
   latestModifiedTime?: number; // Unix timestamp (ms) of latest modified image
+  averageRating?: number; // Average rating for images in this group (0-10, or undefined if no ratings)
 }
 
 export interface ArtistGalleryResult {
   success: boolean;
   sortedFolder: string;
+  baseFolder?: string;  // Parent folder where ratings are stored
   groups: ArtistGroupInfo[];
   totalGroups: number;
   totalImages: number;
@@ -123,5 +125,29 @@ export class ArtistGalleryService {
       { sourcePath, destinationPath }
     );
   }
-}
 
+  /**
+   * Save image ratings for an artist group
+   * Ratings are stored in a separate file: .image-ratings.json (unified for all grouping types)
+   * Using flat structure: { filename: rating } so ratings are universal across all features
+   */
+  saveRatings(folderPath: string, ratings: { [filename: string]: number }): Observable<any> {
+    console.log('[ArtistGalleryService] Saving ratings:', { folderPath, ratings });
+    return this.http.post<any>(
+      'http://localhost:3000/api/ratings/save',
+      { folderPath, ratings }
+    );
+  }
+
+  /**
+   * Load image ratings for an artist group
+   * Ratings are loaded from the file: .image-ratings.json (unified for all grouping types)
+   * Using flat structure: { filename: rating } so ratings are universal across all features
+   */
+  loadRatings(folderPath: string): Observable<{ success: boolean; ratings: { [filename: string]: number } }> {
+    console.log('[ArtistGalleryService] Loading ratings from:', folderPath);
+    return this.http.get<any>(
+      `http://localhost:3000/api/ratings/load?folderPath=${encodeURIComponent(folderPath)}`
+    );
+  }
+}

@@ -16,6 +16,7 @@ import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/im
 })
 export class ArtistGalleryComponent implements OnInit, OnDestroy {
   sortedFolderPath: string = '';
+  baseFolder: string = '';  // For storing/loading ratings from the base generated folder
   isLoading = false;
   error: string | null = null;
   groups: ArtistGroupInfo[] = [];
@@ -58,6 +59,10 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       this.filteredGroups = cachedData.filteredGroups;
       this.searchText = cachedData.searchText;
       this.totalImages = cachedData.totalImages;
+      
+      // Load and calculate average ratings from localStorage
+      this.refreshAverageRatings();
+      
       this.isLoading = false;
     }
 
@@ -125,6 +130,13 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
         if (response.success) {
           this.groups = response.groups;
           this.totalImages = response.totalImages;
+          this.baseFolder = response.baseFolder || this.sortedFolderPath; // Store base folder for ratings
+          
+          console.log('[ArtistGallery] Loaded groups, base folder for ratings:', this.baseFolder);
+          
+          // Load and calculate average ratings from base folder
+          this.refreshAverageRatings();
+          
           this.isLoading = false;
           
           // Re-apply search filter if there's an active search
@@ -156,19 +168,114 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
   }
 
   openImageViewer(group: ArtistGroupInfo): void {
-    this.currentGroupReviewData = {
-      images: group.images,
-      folder: group.folderPath,
-      artists: group.artists,
-      title: group.artists.join(' | '),
-      apiType: 'artist-gallery'
-    };
-    this.showImageViewer = true;
+    // Load ratings from server if they exist
+    const ratingsFolder = this.baseFolder || this.sortedFolderPath;
+    console.log('[ArtistGallery] openImageViewer called');
+    console.log('[ArtistGallery] sortedFolderPath:', this.sortedFolderPath);
+    console.log('[ArtistGallery] baseFolder:', this.baseFolder);
+    console.log('[ArtistGallery] ratingsFolder being used:', ratingsFolder);
+    console.log('[ArtistGallery] group.images:', group.images);
+    
+    this.galleryService.loadRatings(ratingsFolder).subscribe({
+      next: (response) => {
+        console.log('[ArtistGallery] loadRatings response:', response);
+        if (response.success) {
+          // Ratings are now stored flat by filename: { filename: rating }
+          const allRatings = response.ratings as { [filename: string]: number };
+          console.log('[ArtistGallery] All ratings loaded:', allRatings);
+          
+          // Filter to only ratings for images in this group
+          const groupRatings: { [filename: string]: number } = {};
+          if (group.images && allRatings) {
+            group.images.forEach(filename => {
+              console.log('[ArtistGallery] Checking filename:', filename, 'has rating:', allRatings[filename]);
+              if (allRatings[filename]) {
+                groupRatings[filename] = allRatings[filename];
+              }
+            });
+          }
+
+          this.currentGroupReviewData = {
+            images: group.images,
+            folder: group.folderPath,
+            artists: group.artists,
+            title: group.artists.join(' | '),
+            apiType: 'artist-gallery',
+            imageRatings: groupRatings
+          };
+          console.log('[ArtistGallery] Review data set with ratings:', groupRatings);
+          this.showImageViewer = true;
+        }
+      },
+      error: (err) => {
+        console.error('[ArtistGallery] Failed to load ratings:', err);
+        // Still open the viewer, just without ratings
+        this.currentGroupReviewData = {
+          images: group.images,
+          folder: group.folderPath,
+          artists: group.artists,
+          title: group.artists.join(' | '),
+          apiType: 'artist-gallery',
+          imageRatings: {}
+        };
+        this.showImageViewer = true;
+      }
+    });
+  }
+
+  // Store latest ratings received from modal
+  private latestModalRatings: { [filename: string]: number } | null = null;
+
+  /**
+   * Handle ratings changed from modal
+   */
+  onRatingsChanged(ratings: { [filename: string]: number }): void {
+    // Store ratings in current group review data AND in a separate property
+    console.log('[ArtistGallery] Ratings changed:', ratings);
+    this.latestModalRatings = ratings;
+    if (this.currentGroupReviewData) {
+      this.currentGroupReviewData.imageRatings = ratings;
+      console.log('[ArtistGallery] Stored ratings in review data:', this.currentGroupReviewData.imageRatings);
+    }
   }
 
   closeImageViewer(): void {
+    console.log('[ArtistGallery] Closing image viewer');
+    console.log('[ArtistGallery] Current review data:', this.currentGroupReviewData);
+    console.log('[ArtistGallery] Latest modal ratings:', this.latestModalRatings);
+    
+    // Use ratings from either currentGroupReviewData or latestModalRatings
+    const ratingsToUse = this.latestModalRatings || (this.currentGroupReviewData?.imageRatings);
+    
+    // Save ratings to base folder (where prompt grouping also saves)
+    if (ratingsToUse && Object.keys(ratingsToUse).length > 0) {
+      console.log('[ArtistGallery] Ratings to save:', ratingsToUse);
+      
+      // Send ratings as-is (flat structure: { filename: rating })
+      const ratingsToSave = ratingsToUse as { [filename: string]: number };
+      const ratingsFolder = this.baseFolder || this.sortedFolderPath;
+
+      console.log('[ArtistGallery] Calling saveRatings with folder:', ratingsFolder);
+      this.galleryService.saveRatings(ratingsFolder, ratingsToSave).subscribe({
+        next: (response) => {
+          console.log('[ArtistGallery] Ratings saved successfully:', response);
+          // Refresh average ratings for display
+          this.refreshAverageRatings();
+        },
+        error: (err) => {
+          console.error('[ArtistGallery] Failed to save ratings:', err);
+          // Still refresh to update the UI
+          this.refreshAverageRatings();
+        }
+      });
+    } else {
+      console.log('[ArtistGallery] No ratings to save');
+      this.refreshAverageRatings();
+    }
+
     this.showImageViewer = false;
     this.currentGroupReviewData = null;
+    this.latestModalRatings = null;
   }
 
   /**
@@ -362,5 +469,72 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       this.searchText,
       this.totalImages
     );
+  }
+
+  /**
+   * Calculate average rating for a group based on image ratings
+   * Ignores images with no rating (0 or undefined)
+   */
+  calculateAverageRating(imageRatings: { [filename: string]: number } | undefined): number | undefined {
+    if (!imageRatings || Object.keys(imageRatings).length === 0) {
+      return undefined;
+    }
+
+    const ratedValues = Object.values(imageRatings).filter(rating => rating && rating > 0);
+    if (ratedValues.length === 0) {
+      return undefined;
+    }
+
+    const sum = ratedValues.reduce((acc, rating) => acc + rating, 0);
+    return sum / ratedValues.length;
+  }
+
+  /**
+   * Refresh average ratings for all groups based on stored ratings from server
+   */
+  refreshAverageRatings(): void {
+    console.log('[ArtistGallery] Refreshing average ratings from base folder:', this.baseFolder);
+    // Use baseFolder if available, otherwise fall back to sortedFolderPath
+    const ratingsFolder = this.baseFolder || this.sortedFolderPath;
+    
+    this.galleryService.loadRatings(ratingsFolder).subscribe({
+      next: (response) => {
+        console.log('[ArtistGallery] Loaded ratings from server:', response);
+        if (response.success && response.ratings) {
+          // Get all image ratings from flat structure (filename: rating)
+          const allImageRatings = response.ratings as { [filename: string]: number };
+          console.log('[ArtistGallery] All image ratings:', allImageRatings);
+          
+          this.groups.forEach(group => {
+            const oldRating = group.averageRating;
+            
+            // Calculate average based on images in this group
+            if (group.images && group.images.length > 0) {
+              // Convert array of filenames to object of {filename: rating}
+              const groupRatingsObj: { [filename: string]: number } = {};
+              group.images.forEach((filename: string) => {
+                if (allImageRatings[filename]) {
+                  groupRatingsObj[filename] = allImageRatings[filename];
+                }
+              });
+              
+              group.averageRating = this.calculateAverageRating(groupRatingsObj);
+              const ratedCount = Object.keys(groupRatingsObj).length;
+              console.log(`[ArtistGallery] Group ${group.artists.join('|')}: images=${group.images.length}, rated=${ratedCount}, average=${group.averageRating} (was ${oldRating})`);
+            }
+          });
+
+          // Re-apply search to update display
+          if (this.searchText) {
+            this.applySearch();
+          } else {
+            this.filteredGroups = [...this.groups];
+          }
+        }
+      },
+      error: (err) => {
+        console.error('[ArtistGallery] Failed to load ratings:', err);
+      }
+    });
   }
 }
