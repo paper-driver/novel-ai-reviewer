@@ -1,12 +1,13 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { ReviewService, Review } from '../../services/review.service';
 import { ImageViewerModalComponent } from '../image-viewer-modal/image-viewer-modal.component';
 
 @Component({
   selector: 'app-reviews-table',
   standalone: true,
-  imports: [CommonModule, ImageViewerModalComponent],
+  imports: [CommonModule, HttpClientModule, ImageViewerModalComponent],
   templateUrl: './reviews-table.component.html',
   styleUrls: ['./reviews-table.component.scss']
 })
@@ -22,7 +23,7 @@ export class ReviewsTableComponent implements OnInit, OnChanges {
   // Back to top button
   showBackToTopButton = false;
 
-  constructor(private reviewService: ReviewService) {}
+  constructor(private reviewService: ReviewService, private http: HttpClient) {}
 
   ngOnInit(): void {
     this.loadReviews();
@@ -74,7 +75,24 @@ export class ReviewsTableComponent implements OnInit, OnChanges {
       prompt: review.prompt,
       review: review.review
     };
-    this.isModalOpen = true;
+    
+    // Load ratings from backend
+    this.http.get<{ success: boolean; ratings: { [filename: string]: number } }>(
+      `http://localhost:3000/api/ratings/load?folderPath=${encodeURIComponent(review.folder)}`
+    ).subscribe(
+      res => {
+        if (res.success && res.ratings) {
+          this.selectedReview.imageRatings = res.ratings;
+          console.log('[ReviewsTable] Loaded ratings:', this.selectedReview.imageRatings);
+        }
+        this.isModalOpen = true;
+      },
+      err => {
+        console.warn('[ReviewsTable] Failed to load ratings:', err);
+        // Still open modal even if ratings fail to load
+        this.isModalOpen = true;
+      }
+    );
   }
 
   /**
@@ -83,6 +101,63 @@ export class ReviewsTableComponent implements OnInit, OnChanges {
   closeImageViewer(): void {
     this.isModalOpen = false;
     this.selectedReview = null;
+  }
+
+  /**
+   * Handle ratings changed event from modal
+   * Save ratings to backend and preserve existing ratings
+   */
+  onRatingsChanged(newRatings: { [filename: string]: number }): void {
+    if (!this.selectedReview || !this.selectedReview.folder) {
+      console.warn('[ReviewsTable] No selected review folder for saving ratings');
+      return;
+    }
+
+    console.log('[ReviewsTable] Ratings changed, saving to server...');
+    console.log('[ReviewsTable] New ratings:', newRatings);
+
+    // First load existing ratings from server
+    this.http.get<{ success: boolean; ratings: { [filename: string]: number } }>(
+      `http://localhost:3000/api/ratings/load?folderPath=${encodeURIComponent(this.selectedReview.folder)}`
+    ).subscribe(
+      res => {
+        // Merge existing ratings with new ratings
+        const existingRatings = res.success && res.ratings ? res.ratings : {};
+        const mergedRatings = { ...existingRatings, ...newRatings };
+        
+        console.log('[ReviewsTable] Existing ratings:', existingRatings);
+        console.log('[ReviewsTable] Merged ratings:', mergedRatings);
+
+        // Save merged ratings
+        this.http.post('http://localhost:3000/api/ratings/save', {
+          folderPath: this.selectedReview.folder,
+          ratings: mergedRatings
+        }).subscribe(
+          saveRes => {
+            console.log('[ReviewsTable] Ratings saved successfully:', saveRes);
+          },
+          saveErr => {
+            console.error('[ReviewsTable] Failed to save ratings:', saveErr);
+          }
+        );
+      },
+      err => {
+        console.warn('[ReviewsTable] Failed to load existing ratings, saving new ratings only:', err);
+        
+        // If we can't load existing ratings, just save the new ones
+        this.http.post('http://localhost:3000/api/ratings/save', {
+          folderPath: this.selectedReview.folder,
+          ratings: newRatings
+        }).subscribe(
+          saveRes => {
+            console.log('[ReviewsTable] Ratings saved successfully:', saveRes);
+          },
+          saveErr => {
+            console.error('[ReviewsTable] Failed to save ratings:', saveErr);
+          }
+        );
+      }
+    );
   }
 
   /**

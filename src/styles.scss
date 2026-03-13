@@ -5,6 +5,7 @@ html, body {
   font-family: Arial, sans-serif;
   background-color: #f8f8fb;
   color: #333;
+  scrollbar-gutter: stable; // Reserve space for scrollbars to prevent layout shift
 }
 
 .container {

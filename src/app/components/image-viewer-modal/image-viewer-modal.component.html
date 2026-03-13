@@ -8,14 +8,14 @@
         <button class="zoom-btn" (click)="zoomIn()" [disabled]="zoomLevel === maxZoom" title="Zoom in" aria-label="Zoom in">+</button>
         <button class="zoom-btn reset-btn" (click)="resetZoom()" title="Reset zoom" aria-label="Reset zoom">↻</button>
       </div>
-      <div class="help-text">Scroll to zoom • Drag to move • ← → to navigate • Esc to close</div>
+      <div class="help-text">Scroll to zoom • Drag to pan • Scroll thumbnails • ← → to navigate • Esc to close</div>
       <button class="close-btn" (click)="close()" aria-label="Close modal">×</button>
     </div>
 
     <div class="modal-content">
       <!-- Main Image Viewer -->
-      <div class="modal-body" (wheel)="onMouseWheel($event)" (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()" (mouseleave)="onMouseUp()">
-        <div class="image-viewer">
+      <div class="modal-body" (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()" (mouseleave)="onMouseUp()">
+        <div class="image-viewer" (wheel)="onMouseWheel($event)">
           <img 
             #imageElement
             *ngIf="currentImageUrl" 
@@ -42,15 +42,25 @@
             ← Prev
           </button>
 
-          <div class="thumbnail-strip">
-            <img 
-              *ngFor="let image of reviewData?.images; let i = index"
-              [src]="getThumbnailUrl(image)"
-              [class.active]="i === currentImageIndex"
-              (click)="currentImageIndex = i; updateCurrentImage()"
-              [alt]="'Thumbnail ' + (i + 1)"
-              class="thumbnail"
-            >
+          <div class="thumbnail-strip" #thumbnailStrip (wheel)="onThumbnailWheel($event)">
+            <!-- Loading placeholders -->
+            <div *ngIf="!reviewData?.images || reviewData.images.length === 0" class="thumbnail-placeholder">
+              <div class="placeholder-text">Loading thumbnails...</div>
+            </div>
+            
+            <!-- Actual thumbnails -->
+            <div *ngFor="let image of reviewData?.images; let i = index" class="thumbnail-wrapper" [title]="(i + 1) + ' of ' + (reviewData?.images.length || 0)">
+              <img 
+                [src]="getThumbnailUrl(image)"
+                [class.active]="i === currentImageIndex"
+                (click)="onThumbnailClick(i)"
+                [alt]="'Thumbnail ' + (i + 1)"
+                class="thumbnail"
+                (error)="onThumbnailError($event, i)"
+                (load)="onThumbnailLoad($event, i)"
+              >
+              <div *ngIf="i === currentImageIndex" class="thumbnail-index">{{ i + 1 }}</div>
+            </div>
           </div>
 
           <button 
@@ -140,6 +150,86 @@
               📂 Open in Finder
             </button>
           </div>
+          
+          <!-- AI Rating Buttons -->
+          <div class="metadata-item ai-rating-item">
+            <span class="metadata-label">AI Analysis</span>
+            <div class="ai-buttons">
+              <button 
+                class="btn-ai-analyze" 
+                (click)="autoRateCurrentIllustration()"
+                [disabled]="isAutoRating"
+                title="Analyze this image with AI"
+              >
+                {{ isAutoRating ? '⏳ Analyzing...' : '🎨 Analyze Art' }}
+              </button>
+              <button 
+                class="btn-ai-batch" 
+                (click)="autoRateAllIllustrationsWithAI()"
+                [disabled]="isAutoRating"
+                title="Batch analyze all images with AI"
+              >
+                🚀 Analyze All
+              </button>
+            </div>
+            <div *ngIf="autoRatingMessage" class="ai-message" [class.error]="autoRatingMessage.includes('Error')">
+              {{ autoRatingMessage }}
+            </div>
+          </div>
+
+          <!-- AI Analysis Results -->
+          <div *ngIf="illustrationAnalysis" class="metadata-item ai-results-item">
+            <span class="metadata-label">Analysis Results</span>
+            <div class="ai-results">
+              <div class="result-row">
+                <span class="result-label">Overall</span>
+                <span class="result-value">{{ illustrationAnalysis.overallScore }}/10</span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Anatomy</span>
+                <span class="result-value">{{ illustrationAnalysis.anatomyScore }}/10</span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Pose</span>
+                <span class="result-value">{{ illustrationAnalysis.poseScore }}/10</span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Face</span>
+                <span class="result-value">{{ illustrationAnalysis.faceQuality }}/10</span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Background</span>
+                <span class="result-value">{{ illustrationAnalysis.backgroundQuality }}/10</span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Objects</span>
+                <span class="result-value">{{ illustrationAnalysis.objectQuality }}/10</span>
+              </div>
+              <div class="result-row">
+                <span class="result-label">Coherence</span>
+                <span class="result-value">{{ illustrationAnalysis.coherenceScore }}/10</span>
+              </div>
+              <div *ngIf="illustrationAnalysis.detectedStrengths && illustrationAnalysis.detectedStrengths.length > 0" class="strengths">
+                <div class="strength-title">✓ Strengths</div>
+                <ul class="strength-list">
+                  <li *ngFor="let strength of illustrationAnalysis.detectedStrengths">{{ strength }}</li>
+                </ul>
+              </div>
+              <div *ngIf="illustrationAnalysis.detectedIssues && illustrationAnalysis.detectedIssues.length > 0" class="issues">
+                <div class="issue-title">⚠ Issues</div>
+                <ul class="issue-list">
+                  <li *ngFor="let issue of illustrationAnalysis.detectedIssues">{{ issue }}</li>
+                </ul>
+              </div>
+              <div *ngIf="illustrationAnalysis.recommendations && illustrationAnalysis.recommendations.length > 0" class="recommendations">
+                <div class="recommendation-title">💡 Recommendations</div>
+                <ul class="recommendation-list">
+                  <li *ngFor="let rec of illustrationAnalysis.recommendations">{{ rec }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
           <div *ngIf="openFinderError" class="error-message">
             {{ openFinderError }}
           </div>

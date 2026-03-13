@@ -1,0 +1,84 @@
+<div class="batch-manager-container">
+  <!-- Current Job Progress -->
+  <div class="current-job" *ngIf="currentJobProgress">
+    <div class="job-header">
+      <h3>🚀 Batch Analysis In Progress</h3>
+      <button class="btn-cancel" (click)="cancelJob(currentJobId)" [disabled]="!isPolling">
+        Cancel Job
+      </button>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-info">
+        <span class="label">Job ID:</span>
+        <span class="value">{{ currentJobId }}</span>
+      </div>
+      <div class="progress-info">
+        <span class="label">Status:</span>
+        <span class="value" [style.color]="getStatusColor(currentJobProgress.status)">
+          {{ currentJobProgress.status | uppercase }}
+        </span>
+      </div>
+      <div class="progress-info">
+        <span class="label">Progress:</span>
+        <span class="value">{{ currentJobProgress.processedImages }}/{{ currentJobProgress.totalImages }}</span>
+      </div>
+    </div>
+
+    <div class="progress-bar-container">
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="currentJobProgress.percentComplete"></div>
+      </div>
+      <span class="progress-percentage">{{ currentJobProgress.percentComplete }}%</span>
+    </div>
+
+    <div class="progress-eta">
+      <span class="label">Estimated time remaining:</span>
+      <span class="value">{{ currentJobProgress.estimatedTimeRemaining }}s</span>
+    </div>
+  </div>
+
+  <!-- Active Jobs List -->
+  <div class="active-jobs" *ngIf="activeJobs.length > 0">
+    <h3>📋 Active & Completed Jobs</h3>
+    <div class="jobs-list">
+      <div class="job-card" *ngFor="let job of activeJobs">
+        <div class="job-card-header">
+          <span class="job-status" [style.backgroundColor]="getStatusColor(job.status)">
+            {{ job.status | uppercase }}
+          </span>
+          <span class="job-id">{{ job.jobId }}</span>
+        </div>
+
+        <div class="job-details">
+          <div class="detail">
+            <span class="label">Images:</span>
+            <span class="value">{{ job.processedImages }}/{{ job.totalImages }}</span>
+          </div>
+          <div class="detail">
+            <span class="label">Created:</span>
+            <span class="value">{{ job.createdAt | date:'short' }}</span>
+          </div>
+          <div class="detail" *ngIf="job.completedAt">
+            <span class="label">Completed:</span>
+            <span class="value">{{ job.completedAt | date:'short' }}</span>
+          </div>
+        </div>
+
+        <div class="job-actions">
+          <button 
+            class="btn-small btn-results"
+            (click)="getJobResults(job.jobId)"
+            *ngIf="job.status === 'completed'">
+            View Results
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="activeJobs.length === 0 && !currentJobProgress">
+    <p>No active batch jobs</p>
+  </div>
+</div>

@@ -45,6 +45,7 @@
   [isOpen]="isModalOpen"
   [reviewData]="selectedReview"
   (closeModal)="closeImageViewer()"
+  (ratingsChanged)="onRatingsChanged($event)"
 ></app-image-viewer-modal>
 
 <!-- Back to Top Button -->

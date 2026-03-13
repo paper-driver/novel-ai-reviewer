@@ -180,8 +180,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
     this.showProgress = true;
-    this.progressPercentage = 0;
-    this.progressText = 'Initializing...';
+    this.progressPercentage = 5;
+    this.progressText = 'Loading prompt groups...';
     this.error = null;
     this.groups = [];
 

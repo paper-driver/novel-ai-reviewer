@@ -106,8 +106,8 @@ export class ArtistGroupingComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
     this.result = null;
-    this.processingProgress = 0;
-    this.processingMessage = 'Initializing...';
+    this.processingProgress = 5;
+    this.processingMessage = 'Reading source folder...';
 
     this.reviewService.groupImagesByArtistsWithPath(this.sourceFolder, this.destinationFolder).subscribe({
       next: (response) => {
@@ -132,7 +132,7 @@ export class ArtistGroupingComponent implements OnInit {
     });
     
     // Simulate progress increments
-    let progress = 0;
+    let progress = 5;
     const interval = setInterval(() => {
       if (!this.isLoading) {
         clearInterval(interval);
