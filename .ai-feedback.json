@@ -1,0 +1,596 @@
+{
+  "entries": [
+    {
+      "imageId": "test-image-1",
+      "aiScore": 7,
+      "userScore": 6,
+      "correction": -1,
+      "reasoning": "Face quality is weak",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 5,
+        "background": 6,
+        "objects": 9,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:27:32.658Z"
+    },
+    {
+      "imageId": "test-image-2",
+      "aiScore": 8,
+      "userScore": 6,
+      "correction": -2,
+      "reasoning": "High object score but weak face expression",
+      "components": {
+        "anatomy": 9,
+        "pose": 5,
+        "face": 4,
+        "background": 6,
+        "objects": 10,
+        "coherence": 9
+      },
+      "timestamp": "2026-03-13T20:27:59.849Z"
+    },
+    {
+      "imageId": "test-image-3",
+      "aiScore": 7,
+      "userScore": 5,
+      "correction": -2,
+      "reasoning": "Poor composition overall",
+      "components": {
+        "anatomy": 7,
+        "pose": 5,
+        "face": 5,
+        "background": 5,
+        "objects": 8,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T20:27:59.879Z"
+    },
+    {
+      "imageId": "test-image-4",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "Good composition despite mid anatomy score",
+      "components": {
+        "anatomy": 6,
+        "pose": 7,
+        "face": 8,
+        "background": 7,
+        "objects": 6,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:27:59.887Z"
+    },
+    {
+      "imageId": "test-image-5",
+      "aiScore": 7,
+      "userScore": 5,
+      "correction": -2,
+      "reasoning": "Weak overall despite good object detail",
+      "components": {
+        "anatomy": 7,
+        "pose": 5,
+        "face": 4,
+        "background": 5,
+        "objects": 9,
+        "coherence": 6
+      },
+      "timestamp": "2026-03-13T20:27:59.893Z"
+    },
+    {
+      "imageId": "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-1910090355.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "object shadowing is better than score 5",
+      "components": {
+        "anatomy": 7,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:40:27.196Z"
+    },
+    {
+      "imageId": "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2698445372.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "piercing looks more realistic and better shadowing",
+      "components": {
+        "anatomy": 7,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:42:18.220Z"
+    },
+    {
+      "imageId": "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2698445372.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "piercing location is appropriate and accurate.shadowing of object is more clear",
+      "components": {
+        "anatomy": 7,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:43:16.321Z"
+    },
+    {
+      "imageId": "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2698445372.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "better shadowing and piercing location is appropriate. ",
+      "components": {
+        "anatomy": 7,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:52:24.315Z"
+    },
+    {
+      "imageId": "1girl, {{asuna (blue archive), blue eyes, blonde hair, long hair, large breasts, s-454871450.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "clear shadowing and detailed skin and piercing drawing. clear feet and hand drawing\n",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:54:03.284Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin , pink eyes, blonde hair, medium breasts, medium hips, s-682834348.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "good skin texture and accurate drawing of clothing. However, background detail can be improved.\n",
+      "components": {
+        "anatomy": 6,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:55:44.231Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin , pink eyes, blonde hair, medium breasts, medium hips, s-1011156380.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "good skin texture and accurate clothing drawing.",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T20:56:26.897Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin , pink eyes, blonde hair, medium breasts, medium hips, s-792756270.png",
+      "aiScore": 6,
+      "userScore": 6,
+      "correction": 0,
+      "reasoning": "good skin texture, and accurate clothing drawing",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:57:27.546Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin , pink eyes, blonde hair, medium breasts, medium hips, s-792756270.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "good skin texture and accurate clothing drawing",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:57:48.528Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin , pink eyes, blonde hair, medium breasts, medium hips, s-1048037601.png",
+      "aiScore": 6,
+      "userScore": 6,
+      "correction": 0,
+      "reasoning": "bit overexposed coloring",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:58:19.502Z"
+    },
+    {
+      "imageId": "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-638059681.png",
+      "aiScore": 7,
+      "userScore": 5,
+      "correction": -2,
+      "reasoning": "skin color is not consistent. there are some marks that does not look like skin color. really bad",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T20:59:18.800Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin , pink eyes, blonde hair, medium breasts, medium hips, s-1113030616.png",
+      "aiScore": 6,
+      "userScore": 5,
+      "correction": -1,
+      "reasoning": "clothing is not realistic especially how underwear was drawn",
+      "components": {
+        "anatomy": 7,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:00:47.045Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin , pink eyes, blonde hair, medium breasts, medium hips, s-2385774706.png",
+      "aiScore": 6,
+      "userScore": 6,
+      "correction": 0,
+      "reasoning": "bit overexposed coloring",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T21:01:18.527Z"
+    },
+    {
+      "imageId": "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2914389851.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "really detailed object and background drawing. really detailed character drawing",
+      "components": {
+        "anatomy": 6,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:03:34.578Z"
+    },
+    {
+      "imageId": "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-413738642.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "really detailed object drawing. the detail of monster is really good but background can be improved a litte",
+      "components": {
+        "anatomy": 6,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:04:25.911Z"
+    },
+    {
+      "imageId": "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-510738459.png",
+      "aiScore": 6,
+      "userScore": 6,
+      "correction": 0,
+      "reasoning": "good background and object drawing but lack a bit of detail on monster drawing",
+      "components": {
+        "anatomy": 6,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:05:02.828Z"
+    },
+    {
+      "imageId": "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-58315541.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "really good shadowing and detailed background and object drawing. monster has fair amount of detail and really convincing",
+      "components": {
+        "anatomy": 6,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:06:01.993Z"
+    },
+    {
+      "imageId": "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-4197405846.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "colouring is bit flat",
+      "components": {
+        "anatomy": 6,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:06:25.727Z"
+    },
+    {
+      "imageId": "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-4107545996.png",
+      "aiScore": 6,
+      "userScore": 5,
+      "correction": -1,
+      "reasoning": "high heel sandals drawing is not correct. background looks really good",
+      "components": {
+        "anatomy": 6,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:07:02.594Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin, pink eyes, blonde hair, pink nails, large breasts, wi s-1146679392.png",
+      "aiScore": 6,
+      "userScore": 5,
+      "correction": -1,
+      "reasoning": "background is bit boring and bland",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T21:08:15.246Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin, pink eyes, blonde hair, pink nails, large breasts, wi s-1761924509.png",
+      "aiScore": 6,
+      "userScore": 5,
+      "correction": -1,
+      "reasoning": "anatomy is good but scene and location is not realistic",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T21:08:44.041Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin, pink eyes, blonde hair, pink nails, large breasts, wi s-1547472616.png",
+      "aiScore": 6,
+      "userScore": 9,
+      "correction": 3,
+      "reasoning": "really good shadowing and skin texture. clothing is pretty accurate and proportional ",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:09:29.315Z"
+    },
+    {
+      "imageId": "1girl, {{{{kitagawa marin, pink eyes, blonde hair, pink nails, large breasts, wi s-3053415778.png",
+      "aiScore": 6,
+      "userScore": 6,
+      "correction": 0,
+      "reasoning": "coloring is bit flat",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:09:53.175Z"
+    },
+    {
+      "imageId": "1girl, {{{{shenhe (genshin impact) , silver eyes, silver hair, large breasts, wi s-1971849385.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "good object detail but background is bit blurry",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:10:29.642Z"
+    },
+    {
+      "imageId": "1girl, {{{{hoshino ai (oshi no ko) , blue eyes, star pupil,  purple hair, large  s-227156113.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "clear object drawing and accurate clothing but skin texture can be improved.",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T21:12:32.821Z"
+    },
+    {
+      "imageId": "1girl, {{{{hoshino ai (oshi no ko) , blue eyes, star pupil,  purple hair, large  s-3921885744.png",
+      "aiScore": 6,
+      "userScore": 6,
+      "correction": 0,
+      "reasoning": "good anatomy but skin texture and facial expression can be improved",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T21:13:05.510Z"
+    },
+    {
+      "imageId": "1girl, {{{{hoshino ai (oshi no ko) , blue eyes, star pupil,  purple hair, large  s-888846164.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "good skin texture and detailed object drawing but posing can be improved.",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T21:13:39.758Z"
+    },
+    {
+      "imageId": "1girl, {{{{saitou miyako (oshi no ko) , orange eyes, orange hair, large breasts, s-1908575375.png",
+      "aiScore": 6,
+      "userScore": 7,
+      "correction": 1,
+      "reasoning": "",
+      "components": {
+        "anatomy": 5,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 7
+      },
+      "timestamp": "2026-03-13T21:14:03.504Z"
+    },
+    {
+      "imageId": "solo,1girl,{kitagawa marin,blonde hair,red eyes, piercing,midriff,large breasts, s-1719874624 (1).png",
+      "aiScore": 7,
+      "userScore": 4,
+      "correction": -3,
+      "reasoning": "too strong colouring that makes image not realistic. the anatomy is bit out of proportion from anime standard. pussy drawing is not detailed enough, background is too blank",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 9
+      },
+      "timestamp": "2026-03-13T21:15:19.088Z"
+    },
+    {
+      "imageId": "solo,1girl,{kitagawa marin,blonde hair,red eyes, piercing,midriff,large breasts, s-1719874624.png",
+      "aiScore": 7,
+      "userScore": 5,
+      "correction": -2,
+      "reasoning": "too strong colouring and not really detailed drawing",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 9
+      },
+      "timestamp": "2026-03-13T21:15:55.137Z"
+    },
+    {
+      "imageId": "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2698445372.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "good object drawing and piercing location is appropriate",
+      "components": {
+        "anatomy": 7,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 5,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:34:24.576Z"
+    },
+    {
+      "imageId": "1girl, {{asuna (blue archive), blue eyes, blonde hair, long hair, large breasts, s-454871450.png",
+      "aiScore": 6,
+      "userScore": 8,
+      "correction": 2,
+      "reasoning": "good object drawing and good skin texture",
+      "components": {
+        "anatomy": 8,
+        "pose": 6,
+        "face": 6,
+        "background": 6,
+        "objects": 4,
+        "coherence": 8
+      },
+      "timestamp": "2026-03-13T21:35:49.626Z"
+    }
+  ]
+}

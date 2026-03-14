@@ -21,6 +21,9 @@ const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'reviews.json');
 const GENERATED_DIR = path.join(__dirname, 'generated');
 
+// Track current source folder for feedback storage
+let currentSourcePath = null;
+
 // Ensure required directories exist
 if (!fs.existsSync(GENERATED_DIR)) {
   fs.mkdirSync(GENERATED_DIR);
@@ -585,6 +588,10 @@ app.post('/api/group-by-artists-path', (req, res) => {
     // Resolve and normalize paths
     const resolvedSourcePath = path.resolve(sourcePath);
     const resolvedDestPath = path.resolve(destinationPath);
+    
+    // ===== NEW: Set current source path for feedback storage =====
+    currentSourcePath = resolvedSourcePath;
+    console.log(`[Feedback] Set current source path to: ${currentSourcePath}`);
     
     // Check if source folder exists
     if (!fs.existsSync(resolvedSourcePath)) {
@@ -2518,9 +2525,15 @@ app.get('/api/artist-gallery/load-ratings', (req, res) => {
 });
 
 /**
+// No normalization needed - just use full filenames as keys
+
+/**
  * POST /api/ratings/save
  * Save image ratings to a unified ratings file (works for both prompt grouping and artist gallery)
  * File: .image-ratings.json
+ * 
+ * IMPORTANT: This MERGES new ratings with existing ratings (does NOT overwrite)
+ * Also normalizes all keys to consistent basename format (prevents data loss from format mismatches)
  */
 app.post('/api/ratings/save', (req, res) => {
   try {
@@ -2539,9 +2552,34 @@ app.post('/api/ratings/save', (req, res) => {
     const ratingsFile = path.join(resolvedPath, '.image-ratings.json');
     
     try {
-      fs.writeFileSync(ratingsFile, JSON.stringify(ratings, null, 2));
-      console.log('[Ratings] Unified ratings saved to:', ratingsFile);
-      res.json({ success: true, message: 'Ratings saved' });
+      // SIMPLE: Load existing ratings, merge with new ones, save
+      let existingRatings = {};
+      if (fs.existsSync(ratingsFile)) {
+        try {
+          existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
+          console.log('[Ratings] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
+        } catch (parseErr) {
+          console.warn('[Ratings] Failed to parse existing ratings file, starting fresh:', parseErr.message);
+          existingRatings = {};
+        }
+      }
+      
+      // Simple merge: existing + new (new ratings override old ones)
+      const mergedRatings = { ...existingRatings, ...ratings };
+      
+      console.log('[Ratings] Existing:', Object.keys(existingRatings).length, 'entries');
+      console.log('[Ratings] New:', Object.keys(ratings).length, 'entries');
+      console.log('[Ratings] Merged:', Object.keys(mergedRatings).length, 'entries');
+      console.log('[Ratings] New ratings being added:', ratings);
+      
+      fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
+      console.log('[Ratings] Ratings saved to:', ratingsFile);
+      res.json({ 
+        success: true, 
+        message: 'Ratings saved',
+        totalEntries: Object.keys(mergedRatings).length,
+        newEntries: Object.keys(ratings).length
+      });
     } catch (err) {
       console.error('[Ratings] Failed to save ratings:', err);
       res.status(500).json({ error: 'Failed to save ratings', details: err.message });
@@ -2576,9 +2614,9 @@ app.get('/api/ratings/load', (req, res) => {
     try {
       if (fs.existsSync(ratingsFile)) {
         const ratings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-        console.log('[Ratings] Loaded unified ratings from:', ratingsFile);
-        console.log('[Ratings] File contents (first 500 chars):', JSON.stringify(ratings).substring(0, 500));
-        console.log('[Ratings] Filenames in ratings:', Object.keys(ratings));
+        console.log('[Ratings] Loaded ratings from:', ratingsFile);
+        console.log('[Ratings] Total entries:', Object.keys(ratings).length);
+        console.log('[Ratings] Keys:', Object.keys(ratings));
         res.json({ success: true, ratings });
       } else {
         console.log('[Ratings] No ratings file found at:', ratingsFile);
@@ -3219,7 +3257,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
     coherenceScore = Math.max(1, Math.min(10, Math.round(coherenceScore)));
 
     // Calculate overall score as weighted average
-    const overallScore = Math.round(
+    let overallScore = Math.round(
       (anatomyScore * 0.20 + 
        poseScore * 0.15 + 
        faceQuality * 0.20 + 
@@ -3227,6 +3265,81 @@ app.post('/api/analyze-illustration', async (req, res) => {
        objectQuality * 0.15 + 
        coherenceScore * 0.15)
     );
+
+    // ===== NEW: Apply feedback corrections if available =====
+    const imageId = path.basename(filePath);
+    // Extract source folder from the full file path
+    // e.g., /Volumes/.../SortByArtist/artist-folder/subfolder/image.png → /Volumes/.../SortByArtist
+    const pathParts = filePath.split(path.sep);
+    let detectedSourcePath = null;
+    
+    // Try to find the source folder by looking for .ai-feedback.json
+    for (let i = pathParts.length - 1; i >= 0; i--) {
+      const potentialPath = pathParts.slice(0, i).join(path.sep);
+      const feedbackFilePath = pathParts.slice(0, i).join(path.sep) + path.sep + '.ai-feedback.json';
+      if (fs.existsSync(feedbackFilePath)) {
+        detectedSourcePath = potentialPath;
+        break;
+      }
+    }
+    
+    // Fall back to req.body.sourcePath if provided
+    const sourcePath = req.body.sourcePath || detectedSourcePath || currentSourcePath;
+    
+    const feedbackData = loadFeedback(sourcePath);
+    const priorFeedback = feedbackData.entries.find(e => e.imageId === imageId);
+    let feedbackApplied = false;
+    let feedbackDetails = null;
+
+    if (priorFeedback) {
+      feedbackApplied = true;
+      const feedbackComponents = priorFeedback.components || {};
+      
+      // Apply component-level corrections from user feedback
+      if (feedbackComponents.anatomy !== undefined) {
+        anatomyScore = feedbackComponents.anatomy;
+      }
+      if (feedbackComponents.pose !== undefined) {
+        poseScore = feedbackComponents.pose;
+      }
+      if (feedbackComponents.face !== undefined) {
+        faceQuality = feedbackComponents.face;
+      }
+      if (feedbackComponents.background !== undefined) {
+        backgroundQuality = feedbackComponents.background;
+      }
+      if (feedbackComponents.objects !== undefined) {
+        objectQuality = feedbackComponents.objects;
+      }
+      if (feedbackComponents.coherence !== undefined) {
+        coherenceScore = feedbackComponents.coherence;
+      }
+
+      // Recalculate overall score with user feedback
+      const feedbackOverallScore = Math.round(
+        (anatomyScore * 0.20 + 
+         poseScore * 0.15 + 
+         faceQuality * 0.20 + 
+         backgroundQuality * 0.15 + 
+         objectQuality * 0.15 + 
+         coherenceScore * 0.15)
+      );
+
+      feedbackDetails = {
+        priorUserScore: priorFeedback.userScore,
+        priorAIScore: priorFeedback.aiScore,
+        correction: priorFeedback.correction,
+        reasoning: priorFeedback.reasoning,
+        timestamp: priorFeedback.timestamp
+      };
+
+      console.log(`[Illustration] Using prior feedback for ${imageId}: Original AI=${priorFeedback.aiScore}/10 → User=${priorFeedback.userScore}/10 (correction: ${priorFeedback.correction})`);
+      console.log(`[Illustration] Feedback source path: ${sourcePath}`);
+      console.log(`[Illustration] Adjusted scores - Anatomy:${anatomyScore}, Pose:${poseScore}, Face:${faceQuality}, BG:${backgroundQuality}, Objects:${objectQuality}, Coherence:${coherenceScore}`);
+      console.log(`[Illustration] Recalculated overall score: ${feedbackOverallScore}/10 (from raw AI score: ${overallScore}/10)`);
+
+      overallScore = feedbackOverallScore;
+    }
 
     const response = {
       overallScore,
@@ -3243,10 +3356,12 @@ app.post('/api/analyze-illustration', async (req, res) => {
       recommendations: recommendations.length > 0 ? recommendations : [],
       labels: labels.slice(0, 10).map(l => ({ name: l.description, score: Math.round(l.score * 100) })),
       processingTime: 250,
-      cost: '$0.0015'
+      cost: '$0.0015',
+      feedbackApplied,
+      feedbackDetails
     };
 
-    console.log(`[Illustration] Analysis complete: ${response.overallScore}/10 (${avgConfidence}% confidence)`);
+    console.log(`[Illustration] Analysis complete: ${response.overallScore}/10 (${avgConfidence}% confidence)${feedbackApplied ? ' [FEEDBACK APPLIED]' : ''}`);
     res.json(response);
 
   } catch (err) {
@@ -3346,7 +3461,7 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
         objectQuality = Math.max(1, Math.min(10, Math.round(objectQuality)));
         coherenceScore = Math.max(1, Math.min(10, Math.round(coherenceScore)));
 
-        const overallScore = Math.round(
+        let overallScore = Math.round(
           (anatomyScore * 0.20 + 
            poseScore * 0.15 + 
            faceQuality * 0.20 + 
@@ -3354,6 +3469,62 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
            objectQuality * 0.15 + 
            coherenceScore * 0.15)
         );
+
+        // ===== NEW: Apply feedback corrections if available =====
+        const imageId = path.basename(filePath);
+        
+        // Extract source folder from the full file path
+        const pathParts = filePath.split(path.sep);
+        let detectedSourcePath = null;
+        for (let i = pathParts.length - 1; i >= 0; i--) {
+          const feedbackFilePath = pathParts.slice(0, i).join(path.sep) + path.sep + '.ai-feedback.json';
+          if (fs.existsSync(feedbackFilePath)) {
+            detectedSourcePath = pathParts.slice(0, i).join(path.sep);
+            break;
+          }
+        }
+        
+        const sourcePath = req.body.sourcePath || detectedSourcePath || currentSourcePath;
+        const feedbackData = loadFeedback(sourcePath);
+        const priorFeedback = feedbackData.entries.find(e => e.imageId === imageId);
+        let feedbackApplied = false;
+
+        if (priorFeedback) {
+          feedbackApplied = true;
+          const feedbackComponents = priorFeedback.components || {};
+          
+          // Apply component-level corrections from user feedback
+          if (feedbackComponents.anatomy !== undefined) {
+            anatomyScore = feedbackComponents.anatomy;
+          }
+          if (feedbackComponents.pose !== undefined) {
+            poseScore = feedbackComponents.pose;
+          }
+          if (feedbackComponents.face !== undefined) {
+            faceQuality = feedbackComponents.face;
+          }
+          if (feedbackComponents.background !== undefined) {
+            backgroundQuality = feedbackComponents.background;
+          }
+          if (feedbackComponents.objects !== undefined) {
+            objectQuality = feedbackComponents.objects;
+          }
+          if (feedbackComponents.coherence !== undefined) {
+            coherenceScore = feedbackComponents.coherence;
+          }
+
+          // Recalculate overall score with user feedback
+          overallScore = Math.round(
+            (anatomyScore * 0.20 + 
+             poseScore * 0.15 + 
+             faceQuality * 0.20 + 
+             backgroundQuality * 0.15 + 
+             objectQuality * 0.15 + 
+             coherenceScore * 0.15)
+          );
+
+          console.log(`[Batch] Feedback applied for ${imageId}: User score=${priorFeedback.userScore}/10 (from AI=${priorFeedback.aiScore}/10)`);
+        }
 
         results.push({
           overallScore,
@@ -3367,7 +3538,8 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
           detectedStrengths: strengths.length > 0 ? strengths : ['Analyzed successfully'],
           confidence: 85,
           analysis: `Detected ${labels.length} labels`,
-          recommendations: []
+          recommendations: [],
+          feedbackApplied
         });
 
         console.log(`[Illustration] Analyzed: ${path.basename(filePath)} = ${overallScore}/10`);
@@ -3386,6 +3558,217 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
 
   } catch (err) {
     console.error('[Illustration] Batch analysis failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============ AI FEEDBACK SYSTEM (Option 1 + 5) ============
+
+/**
+ * Load feedback data from source folder
+ * File: .ai-feedback.json in the source folder
+ * @param {string} sourcePath - The source folder path. Uses currentSourcePath if not provided.
+ */
+function loadFeedback(sourcePath = null) {
+  const folderPath = sourcePath || currentSourcePath;
+  
+  if (!folderPath) {
+    console.warn('[Feedback] No source path available, returning empty feedback');
+    return { entries: [] };
+  }
+
+  const feedbackFile = path.join(folderPath, '.ai-feedback.json');
+  try {
+    if (fs.existsSync(feedbackFile)) {
+      const data = fs.readFileSync(feedbackFile, 'utf8');
+      const parsed = JSON.parse(data);
+      console.log(`[Feedback] Loaded ${parsed.entries?.length || 0} entries from ${feedbackFile}`);
+      return parsed;
+    } else {
+      console.log(`[Feedback] No feedback file at ${feedbackFile}, creating new`);
+    }
+  } catch (err) {
+    console.error('[Feedback] Failed to load feedback from', feedbackFile, ':', err);
+  }
+  return { entries: [] };
+}
+
+/**
+ * Save feedback data to source folder
+ * File: .ai-feedback.json in the source folder
+ * @param {object} feedbackData - The feedback data to save
+ * @param {string} sourcePath - The source folder path. Uses currentSourcePath if not provided.
+ */
+function saveFeedback(feedbackData, sourcePath = null) {
+  const folderPath = sourcePath || currentSourcePath;
+  
+  if (!folderPath) {
+    console.error('[Feedback] No source path available, cannot save feedback');
+    return;
+  }
+
+  const feedbackFile = path.join(folderPath, '.ai-feedback.json');
+  try {
+    fs.writeFileSync(feedbackFile, JSON.stringify(feedbackData, null, 2));
+    console.log(`[Feedback] Saved ${feedbackData.entries.length} feedback entries to ${feedbackFile}`);
+  } catch (err) {
+    console.error('[Feedback] Failed to save feedback:', err);
+  }
+}
+
+/**
+ * POST /api/feedback/submit
+ * Submit user correction/feedback for an image
+ * Body: {
+ *   imageId: string (filename or unique id),
+ *   aiScore: number (1-10),
+ *   userScore: number (1-10),
+ *   reasoning: string (optional),
+ *   components: { anatomy, pose, face, background, objects, coherence },
+ *   sourcePath: string (optional - source folder path)
+ * }
+ */
+app.post('/api/feedback/submit', (req, res) => {
+  try {
+    const { imageId, aiScore, userScore, reasoning, components, sourcePath } = req.body;
+
+    if (!imageId || aiScore === undefined || userScore === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // DEBUG: Log the full imageId received
+    console.log(`[Feedback] Received imageId (length: ${imageId.length}): ${imageId}`);
+
+    // Use provided sourcePath or fall back to currentSourcePath
+    const feedbackSourcePath = sourcePath || currentSourcePath;
+    if (!feedbackSourcePath) {
+      return res.status(400).json({ error: 'Source path not set. Please select a folder first.' });
+    }
+
+    const feedbackData = loadFeedback(feedbackSourcePath);
+    const entry = {
+      imageId,
+      aiScore: Math.round(aiScore),
+      userScore: Math.round(userScore),
+      correction: userScore - aiScore,
+      reasoning: reasoning || '',
+      components: components || {},
+      timestamp: new Date().toISOString()
+    };
+
+    feedbackData.entries.push(entry);
+    saveFeedback(feedbackData, feedbackSourcePath);
+
+    console.log(`[Feedback] New entry: ${imageId} | AI: ${aiScore} → User: ${userScore} | Correction: ${entry.correction}`);
+    console.log(`[Feedback] Total entries in ${feedbackSourcePath}: ${feedbackData.entries.length}`);
+
+    res.json({
+      success: true,
+      entry,
+      feedbackCount: feedbackData.entries.length,
+      message: 'Feedback recorded. AI will learn from your corrections!'
+    });
+
+  } catch (err) {
+    console.error('[Feedback] Submit failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/feedback/analysis
+ * Analyze feedback patterns to suggest weight adjustments
+ */
+app.get('/api/feedback/analysis', (req, res) => {
+  try {
+    const sourcePath = req.query.sourcePath || currentSourcePath;
+    const feedbackData = loadFeedback(sourcePath);
+    const entries = feedbackData.entries;
+
+    if (entries.length < 5) {
+      return res.json({
+        status: 'insufficient_data',
+        message: `Need at least 5 corrections to analyze patterns. Current: ${entries.length}`,
+        feedbackCount: entries.length
+      });
+    }
+
+    // Calculate patterns
+    const avgCorrection = entries.reduce((sum, e) => sum + e.correction, 0) / entries.length;
+    const bias = avgCorrection > 0 ? 'AI scores too low' : 'AI scores too high';
+    const biasAmount = Math.abs(avgCorrection);
+
+    // Analyze component patterns
+    const componentAnalysis = {};
+    ['anatomy', 'pose', 'face', 'background', 'objects', 'coherence'].forEach(comp => {
+      const values = entries
+        .filter(e => e.components && e.components[comp] !== undefined)
+        .map(e => ({ score: e.components[comp], correction: e.correction }));
+
+      if (values.length > 0) {
+        const avgScore = values.reduce((sum, v) => sum + v.score, 0) / values.length;
+        const avgCorrWhenHigh = values
+          .filter(v => v.score >= 7)
+          .map(v => v.correction)
+          .reduce((sum, c) => sum + c, 0) / Math.max(1, values.filter(v => v.score >= 7).length);
+
+        componentAnalysis[comp] = {
+          avgScore: Math.round(avgScore * 10) / 10,
+          avgCorrectionWhenHigh: Math.round(avgCorrWhenHigh * 10) / 10,
+          pattern: avgCorrWhenHigh < -1 ? `User penalizes high ${comp}` : 
+                   avgCorrWhenHigh > 1 ? `User rewards high ${comp}` : 'Neutral'
+        };
+      }
+    });
+
+    res.json({
+      status: 'success',
+      feedbackCount: entries.length,
+      analysis: {
+        overallBias: {
+          description: bias,
+          amount: Math.round(biasAmount * 100) / 100,
+          recommendation: biasAmount > 1.5 
+            ? `AI is ${bias} by ~${Math.round(biasAmount)} points. Consider weight adjustment.`
+            : 'AI scoring is reasonably aligned with your preferences.'
+        },
+        componentPatterns: componentAnalysis,
+        recentCorrections: entries.slice(-5).reverse()
+      }
+    });
+
+  } catch (err) {
+    console.error('[Feedback] Analysis failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/feedback/list
+ * Get all feedback entries (for debugging/review)
+ */
+app.get('/api/feedback/list', (req, res) => {
+  try {
+    const sourcePath = req.query.sourcePath || currentSourcePath;
+    const feedbackData = loadFeedback(sourcePath);
+    res.json(feedbackData);
+  } catch (err) {
+    console.error('[Feedback] List failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/feedback/clear
+ * Clear all feedback (careful with this!)
+ */
+app.delete('/api/feedback/clear', (req, res) => {
+  try {
+    const sourcePath = req.query.sourcePath || currentSourcePath;
+    saveFeedback({ entries: [] }, sourcePath);
+    res.json({ success: true, message: 'All feedback cleared' });
+  } catch (err) {
+    console.error('[Feedback] Clear failed:', err);
     res.status(500).json({ error: err.message });
   }
 });

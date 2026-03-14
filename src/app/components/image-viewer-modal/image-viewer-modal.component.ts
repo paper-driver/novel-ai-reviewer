@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { IllustrationQualityService, IllustrationQualityScore } from '../../services/illustration-quality.service';
 import { BatchRatingService } from '../../services/batch-rating.service';
+import { AiFeedbackModalComponent } from '../ai-feedback-modal/ai-feedback-modal.component';
+import { AiFeedbackService } from '../../services/ai-feedback.service';
 
 export interface ReviewImage {
   images: string[];
@@ -23,7 +25,7 @@ export interface ReviewImage {
 @Component({
   selector: 'app-image-viewer-modal',
   standalone: true,
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule, HttpClientModule, AiFeedbackModalComponent],
   templateUrl: './image-viewer-modal.component.html',
   styleUrls: ['./image-viewer-modal.component.scss']
 })
@@ -78,6 +80,9 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   autoRatingMessage: string = '';
   illustrationAnalysis: IllustrationQualityScore | null = null;
 
+  // Feedback System
+  showFeedbackModal: boolean = false;
+
   // Thumbnail URL cache - memoize to prevent constant re-renders
   private thumbnailUrlCache: Map<string, string> = new Map();
 
@@ -85,6 +90,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     private http: HttpClient,
     private illustrationQualityService: IllustrationQualityService,
     private batchRatingService: BatchRatingService,
+    private aiFeedbackService: AiFeedbackService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -739,6 +745,80 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       console.error('[ImageViewer] Batch submission error:', err);
       this.isAutoRating = false;
     }
+  }
+
+  /**
+   * Open feedback modal for the current image's AI analysis
+   */
+  openFeedbackModal() {
+    if (!this.illustrationAnalysis) {
+      this.autoRatingMessage = '⚠ Please analyze the image first';
+      return;
+    }
+    this.showFeedbackModal = true;
+  }
+
+  /**
+   * Handle feedback submission
+   */
+  onFeedbackSubmitted(feedback: any) {
+    // Build the full file path for the image
+    const fullFilePath = `${this.reviewData?.folder}/${this.currentImageName}`;
+    const fileName = this.currentImageName.includes('/') 
+      ? this.currentImageName.split('/').pop()! 
+      : this.currentImageName;
+
+    // Prepare feedback data
+    const feedbackData = {
+      imageId: fileName,
+      filePath: fullFilePath,
+      aiScore: this.illustrationAnalysis?.overallScore || 0,
+      userScore: feedback.userScore,
+      correction: feedback.userScore - (this.illustrationAnalysis?.overallScore || 0),
+      reasoning: feedback.reasoning,
+      components: {
+        anatomy: this.illustrationAnalysis?.anatomyScore || 0,
+        pose: this.illustrationAnalysis?.poseScore || 0,
+        face: this.illustrationAnalysis?.faceQuality || 0,
+        background: this.illustrationAnalysis?.backgroundQuality || 0,
+        objects: this.illustrationAnalysis?.objectQuality || 0,
+        coherence: this.illustrationAnalysis?.coherenceScore || 0
+      },
+      sourcePath: this.reviewData?.folder
+    };
+
+    // Submit feedback to backend
+    this.aiFeedbackService.submitFeedback(feedbackData, this.reviewData?.folder).subscribe(
+      (response: any) => {
+        console.log('[ImageViewer] Feedback submitted successfully:', response);
+        
+        // ✅ UPDATE LOCAL RATING TO REFLECT FEEDBACK
+        const fileBasename = fileName;
+        this.currentImageRating = feedback.userScore;
+        this.imageRatings[fileBasename] = feedback.userScore;
+        this.ratingsModified = true;
+        
+        console.log('[ImageViewer] Updated rating for', fileBasename, ':', this.currentImageRating);
+        console.log('[ImageViewer] imageRatings object:', this.imageRatings);
+        
+        this.autoRatingMessage = `✓ Feedback recorded! (${response.feedbackCount} total corrections)`;
+        this.showFeedbackModal = false;
+        
+        // Trigger change detection to update UI
+        this.cdr.detectChanges();
+      },
+      (error: any) => {
+        console.error('[ImageViewer] Feedback submission error:', error);
+        this.autoRatingMessage = '❌ Failed to record feedback';
+      }
+    );
+  }
+
+  /**
+   * Close feedback modal
+   */
+  closeFeedbackModal() {
+    this.showFeedbackModal = false;
   }
 
   close() {

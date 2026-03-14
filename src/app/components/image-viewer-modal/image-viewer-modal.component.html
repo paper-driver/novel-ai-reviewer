@@ -177,6 +177,17 @@
             </div>
           </div>
 
+          <!-- Feedback Button -->
+          <div *ngIf="illustrationAnalysis" class="metadata-item ai-feedback-item">
+            <button 
+              class="btn-give-feedback" 
+              (click)="openFeedbackModal()"
+              title="Adjust AI score and provide feedback"
+            >
+              💭 Give Feedback
+            </button>
+          </div>
+
           <!-- AI Analysis Results -->
           <div *ngIf="illustrationAnalysis" class="metadata-item ai-results-item">
             <span class="metadata-label">Analysis Results</span>
@@ -241,3 +252,12 @@
     </div>
   </div>
 </div>
+
+<!-- Feedback Modal -->
+<app-ai-feedback-modal 
+  *ngIf="showFeedbackModal && illustrationAnalysis"
+  [aiScore]="illustrationAnalysis.overallScore"
+  [components]="illustrationAnalysis"
+  (feedbackSubmitted)="onFeedbackSubmitted($event)"
+  (closed)="closeFeedbackModal()"
+></app-ai-feedback-modal>

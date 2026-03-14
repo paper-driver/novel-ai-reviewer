@@ -230,9 +230,6 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           this.totalImages = response.totals.images;
           this.extractAvailableNicknames();
           
-          // Load and calculate average ratings
-          this.refreshAverageRatings();
-          
           this.isLoading = false;
           this.showProgress = false;
           
@@ -247,12 +244,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
             this.progressText = '';
           }, 2000);
 
-          // Re-apply filter if there's an active filter
-          if (this.filterText.trim() || this.showOnlyNoNickname) {
-            this.applyFilter();
-          } else {
-            this.filteredGroups = response.groups;
-          }
+          // Load and calculate average ratings (this will also update filteredGroups)
+          this.refreshAverageRatings();
 
           // Save to cache
           const selectedNicknames: { [key: string]: string } = {};
@@ -1032,6 +1025,23 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           const allImageRatings = response.ratings as { [filename: string]: number };
           console.log('[PromptGrouping] All image ratings:', allImageRatings);
           
+          // Build a map of basename -> rating to handle both old (full prompt) and new (basename) formats
+          const basenameToRating: { [basename: string]: number } = {};
+          Object.keys(allImageRatings).forEach(key => {
+            // Extract basename from key (could be "s-227156113.png" or "1girl, ... s-227156113.png")
+            // The basename is always "s-<seed>.png" format
+            const match = key.match(/(s-\d+\.png)$/i);
+            if (match) {
+              const basename = match[1];
+              basenameToRating[basename] = allImageRatings[key];
+            } else {
+              // Fallback: if no match, assume key is already a basename
+              basenameToRating[key] = allImageRatings[key];
+            }
+          });
+          
+          console.log('[PromptGrouping] Basename to rating map:', basenameToRating);
+          
           this.groups.forEach(group => {
             const oldRating = group.averageRating;
             
@@ -1040,10 +1050,12 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
               // Convert array of filenames to object of {filename: rating}
               const groupRatingsObj: { [filename: string]: number } = {};
               group.images.forEach((fullPath: string) => {
-                // Extract basename since ratings are keyed by basename only
-                const basename = fullPath.includes('/') ? fullPath.split('/').pop()! : fullPath;
-                if (allImageRatings[basename]) {
-                  groupRatingsObj[fullPath] = allImageRatings[basename];
+                // Extract the seed-based basename from the full filename
+                // e.g., "1girl, {{...}} s-227156113.png" -> "s-227156113.png"
+                const basenameMatch = fullPath.match(/(s-\d+(?:\s+\(\d+\))?\.png)$/i);
+                const basename = basenameMatch ? basenameMatch[1] : fullPath;
+                if (basenameToRating[basename]) {
+                  groupRatingsObj[fullPath] = basenameToRating[basename];
                 }
               });
               
