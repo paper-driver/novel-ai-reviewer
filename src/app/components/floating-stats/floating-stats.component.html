@@ -1,0 +1,73 @@
+<div class="floating-stats-container">
+  <!-- Floating Action Button -->
+  <button class="fab" (click)="toggleWidget()" [class.open]="isOpen" title="AI Corrections Stats">
+    📊
+  </button>
+
+  <!-- Modal Overlay -->
+  <div *ngIf="isOpen" class="modal-overlay" (click)="closeWidget()"></div>
+
+  <!-- Modal Content -->
+  <div *ngIf="isOpen" class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>AI Corrections</h3>
+      <button class="close-btn" (click)="closeWidget()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="state-message">
+        <p>Loading...</p>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="error && !isLoading" class="state-message error">
+        <p>{{ error }}</p>
+        <button (click)="refresh()" class="retry-btn">Retry</button>
+      </div>
+
+      <!-- Stats Display -->
+      <div *ngIf="stats && !isLoading && !error" class="stats-display">
+        <div class="stat-row">
+          <span class="label">Total Corrections</span>
+          <span class="value">{{ stats.totalCorrections }}</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="label">Average Correction</span>
+          <span class="value" [ngClass]="getCorrectionClass(stats.averageCorrection)">
+            {{ formatCorrection(stats.averageCorrection) }}
+          </span>
+        </div>
+
+        <div class="stat-row">
+          <span class="label">Upgraded</span>
+          <span class="value positive">↑ {{ stats.positiveCorrections }}</span>
+        </div>
+
+        <div class="stat-row">
+          <span class="label">Downgraded</span>
+          <span class="value negative">↓ {{ stats.negativeCorrections }}</span>
+        </div>
+
+        <!-- Source Folder -->
+        <div class="source-folder">
+          <p class="folder-label">📁 Source:</p>
+          <p class="folder-path">{{ stats.sourceFolder }}</p>
+        </div>
+      </div>
+
+      <!-- No Folder Selected -->
+      <div *ngIf="!currentSourceFolder && !isLoading" class="state-message">
+        <p>No folder selected. Please select a source folder.</p>
+      </div>
+
+      <!-- Refresh Button -->
+      <div *ngIf="stats && !error" class="modal-footer">
+        <button (click)="refresh()" [disabled]="isLoading" class="refresh-btn">
+          🔄 Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

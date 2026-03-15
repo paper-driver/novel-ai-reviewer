@@ -8,6 +8,7 @@ import { ArtistGalleryService, ArtistGroupInfo, ImageMetadata } from '../../serv
 import { GalleryCacheService } from '../../services/gallery-cache.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { RatingsStateService } from '../../services/ratings-state.service';
+import { CurrentSourceFolderService } from '../../services/current-source-folder.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 
 @Component({
@@ -62,7 +63,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     private galleryService: ArtistGalleryService,
     private folderPickerService: FolderPickerService,
     private cacheService: GalleryCacheService,
-    private ratingsStateService: RatingsStateService
+    private ratingsStateService: RatingsStateService,
+    private currentSourceFolderService: CurrentSourceFolderService
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -128,6 +130,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
 
       this.sortedFolderPath = folderPath;
       this.error = null;
+      // Update the global source folder for other components
+      this.currentSourceFolderService.setSourceFolder(folderPath);
       this.loadGroups();
     } catch (err) {
       this.error = 'Error selecting folder: ' + (err instanceof Error ? err.message : String(err));
@@ -233,7 +237,10 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
             artists: group.artists,
             title: group.artists.join(' | '),
             apiType: 'artist-gallery',
-            imageRatings: groupRatings
+            imageRatings: groupRatings,
+            additionalData: {
+              baseFolder: this.baseFolder
+            }
           };
           console.log('[ArtistGallery] Review data set with ratings:', groupRatings);
           this.showImageViewer = true;
@@ -248,7 +255,10 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
           artists: group.artists,
           title: group.artists.join(' | '),
           apiType: 'artist-gallery',
-          imageRatings: {}
+          imageRatings: {},
+          additionalData: {
+            baseFolder: this.baseFolder
+          }
         };
         this.showImageViewer = true;
       }

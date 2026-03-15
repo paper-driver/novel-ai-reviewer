@@ -6,6 +6,7 @@ import { ReviewsTableComponent } from './components/reviews-table/reviews-table.
 import { ArtistGroupingComponent } from './components/artist-grouping/artist-grouping.component';
 import { ArtistGalleryComponent } from './components/artist-gallery/artist-gallery.component';
 import { PromptGroupingComponent } from './components/prompt-grouping/prompt-grouping.component';
+import { FloatingStatsComponent } from './components/floating-stats/floating-stats.component';
 import { Review } from './services/review.service';
 
 @Component({
@@ -18,7 +19,8 @@ import { Review } from './services/review.service';
     ReviewsTableComponent,
     ArtistGroupingComponent,
     ArtistGalleryComponent,
-    PromptGroupingComponent
+    PromptGroupingComponent,
+    FloatingStatsComponent
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']

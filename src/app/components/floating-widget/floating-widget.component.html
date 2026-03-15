@@ -1,0 +1,20 @@
+<div class="floating-widget-container">
+  <!-- Floating Action Button -->
+  <button class="fab" (click)="toggleWidget()" [class.open]="isOpen" title="AI Corrections Analytics">
+    📊
+  </button>
+
+  <!-- Modal Overlay -->
+  <div *ngIf="isOpen" class="modal-overlay" (click)="closeWidget()"></div>
+
+  <!-- Modal Content -->
+  <div *ngIf="isOpen" class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>AI Correction Analytics</h2>
+      <button class="close-btn" (click)="closeWidget()">✕</button>
+    </div>
+    <div class="modal-body">
+      <app-ai-corrections-widget></app-ai-corrections-widget>
+    </div>
+  </div>
+</div>

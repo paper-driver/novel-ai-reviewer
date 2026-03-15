@@ -1,0 +1,94 @@
+<div class="ai-corrections-widget">
+  <div class="widget-header" (click)="toggleCollapse()">
+    <div class="header-title">
+      <span class="toggle-icon" [class.collapsed]="isCollapsed">▼</span>
+      <h3>AI Correction Analytics</h3>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" (click)="refresh(); $event.stopPropagation()" [disabled]="isLoading">
+        🔄
+      </button>
+    </div>
+  </div>
+
+  <div class="widget-content" *ngIf="!isCollapsed">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-state">
+      <p>Loading statistics...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !isLoading" class="error-state">
+      <p>{{ error }}</p>
+      <button (click)="refresh()">Try Again</button>
+    </div>
+
+    <!-- Stats Display -->
+    <div *ngIf="stats && !isLoading && !error" class="stats-container">
+      <!-- Main Stats -->
+      <div class="main-stats">
+        <div class="stat-item">
+          <div class="stat-label">Total Corrections</div>
+          <div class="stat-value">{{ stats.totalCorrections }}</div>
+        </div>
+
+        <div class="stat-item">
+          <div class="stat-label">Average Correction</div>
+          <div class="stat-value" [ngClass]="getCorrectionClass(stats.averageCorrection)">
+            {{ formatCorrection(stats.averageCorrection) }}
+          </div>
+        </div>
+
+        <div class="stat-item">
+          <div class="stat-label">Upgraded</div>
+          <div class="stat-value positive">↑ {{ stats.positiveCorrections }}</div>
+        </div>
+
+        <div class="stat-item">
+          <div class="stat-label">Downgraded</div>
+          <div class="stat-value negative">↓ {{ stats.negativeCorrections }}</div>
+        </div>
+      </div>
+
+      <!-- Component Breakdown -->
+      <div *ngIf="stats.byComponent && Object.keys(stats.byComponent).length > 0" class="component-breakdown">
+        <h4>Breakdown by Component</h4>
+        <div class="component-list">
+          <div *ngFor="let component of stats.byComponent | keyvalue" class="component-item">
+            <div class="component-name">{{ component.key }}</div>
+            <div class="component-stats">
+              <span class="component-count">{{ component.value.count }} corrections</span>
+              <span class="component-avg" [ngClass]="getCorrectionClass(component.value.averageCorrection)">
+                {{ formatCorrection(component.value.averageCorrection) }}
+              </span>
+              <span class="component-range">
+                ({{ formatCorrection(component.value.min) }} to {{ formatCorrection(component.value.max) }})
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="stats && stats.totalCorrections === 0 && !isLoading && !error" class="empty-state">
+      <p>No corrections recorded yet.</p>
+      <p>Start providing feedback on images to see analytics here!</p>
+    </div>
+
+    <!-- No Folder Selected -->
+    <div *ngIf="!currentSourceFolder && !isLoading && !error" class="empty-state">
+      <p>📁 No source folder selected</p>
+      <p>Please select a source folder on the Artist Gallery or Prompt-Based Grouping page to see analytics.</p>
+    </div>
+
+    <!-- Source Folder Info - Always Show -->
+    <div class="source-info">
+      <p><strong>📁 Source Folder:</strong></p>
+      <p style="word-break: break-all; font-family: monospace; margin: 8px 0; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+        {{ stats?.sourceFolder || currentSourceFolder || 'Not set' }}
+      </p>
+    </div>
+  </div>
+</div>

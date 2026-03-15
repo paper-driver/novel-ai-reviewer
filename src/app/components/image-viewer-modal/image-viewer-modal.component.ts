@@ -787,8 +787,17 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       sourcePath: this.reviewData?.folder
     };
 
+    // Determine the correct source path for feedback submission
+    // For artist-gallery: use baseFolder from additionalData (the source folder)
+    // For prompt-grouping: use folder (already set to base folder)
+    // For reviews: use folder as fallback
+    const feedbackSourcePath = 
+      (this.reviewData?.apiType === 'artist-gallery' && this.reviewData?.additionalData?.baseFolder) 
+        ? this.reviewData.additionalData.baseFolder 
+        : this.reviewData?.folder;
+
     // Submit feedback to backend
-    this.aiFeedbackService.submitFeedback(feedbackData, this.reviewData?.folder).subscribe(
+    this.aiFeedbackService.submitFeedback(feedbackData, feedbackSourcePath).subscribe(
       (response: any) => {
         console.log('[ImageViewer] Feedback submitted successfully:', response);
         

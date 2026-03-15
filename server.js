@@ -3795,6 +3795,105 @@ app.get('/api/feedback/analysis', (req, res) => {
  * GET /api/feedback/list
  * Get all feedback entries (for debugging/review)
  */
+app.get('/api/feedback/stats', (req, res) => {
+  try {
+    const sourcePath = req.query.sourcePath || currentSourcePath;
+    
+    if (!sourcePath) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Source path not set. Please select a folder first.' 
+      });
+    }
+
+    const feedbackData = loadFeedback(sourcePath);
+    const entries = feedbackData.entries || [];
+
+    if (entries.length === 0) {
+      return res.json({
+        success: true,
+        stats: {
+          totalCorrections: 0,
+          averageCorrection: 0,
+          positiveCorrections: 0,
+          negativeCorrections: 0,
+          byComponent: {},
+          sourceFolder: sourcePath
+        }
+      });
+    }
+
+    // Calculate statistics
+    let totalCorrection = 0;
+    let positiveCount = 0;
+    let negativeCount = 0;
+    const componentStats = {};
+
+    entries.forEach(entry => {
+      const correction = entry.correction || 0;
+      totalCorrection += correction;
+
+      if (correction > 0.1) positiveCount++;
+      else if (correction < -0.1) negativeCount++;
+
+      // Track component-level corrections
+      if (entry.components) {
+        Object.entries(entry.components).forEach(([component, userScore]) => {
+          const componentName = component.toLowerCase();
+          if (!componentStats[componentName]) {
+            componentStats[componentName] = {
+              count: 0,
+              totalCorrection: 0,
+              corrections: []
+            };
+          }
+
+          componentStats[componentName].count++;
+          componentStats[componentName].corrections.push(userScore);
+          // Assuming AI score is similar to overall AI score for now
+          // In a more detailed system, you'd have per-component AI scores
+        });
+      }
+    });
+
+    // Convert component stats to final format
+    const byComponent = {};
+    Object.entries(componentStats).forEach(([component, stats]) => {
+      const avgCorrection = stats.totalCorrection / stats.count;
+      const minCorrection = Math.min(...stats.corrections);
+      const maxCorrection = Math.max(...stats.corrections);
+
+      byComponent[component] = {
+        count: stats.count,
+        averageCorrection: avgCorrection,
+        min: minCorrection,
+        max: maxCorrection
+      };
+    });
+
+    const stats = {
+      totalCorrections: entries.length,
+      averageCorrection: totalCorrection / entries.length,
+      positiveCorrections: positiveCount,
+      negativeCorrections: negativeCount,
+      byComponent: byComponent,
+      sourceFolder: sourcePath
+    };
+
+    res.json({ success: true, stats });
+  } catch (err) {
+    console.error('[Feedback] Stats failed:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message 
+    });
+  }
+});
+
+/**
+ * GET /api/feedback/list
+ * Get all feedback entries (for debugging/review)
+ */
 app.get('/api/feedback/list', (req, res) => {
   try {
     const sourcePath = req.query.sourcePath || currentSourcePath;
