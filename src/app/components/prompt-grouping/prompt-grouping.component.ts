@@ -45,6 +45,22 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   showFilters = false;
   showOnlyNoNickname = false;
 
+  // Rating filter and sort state
+  minAverageRating: number = 0;
+  ratingFilterOptions = [
+    { label: 'All', value: 0 },
+    { label: 'Rated Only', value: 0.1 },
+    { label: '≥ 2', value: 2 },
+    { label: '≥ 3', value: 3 },
+    { label: '≥ 4', value: 4 },
+    { label: '≥ 5', value: 5 },
+    { label: '≥ 6', value: 6 },
+    { label: '≥ 7', value: 7 },
+    { label: '≥ 8', value: 8 },
+    { label: '≥ 9', value: 9 }
+  ];
+  sortByRating: 'desc' | 'asc' | 'none' = 'none';
+
   // Bulk nickname assignment state
   showBulkAssignDropdown = false;
   bulkAssignNickname: string = '';
@@ -691,13 +707,20 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
    * Apply filter to groups based on nickname, Group ID, and prompt text (case-insensitive)
    * Supports multiple search terms separated by commas (AND logic - match ALL terms)
    * Supports exclusion filters by prefixing with "-" (e.g., "-red, blue" = includes blue but NOT red)
-   * Also supports filtering for groups with no nickname
+   * Also supports filtering for groups with no nickname and filtering/sorting by average rating
    */
   applyFilter(): void {
     // First, apply the no-nickname filter if enabled
     let baseGroups = this.groups;
     if (this.showOnlyNoNickname) {
       baseGroups = this.groups.filter(group => !group.groupNickname || !group.groupNickname.trim());
+    }
+
+    // Apply rating filter
+    if (this.minAverageRating > 0) {
+      baseGroups = baseGroups.filter(group => 
+        group.averageRating !== undefined && group.averageRating >= this.minAverageRating
+      );
     }
 
     // Then apply the text filter if there's search text
@@ -748,6 +771,21 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           return true;
         });
       }
+    }
+
+    // Apply rating sort if enabled
+    if (this.sortByRating === 'desc') {
+      this.filteredGroups.sort((a, b) => {
+        const aRating = a.averageRating ?? 0;
+        const bRating = b.averageRating ?? 0;
+        return bRating - aRating; // Descending: highest first
+      });
+    } else if (this.sortByRating === 'asc') {
+      this.filteredGroups.sort((a, b) => {
+        const aRating = a.averageRating ?? 0;
+        const bRating = b.averageRating ?? 0;
+        return aRating - bRating; // Ascending: lowest first
+      });
     }
 
     // Save to cache
@@ -1099,5 +1137,38 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
         console.error('[PromptGrouping] Failed to load ratings:', err);
       }
     });
+  }
+
+  /**
+   * Handle minimum average rating filter change
+   */
+  onMinAverageRatingChange(): void {
+    this.applyFilter();
+  }
+
+  /**
+   * Toggle rating sort between none, descending, and ascending
+   */
+  toggleRatingSorting(): void {
+    if (this.sortByRating === 'none') {
+      this.sortByRating = 'desc';
+    } else if (this.sortByRating === 'desc') {
+      this.sortByRating = 'asc';
+    } else {
+      this.sortByRating = 'none';
+    }
+    this.applyFilter();
+  }
+
+  /**
+   * Get the label for the rating sort button with indicator
+   */
+  getRatingSortLabel(): string {
+    if (this.sortByRating === 'desc') {
+      return '↓ Rating (High → Low)';
+    } else if (this.sortByRating === 'asc') {
+      return '↑ Rating (Low → High)';
+    }
+    return '⇄ Rating (No Sort)';
   }
 }

@@ -39,6 +39,22 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
   // Search functionality
   searchText: string = '';
 
+  // Rating filter and sort state
+  minAverageRating: number = 0;
+  ratingFilterOptions = [
+    { label: 'All', value: 0 },
+    { label: 'Rated Only', value: 0.1 },
+    { label: '≥ 2', value: 2 },
+    { label: '≥ 3', value: 3 },
+    { label: '≥ 4', value: 4 },
+    { label: '≥ 5', value: 5 },
+    { label: '≥ 6', value: 6 },
+    { label: '≥ 7', value: 7 },
+    { label: '≥ 8', value: 8 },
+    { label: '≥ 9', value: 9 }
+  ];
+  sortByRating: 'desc' | 'asc' | 'none' = 'none';
+
   // For unsubscribing from observables on component destroy
   private destroy$ = new Subject<void>();
 
@@ -333,8 +349,33 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
   applySearch(): void {
     let searchQuery = this.searchText.trim();
     
+    let baseGroups = [...this.groups];
+
+    // Apply rating filter
+    if (this.minAverageRating > 0) {
+      baseGroups = baseGroups.filter(group => 
+        group.averageRating !== undefined && group.averageRating >= this.minAverageRating
+      );
+    }
+
     if (!searchQuery) {
-      this.filteredGroups = [...this.groups];
+      this.filteredGroups = baseGroups;
+      
+      // Apply rating sort if enabled
+      if (this.sortByRating === 'desc') {
+        this.filteredGroups.sort((a, b) => {
+          const aRating = a.averageRating ?? 0;
+          const bRating = b.averageRating ?? 0;
+          return bRating - aRating; // Descending: highest first
+        });
+      } else if (this.sortByRating === 'asc') {
+        this.filteredGroups.sort((a, b) => {
+          const aRating = a.averageRating ?? 0;
+          const bRating = b.averageRating ?? 0;
+          return aRating - bRating; // Ascending: lowest first
+        });
+      }
+      
       // Save to cache
       this.cacheService.setArtistGalleryData(
         this.sortedFolderPath,
@@ -364,7 +405,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     // Also normalize with spaces inside brackets removed
     const searchNormalized = searchLower.replace(/\s+([}\]\)])/g, '$1').replace(/([{\[\(])\s+/g, '$1');
 
-    this.filteredGroups = this.groups.filter(group => {
+    this.filteredGroups = baseGroups.filter(group => {
       // Get the full artist tag combination as displayed
       const artistDisplay = this.getArtistTagDisplay(group);
       const displayLower = artistDisplay.toLowerCase();
@@ -403,6 +444,21 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       
       return false;
     });
+
+    // Apply rating sort if enabled
+    if (this.sortByRating === 'desc') {
+      this.filteredGroups.sort((a, b) => {
+        const aRating = a.averageRating ?? 0;
+        const bRating = b.averageRating ?? 0;
+        return bRating - aRating; // Descending: highest first
+      });
+    } else if (this.sortByRating === 'asc') {
+      this.filteredGroups.sort((a, b) => {
+        const aRating = a.averageRating ?? 0;
+        const bRating = b.averageRating ?? 0;
+        return aRating - bRating; // Ascending: lowest first
+      });
+    }
 
     // Save to cache
     this.cacheService.setArtistGalleryData(
@@ -601,6 +657,21 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
             this.applySearch();
           } else {
             this.filteredGroups = [...this.groups];
+            
+            // Apply rating sort if enabled
+            if (this.sortByRating === 'desc') {
+              this.filteredGroups.sort((a, b) => {
+                const aRating = a.averageRating ?? 0;
+                const bRating = b.averageRating ?? 0;
+                return bRating - aRating;
+              });
+            } else if (this.sortByRating === 'asc') {
+              this.filteredGroups.sort((a, b) => {
+                const aRating = a.averageRating ?? 0;
+                const bRating = b.averageRating ?? 0;
+                return aRating - bRating;
+              });
+            }
           }
         }
       },
@@ -608,5 +679,38 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
         console.error('[ArtistGallery] Failed to load ratings:', err);
       }
     });
+  }
+
+  /**
+   * Handle minimum average rating filter change
+   */
+  onMinAverageRatingChange(): void {
+    this.applySearch();
+  }
+
+  /**
+   * Toggle rating sort between none, descending, and ascending
+   */
+  toggleRatingSorting(): void {
+    if (this.sortByRating === 'none') {
+      this.sortByRating = 'desc';
+    } else if (this.sortByRating === 'desc') {
+      this.sortByRating = 'asc';
+    } else {
+      this.sortByRating = 'none';
+    }
+    this.applySearch();
+  }
+
+  /**
+   * Get the label for the rating sort button with indicator
+   */
+  getRatingSortLabel(): string {
+    if (this.sortByRating === 'desc') {
+      return '↓ Rating (High → Low)';
+    } else if (this.sortByRating === 'asc') {
+      return '↑ Rating (Low → High)';
+    }
+    return '⇄ Rating (No Sort)';
   }
 }

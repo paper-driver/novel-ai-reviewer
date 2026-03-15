@@ -213,6 +213,32 @@
       </div>
     </div>
 
+    <!-- Rating Filter and Sort Controls -->
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label for="rating-filter-prompt" class="filter-label">Min Rating:</label>
+        <select 
+          id="rating-filter-prompt"
+          [(ngModel)]="minAverageRating" 
+          (change)="onMinAverageRatingChange()"
+          class="rating-filter-dropdown">
+          <option *ngFor="let option of ratingFilterOptions" [value]="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <button 
+          (click)="toggleRatingSorting()" 
+          [class.active]="sortByRating !== 'none'"
+          class="btn-rating-sort"
+          title="Sort by average rating (click to cycle through sort orders)">
+          {{ getRatingSortLabel() }}
+        </button>
+      </div>
+    </div>
+
     <div class="gallery-table-wrapper">
       <table class="gallery-table">
         <thead>
@@ -222,7 +248,7 @@
             <th class="col-count">Images</th>
             <th class="col-prompt">Normalized Prompt</th>
             <th class="col-modified">Latest Modified</th>
-            <th class="col-rating">Rating</th>
+            <th class="col-rating">Avg Rating</th>
           </tr>
         </thead>
         <tbody>
