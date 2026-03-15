@@ -2403,9 +2403,33 @@ app.post('/api/prompt-grouping/save-ratings', (req, res) => {
     const ratingsFile = path.join(resolvedPath, '.prompt-ratings.json');
     
     try {
-      fs.writeFileSync(ratingsFile, JSON.stringify(ratings, null, 2));
+      // MERGE logic: Load existing ratings first, then merge with new ones (prevents data loss)
+      let existingRatings = {};
+      if (fs.existsSync(ratingsFile)) {
+        try {
+          existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
+          console.log('[PromptGrouping] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
+        } catch (parseErr) {
+          console.warn('[PromptGrouping] Failed to parse existing ratings file, starting fresh:', parseErr.message);
+          existingRatings = {};
+        }
+      }
+      
+      // Merge: existing + new (new ratings override old ones for same keys)
+      const mergedRatings = { ...existingRatings, ...ratings };
+      
+      console.log('[PromptGrouping] Existing:', Object.keys(existingRatings).length, 'entries');
+      console.log('[PromptGrouping] New:', Object.keys(ratings).length, 'entries');
+      console.log('[PromptGrouping] Merged:', Object.keys(mergedRatings).length, 'entries');
+      
+      fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
       console.log('[PromptGrouping] Ratings saved to:', ratingsFile);
-      res.json({ success: true, message: 'Ratings saved' });
+      res.json({ 
+        success: true, 
+        message: 'Ratings saved',
+        totalEntries: Object.keys(mergedRatings).length,
+        newEntries: Object.keys(ratings).length
+      });
     } catch (err) {
       console.error('[PromptGrouping] Failed to save ratings:', err);
       res.status(500).json({ error: 'Failed to save ratings', details: err.message });
@@ -2474,9 +2498,33 @@ app.post('/api/artist-gallery/save-ratings', (req, res) => {
     const ratingsFile = path.join(resolvedPath, '.artist-ratings.json');
     
     try {
-      fs.writeFileSync(ratingsFile, JSON.stringify(ratings, null, 2));
+      // MERGE logic: Load existing ratings first, then merge with new ones (prevents data loss)
+      let existingRatings = {};
+      if (fs.existsSync(ratingsFile)) {
+        try {
+          existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
+          console.log('[ArtistGallery] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
+        } catch (parseErr) {
+          console.warn('[ArtistGallery] Failed to parse existing ratings file, starting fresh:', parseErr.message);
+          existingRatings = {};
+        }
+      }
+      
+      // Merge: existing + new (new ratings override old ones for same keys)
+      const mergedRatings = { ...existingRatings, ...ratings };
+      
+      console.log('[ArtistGallery] Existing:', Object.keys(existingRatings).length, 'entries');
+      console.log('[ArtistGallery] New:', Object.keys(ratings).length, 'entries');
+      console.log('[ArtistGallery] Merged:', Object.keys(mergedRatings).length, 'entries');
+      
+      fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
       console.log('[ArtistGallery] Ratings saved to:', ratingsFile);
-      res.json({ success: true, message: 'Ratings saved' });
+      res.json({ 
+        success: true, 
+        message: 'Ratings saved',
+        totalEntries: Object.keys(mergedRatings).length,
+        newEntries: Object.keys(ratings).length
+      });
     } catch (err) {
       console.error('[ArtistGallery] Failed to save ratings:', err);
       res.status(500).json({ error: 'Failed to save ratings', details: err.message });

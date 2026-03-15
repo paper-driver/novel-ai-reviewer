@@ -63,7 +63,7 @@
     </div>
 
     <div class="ratings">
-      <div class="rating" *ngFor="let field of ['handFeet','facialExpression','genital','accessories','sideCharacter','background']">
+      <div class="rating" *ngFor="let field of ['handFeet','facialExpression','anatomy','object','sideCharacter','background']">
         <label [for]="field">{{ field }}</label>
         <select [id]="field" [formControlName]="field">
           <option value="">Select…</option>

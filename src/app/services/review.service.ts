@@ -9,8 +9,8 @@ export interface Review {
   ratings: {
     handFeet: string;
     facialExpression: string;
-    genital: string;
-    accessories: string;
+    anatomy: string;
+    object: string;
     sideCharacter: string;
     background: string;
   };

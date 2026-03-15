@@ -264,27 +264,55 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     const ratingsToUse = this.latestModalRatings || (this.currentGroupReviewData?.imageRatings);
     
     // Save ratings to base folder (where prompt grouping also saves)
-    // Save even if empty to persist rating deletions
+    // IMPORTANT: MERGE new ratings with existing ones to prevent data loss
     if (ratingsToUse !== undefined && ratingsToUse !== null) {
-      console.log('[ArtistGallery] Ratings to save:', ratingsToUse);
+      console.log('[ArtistGallery] Ratings from modal:', ratingsToUse);
       
-      // Send ratings as-is (flat structure: { filename: rating })
-      const ratingsToSave = ratingsToUse as { [filename: string]: number };
       const ratingsFolder = this.baseFolder || this.sortedFolderPath;
+      const ratingsToSave = ratingsToUse as { [filename: string]: number };
 
-      console.log('[ArtistGallery] Calling saveRatings with folder:', ratingsFolder);
-      this.galleryService.saveRatings(ratingsFolder, ratingsToSave).subscribe({
-        next: (response) => {
-          console.log('[ArtistGallery] Ratings saved successfully:', response);
-          // Notify other components about the ratings update
-          this.ratingsStateService.notifyRatingsSaved(ratingsFolder, ratingsToSave);
-          // Refresh average ratings for display
-          this.refreshAverageRatings();
+      console.log('[ArtistGallery] Loading existing ratings from:', ratingsFolder);
+      
+      // MERGE: Load all existing ratings first, then merge with modal ratings
+      this.galleryService.loadRatings(ratingsFolder).subscribe({
+        next: (loadResponse) => {
+          const allExistingRatings = (loadResponse.success && loadResponse.ratings) ? loadResponse.ratings : {};
+          console.log('[ArtistGallery] All existing ratings:', allExistingRatings);
+          
+          // Merge: keep all existing ratings, update with new ones from modal
+          const mergedRatings = { ...allExistingRatings, ...ratingsToSave };
+          console.log('[ArtistGallery] Merged ratings:', mergedRatings);
+          
+          // Now save the MERGED ratings
+          this.galleryService.saveRatings(ratingsFolder, mergedRatings).subscribe({
+            next: (response) => {
+              console.log('[ArtistGallery] Ratings saved successfully:', response);
+              // Notify other components about the ratings update
+              this.ratingsStateService.notifyRatingsSaved(ratingsFolder, mergedRatings);
+              // Refresh average ratings for display
+              this.refreshAverageRatings();
+            },
+            error: (err) => {
+              console.error('[ArtistGallery] Failed to save ratings:', err);
+              // Still refresh to update the UI
+              this.refreshAverageRatings();
+            }
+          });
         },
         error: (err) => {
-          console.error('[ArtistGallery] Failed to save ratings:', err);
-          // Still refresh to update the UI
-          this.refreshAverageRatings();
+          console.warn('[ArtistGallery] Failed to load existing ratings, saving modal ratings only:', err);
+          // If we can't load existing, just save what we have from modal
+          this.galleryService.saveRatings(ratingsFolder, ratingsToSave).subscribe({
+            next: (response) => {
+              console.log('[ArtistGallery] Ratings saved successfully:', response);
+              this.ratingsStateService.notifyRatingsSaved(ratingsFolder, ratingsToSave);
+              this.refreshAverageRatings();
+            },
+            error: (err2) => {
+              console.error('[ArtistGallery] Failed to save ratings:', err2);
+              this.refreshAverageRatings();
+            }
+          });
         }
       });
     } else {

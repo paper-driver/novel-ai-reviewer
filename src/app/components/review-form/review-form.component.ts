@@ -30,8 +30,8 @@ export class ReviewFormComponent implements OnInit, OnChanges {
       review: ['', Validators.required],
       handFeet: ['', Validators.required],
       facialExpression: ['', Validators.required],
-      genital: ['', Validators.required],
-      accessories: ['', Validators.required],
+      anatomy: ['', Validators.required],
+      object: ['', Validators.required],
       sideCharacter: ['', Validators.required],
       background: ['', Validators.required]
     });
@@ -73,8 +73,8 @@ export class ReviewFormComponent implements OnInit, OnChanges {
         review: this.editingReview.review,
         handFeet: this.editingReview.ratings.handFeet,
         facialExpression: this.editingReview.ratings.facialExpression,
-        genital: this.editingReview.ratings.genital,
-        accessories: this.editingReview.ratings.accessories,
+        anatomy: this.editingReview.ratings.anatomy,
+        object: this.editingReview.ratings.object,
         sideCharacter: this.editingReview.ratings.sideCharacter,
         background: this.editingReview.ratings.background
       });
@@ -157,8 +157,8 @@ export class ReviewFormComponent implements OnInit, OnChanges {
     const ratings = {
       handFeet: this.form.value.handFeet,
       facialExpression: this.form.value.facialExpression,
-      genital: this.form.value.genital,
-      accessories: this.form.value.accessories,
+      anatomy: this.form.value.anatomy,
+      object: this.form.value.object,
       sideCharacter: this.form.value.sideCharacter,
       background: this.form.value.background
     };
@@ -187,8 +187,8 @@ export class ReviewFormComponent implements OnInit, OnChanges {
     const ratings = {
       handFeet: this.form.value.handFeet,
       facialExpression: this.form.value.facialExpression,
-      genital: this.form.value.genital,
-      accessories: this.form.value.accessories,
+      anatomy: this.form.value.anatomy,
+      object: this.form.value.object,
       sideCharacter: this.form.value.sideCharacter,
       background: this.form.value.background
     };

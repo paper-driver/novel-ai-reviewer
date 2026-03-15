@@ -412,27 +412,51 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     const ratingsToUse = this.latestModalRatings || (this.currentGroupReviewData?.imageRatings);
     
     // Save ratings back to server before closing
-    // Store ratings flat by filename only (not by group ID) so ratings are shared across all features
-    // Save even if empty to persist rating deletions
+    // IMPORTANT: MERGE new ratings with existing ones to prevent data loss
+    // We only have ratings for the current group, but all ratings exist in the file
     if (ratingsToUse !== undefined && ratingsToUse !== null) {
-      console.log('[PromptGrouping] Ratings to save:', ratingsToUse);
+      console.log('[PromptGrouping] Ratings from modal:', ratingsToUse);
       
-      // Send ratings as-is (flat structure: { filename: rating })
-      const ratingsToSave = ratingsToUse as { [filename: string]: number };
-
-      console.log('[PromptGrouping] Calling saveRatings with:', ratingsToSave);
-      this.groupingService.saveRatings(this.folderPath, ratingsToSave).subscribe({
-        next: (response) => {
-          console.log('[PromptGrouping] Ratings saved successfully:', response);
-          // Notify other components about the ratings update
-          this.ratingsStateService.notifyRatingsSaved(this.folderPath, ratingsToSave);
-          // Refresh average ratings for display
-          this.refreshAverageRatings();
+      // MERGE: Load all existing ratings first, then merge with modal ratings
+      this.groupingService.loadRatings(this.folderPath).subscribe({
+        next: (loadResponse) => {
+          const allExistingRatings = (loadResponse.success && loadResponse.ratings) ? loadResponse.ratings : {};
+          console.log('[PromptGrouping] All existing ratings:', allExistingRatings);
+          
+          // Merge: keep all existing ratings, update with new ones from modal
+          const mergedRatings = { ...allExistingRatings, ...ratingsToUse };
+          console.log('[PromptGrouping] Merged ratings:', mergedRatings);
+          
+          // Now save the MERGED ratings
+          this.groupingService.saveRatings(this.folderPath, mergedRatings).subscribe({
+            next: (response) => {
+              console.log('[PromptGrouping] Ratings saved successfully:', response);
+              // Notify other components about the ratings update
+              this.ratingsStateService.notifyRatingsSaved(this.folderPath, mergedRatings);
+              // Refresh average ratings for display
+              this.refreshAverageRatings();
+            },
+            error: (err) => {
+              console.error('[PromptGrouping] Failed to save ratings:', err);
+              // Still refresh to update the UI
+              this.refreshAverageRatings();
+            }
+          });
         },
         error: (err) => {
-          console.error('[PromptGrouping] Failed to save ratings:', err);
-          // Still refresh to update the UI
-          this.refreshAverageRatings();
+          console.warn('[PromptGrouping] Failed to load existing ratings, saving modal ratings only:', err);
+          // If we can't load existing, just save what we have from modal
+          this.groupingService.saveRatings(this.folderPath, ratingsToUse as { [filename: string]: number }).subscribe({
+            next: (response) => {
+              console.log('[PromptGrouping] Ratings saved successfully:', response);
+              this.ratingsStateService.notifyRatingsSaved(this.folderPath, ratingsToUse as { [filename: string]: number });
+              this.refreshAverageRatings();
+            },
+            error: (err2) => {
+              console.error('[PromptGrouping] Failed to save ratings:', err2);
+              this.refreshAverageRatings();
+            }
+          });
         }
       });
     } else {

@@ -15,8 +15,8 @@ export class FilterPanelComponent {
     prompt: '',
     handFeet: '',
     facialExpression: '',
-    genital: '',
-    accessories: '',
+    anatomy: '',
+    object: '',
     sideCharacter: '',
     background: ''
   };
