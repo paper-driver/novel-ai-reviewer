@@ -1097,7 +1097,6 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           
           this.groups.forEach(group => {
             const oldRating = group.averageRating;
-            
             // Calculate average based on images in this group
             if (group.images && group.images.length > 0) {
               // Convert array of filenames to object of {filename: rating}
@@ -1105,7 +1104,7 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
               group.images.forEach((fullPath: string) => {
                 // Look for exact match first, then try fuzzy matching
                 // The ratings file may have full prompts as keys, so we need to match smartly
-                
+                fullPath = fullPath.split('/').pop() || fullPath; // Get basename for matching
                 // Check for exact match
                 if (allImageRatings[fullPath]) {
                   groupRatingsObj[fullPath] = allImageRatings[fullPath];
