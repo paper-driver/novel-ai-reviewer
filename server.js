@@ -2441,7 +2441,7 @@ app.post('/api/prompt-grouping/save-ratings', (req, res) => {
       return res.status(404).json({ error: 'Folder not found' });
     }
 
-    const ratingsFile = path.join(resolvedPath, '.prompt-ratings.json');
+    const ratingsFile = path.join(resolvedPath, '.image-ratings.json');
     
     try {
       // MERGE logic: Load existing ratings first, then merge with new ones (prevents data loss)
@@ -2499,7 +2499,7 @@ app.get('/api/prompt-grouping/load-ratings', (req, res) => {
       return res.status(404).json({ error: 'Folder not found' });
     }
 
-    const ratingsFile = path.join(resolvedPath, '.prompt-ratings.json');
+    const ratingsFile = path.join(resolvedPath, '.image-ratings.json');
     
     try {
       if (fs.existsSync(ratingsFile)) {
