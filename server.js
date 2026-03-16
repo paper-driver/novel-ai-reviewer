@@ -2894,6 +2894,96 @@ async function processBatchJob(jobId) {
           }
         }
 
+        // Apply user feedback corrections if available
+        const rawScore = score;
+        const feedbackData = loadFeedback(job.folderPath);
+        
+        // PHASE 1: Apply learned patterns from ALL feedback
+        console.log(`[BatchRating] Learning patterns from ${feedbackData.entries.length} feedback entries for ${filename}...`);
+        const learnedPatterns = calculateLearnedPatterns(feedbackData);
+        
+        if (learnedPatterns) {
+          // Apply learned corrections to estimated component scores
+          let anatomy = 6, pose = 6, face = 6, background = 6, objects = 6, coherence = 6;
+          
+          // Detect image type from available label info (fallback to photo)
+          let isIllustration = filename.toLowerCase().includes('anime') || 
+                               filename.toLowerCase().includes('illustration') ||
+                               filename.toLowerCase().includes('drawing');
+          
+          // Apply learned pattern adjustments with confidence threshold
+          for (const [component, pattern] of Object.entries(learnedPatterns)) {
+            if (pattern.confidence >= 0.6) {
+              const baseScore = component === 'anatomy' ? anatomy :
+                               component === 'pose' ? pose :
+                               component === 'face' ? face :
+                               component === 'background' ? background :
+                               component === 'objects' ? objects :
+                               coherence;
+              
+              const maxAdjustment = 2;
+              const adjustment = Math.max(-maxAdjustment, Math.min(maxAdjustment, pattern.avg));
+              const adjustedScore = Math.max(1, Math.min(10, baseScore + adjustment));
+              
+              if (component === 'anatomy') anatomy = adjustedScore;
+              else if (component === 'pose') pose = adjustedScore;
+              else if (component === 'face') face = adjustedScore;
+              else if (component === 'background') background = adjustedScore;
+              else if (component === 'objects') objects = adjustedScore;
+              else if (component === 'coherence') coherence = adjustedScore;
+            }
+          }
+          
+          let patternScore;
+          if (isIllustration) {
+            patternScore = Math.round(
+              (anatomy * 0.15 + pose * 0.15 + face * 0.20 + background * 0.15 + objects * 0.20 + coherence * 0.15)
+            );
+          } else {
+            patternScore = Math.round(
+              (anatomy * 0.20 + pose * 0.15 + face * 0.20 + background * 0.15 + objects * 0.15 + coherence * 0.15)
+            );
+          }
+          
+          console.log(`[BatchRating] Applied learned patterns for ${filename}: ${rawScore} → ${patternScore}`);
+          score = patternScore;
+        }
+        
+        // PHASE 2: If specific image feedback exists, override with it
+        const priorFeedback = feedbackData.entries.find(e => e.imageId === filename);
+        
+        if (priorFeedback && priorFeedback.components) {
+          // Recalculate score with feedback components (overrides learned patterns)
+          let anatomy = priorFeedback.components.anatomy || 6;
+          let pose = priorFeedback.components.pose || 6;
+          let face = priorFeedback.components.face || 6;
+          let background = priorFeedback.components.background || 6;
+          let objects = priorFeedback.components.objects || 6;
+          let coherence = priorFeedback.components.coherence || 6;
+          
+          // Detect image type to use correct weights
+          const labels = priorFeedback.detectedLabels || [];
+          const labelNames = labels.map(l => l.toLowerCase ? l.toLowerCase() : l);
+          const isIllustration = labelNames.some(l => 
+            l.includes('anime') || l.includes('illustration') || l.includes('drawing') || 
+            l.includes('art') || l.includes('cartoon') || l.includes('painting')
+          );
+          
+          let feedbackScore;
+          if (isIllustration) {
+            feedbackScore = Math.round(
+              (anatomy * 0.15 + pose * 0.15 + face * 0.20 + background * 0.15 + objects * 0.20 + coherence * 0.15)
+            );
+          } else {
+            feedbackScore = Math.round(
+              (anatomy * 0.20 + pose * 0.15 + face * 0.20 + background * 0.15 + objects * 0.15 + coherence * 0.15)
+            );
+          }
+          
+          console.log(`[BatchRating] Applied specific feedback for ${filename}: ${score} → ${feedbackScore}`);
+          score = feedbackScore;
+        }
+
         job.results[filename] = score;
         console.log(`[BatchRating] Stored result - filename: ${filename}, score: ${score}`);
         console.log(`[BatchRating] job.results keys after storing: ${Object.keys(job.results)}`);
@@ -2915,10 +3005,29 @@ async function processBatchJob(jobId) {
     job.status = 'completed';
     job.completedAt = new Date();
 
-    // Save results to .image-ratings.json
+    // Save results to .image-ratings.json (MERGE with existing ratings, don't overwrite)
     const ratingsFile = path.join(job.folderPath, '.image-ratings.json');
     try {
-      fs.writeFileSync(ratingsFile, JSON.stringify(job.results, null, 2));
+      // Load existing ratings first
+      let existingRatings = {};
+      if (fs.existsSync(ratingsFile)) {
+        try {
+          existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
+          console.log(`[BatchRating] Loaded existing ratings with ${Object.keys(existingRatings).length} entries`);
+        } catch (parseErr) {
+          console.warn(`[BatchRating] Failed to parse existing ratings, starting fresh:`, parseErr.message);
+          existingRatings = {};
+        }
+      }
+      
+      // MERGE existing ratings with new batch results
+      const mergedRatings = { ...existingRatings, ...job.results };
+      
+      console.log(`[BatchRating] Existing entries: ${Object.keys(existingRatings).length}`);
+      console.log(`[BatchRating] New batch results: ${Object.keys(job.results).length}`);
+      console.log(`[BatchRating] Merged total: ${Object.keys(mergedRatings).length}`);
+      
+      fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
       console.log(`[BatchRating] Job ${jobId} results saved to: ${ratingsFile}`);
     } catch (err) {
       console.error(`[BatchRating] Failed to save results: ${err.message}`);
@@ -3126,6 +3235,14 @@ async function analyzeImageQualityLocal(filePath) {
       console.log(`[ImageQuality] Using PHOTO weights`);
     }
 
+    // DEBUG: Log detailed component scores
+    console.log(`[ImageQuality] Component scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
+    if (isIllustrativeContent) {
+      console.log(`[ImageQuality] Calculation: (${anatomyScore}*0.15 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.20 + ${coherenceScore}*0.15) = ${overallScore}`);
+    } else {
+      console.log(`[ImageQuality] Calculation: (${anatomyScore}*0.20 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.15 + ${coherenceScore}*0.15) = ${overallScore}`);
+    }
+
     const elapsed = Date.now() - startTime;
     console.log(`[ImageQuality] FINAL SCORE for ${path.basename(filePath)}: ${overallScore}/10 (${elapsed}ms)`);
     return overallScore;
@@ -3190,6 +3307,26 @@ app.post('/api/analyze-illustration', async (req, res) => {
     const confidences = labels.map(l => l.score);
     const avgConfidence = confidences.length > 0 ? Math.round(confidences.reduce((a, b) => a + b) / confidences.length * 100) : 0;
 
+    // DETECT IMAGE TYPE: Photo vs Illustration (SAME LOGIC AS BATCH)
+    const isIllustration = labelNames.some(l => 
+      l.includes('illustration') || 
+      l.includes('drawing') || 
+      l.includes('art') ||
+      l.includes('digital art') ||
+      l.includes('anime') ||
+      l.includes('cartoon') ||
+      l.includes('painting')
+    );
+    
+    const hasArtisticStyle = labelNames.some(l =>
+      l.includes('style') ||
+      l.includes('texture') ||
+      l.includes('abstract')
+    );
+    
+    const isIllustrativeContent = isIllustration || hasArtisticStyle;
+    console.log(`[Illustration] Image type - Illustration: ${isIllustrativeContent}, Labels: ${labelNames.join(', ')}`);
+
     // --- Anatomy Analysis ---
     if (labelNames.some(l => l.includes('hand') || l.includes('finger') || l.includes('arm'))) {
       anatomyScore = Math.min(10, anatomyScore + 2);
@@ -3231,6 +3368,8 @@ app.post('/api/analyze-illustration', async (req, res) => {
     if (labelNames.some(l => l.includes('background') || l.includes('scene') || l.includes('landscape'))) {
       backgroundQuality = Math.min(10, backgroundQuality + 2);
       strengths.push('Well-defined background');
+    } else if (labelNames.some(l => l.includes('art') || l.includes('illustration') || l.includes('drawing') || l.includes('style'))) {
+      backgroundQuality = Math.min(10, backgroundQuality + 1);
     }
 
     if (labelNames.some(l => l.includes('nature') || l.includes('indoor') || l.includes('outdoor'))) {
@@ -3261,6 +3400,31 @@ app.post('/api/analyze-illustration', async (req, res) => {
       strengths.push('Rich color palette');
     }
 
+    // ILLUSTRATION-SPECIFIC BOOSTS (SAME AS BATCH)
+    if (isIllustrativeContent) {
+      // Boost for artistic composition
+      if (labels.length > 6) {
+        coherenceScore = Math.min(10, coherenceScore + 1);
+        if (!strengths.includes('Artistic composition')) {
+          strengths.push('Artistic composition');
+        }
+      }
+      
+      // Boost for clear character/subject
+      if (labelNames.some(l => l.includes('character') || l.includes('figure'))) {
+        anatomyScore = Math.min(10, anatomyScore + 1);
+        poseScore = Math.min(10, poseScore + 1);
+      }
+      
+      // Boost for stylized art
+      if (hasArtisticStyle) {
+        coherenceScore = Math.min(10, coherenceScore + 1);
+        if (!strengths.includes('Stylized artwork')) {
+          strengths.push('Stylized artwork');
+        }
+      }
+    }
+
     // --- Safety & Content Checks ---
     if (safeSearch.adult === 'VERY_LIKELY' || safeSearch.adult === 'LIKELY') {
       issues.push('Adult content detected');
@@ -3270,16 +3434,11 @@ app.post('/api/analyze-illustration', async (req, res) => {
       issues.push('Violence detected');
       poseScore = Math.max(1, poseScore - 2);
     }
-    if (safeSearch.racy === 'VERY_LIKELY') {
-      issues.push('Inappropriate content');
-      objectQuality = Math.max(1, objectQuality - 2);
-    }
 
     // --- Issue Detection ---
-    if (!labelNames.some(l => l.includes('person') || l.includes('human') || l.includes('character') || l.includes('illustration'))) {
+    if (!labelNames.some(l => l.includes('person') || l.includes('human') || l.includes('character') || l.includes('figure'))) {
       issues.push('No clear subject/character detected');
-      anatomyScore = Math.max(1, anatomyScore - 1);
-      recommendations.push('Ensure the main subject is clearly visible');
+      anatomyScore = Math.max(1, anatomyScore - 2);
     }
 
     if (labelNames.some(l => l.includes('low') || l.includes('blur') || l.includes('pixelat'))) {
@@ -3304,20 +3463,67 @@ app.post('/api/analyze-illustration', async (req, res) => {
     objectQuality = Math.max(1, Math.min(10, Math.round(objectQuality)));
     coherenceScore = Math.max(1, Math.min(10, Math.round(coherenceScore)));
 
-    // Calculate overall score as weighted average
-    let overallScore = Math.round(
-      (anatomyScore * 0.20 + 
-       poseScore * 0.15 + 
-       faceQuality * 0.20 + 
-       backgroundQuality * 0.15 + 
-       objectQuality * 0.15 + 
-       coherenceScore * 0.15)
-    );
+    // DEBUG: Log component scores
+    console.log(`[Illustration] Component scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
 
-    // ===== NEW: Apply feedback corrections if available =====
+    // Calculate overall score with CUSTOM WEIGHTS based on image type (SAME AS BATCH)
+    let overallScore;
+    
+    if (isIllustrativeContent) {
+      // ILLUSTRATION WEIGHTS - Emphasize composition and subject clarity
+      // Anatomy: 15% (less strict - allow stylization)
+      // Pose: 15% (important for character design)
+      // Face: 20% (very important for character)
+      // Background: 15% (supports storytelling)
+      // Objects/Clothing: 20% (costume/design is central to illustration)
+      // Coherence: 15% (overall composition)
+      overallScore = Math.round(
+        (anatomyScore * 0.15 + 
+         poseScore * 0.15 + 
+         faceQuality * 0.20 + 
+         backgroundQuality * 0.15 + 
+         objectQuality * 0.20 + 
+         coherenceScore * 0.15) / 1
+      );
+      console.log(`[Illustration] Using ILLUSTRATION weights (type: ${isIllustration ? 'detected' : 'artistic'})`);
+    } else {
+      // PHOTO WEIGHTS - Standard evaluation
+      // Anatomy: 20%, Pose: 15%, Face: 20%, Background: 15%, Objects: 15%, Coherence: 15%
+      overallScore = Math.round(
+        (anatomyScore * 0.20 + 
+         poseScore * 0.15 + 
+         faceQuality * 0.20 + 
+         backgroundQuality * 0.15 + 
+         objectQuality * 0.15 + 
+         coherenceScore * 0.15) / 1
+      );
+      console.log(`[Illustration] Using PHOTO weights`);
+    }
+
+    // DEBUG: Log component scores before feedback
+    console.log(`[Illustration] Pre-feedback scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
+    if (isIllustrativeContent) {
+      console.log(`[Illustration] Calculation: (${anatomyScore}*0.15 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.20 + ${coherenceScore}*0.15) = ${overallScore}`);
+    } else {
+      console.log(`[Illustration] Calculation: (${anatomyScore}*0.20 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.15 + ${coherenceScore}*0.15) = ${overallScore}`);
+    }
+
+    // Save raw AI scores before any corrections
+    const rawComponentScores = {
+      anatomy: anatomyScore,
+      pose: poseScore,
+      face: faceQuality,
+      background: backgroundQuality,
+      objects: objectQuality,
+      coherence: coherenceScore
+    };
+    const rawOverallScore = overallScore;
+
+    // ===== Apply feedback corrections if available =====
+    // User corrections improve the ratings over time
     const imageId = path.basename(filePath);
+    
     // Extract source folder from the full file path
-    // e.g., /Volumes/.../SortByArtist/artist-folder/subfolder/image.png → /Volumes/.../SortByArtist
     const pathParts = filePath.split(path.sep);
     let detectedSourcePath = null;
     
@@ -3335,6 +3541,69 @@ app.post('/api/analyze-illustration', async (req, res) => {
     const sourcePath = req.body.sourcePath || detectedSourcePath || currentSourcePath;
     
     const feedbackData = loadFeedback(sourcePath);
+    
+    // ===== PHASE 1: Apply learned patterns from ALL feedback =====
+    // This learns the user's correction tendencies and applies them to new images
+    console.log(`[Illustration] Learning patterns from ${feedbackData.entries.length} feedback entries...`);
+    const learnedPatterns = calculateLearnedPatterns(feedbackData);
+    
+    let componentScores = {
+      anatomy: anatomyScore,
+      pose: poseScore,
+      face: faceQuality,
+      background: backgroundQuality,
+      objects: objectQuality,
+      coherence: coherenceScore
+    };
+    
+    // Apply learned patterns
+    const adjustedScores = applyLearnedPatterns(componentScores, learnedPatterns);
+    
+    // Only apply if patterns were actually applied (some confidence > 0.6)
+    if (learnedPatterns) {
+      let patternsApplied = false;
+      for (const [component, pattern] of Object.entries(learnedPatterns)) {
+        if (pattern.confidence >= 0.6 && adjustedScores[component] !== componentScores[component]) {
+          patternsApplied = true;
+          break;
+        }
+      }
+      
+      if (patternsApplied) {
+        console.log(`[Illustration] Applying learned pattern corrections...`);
+        anatomyScore = adjustedScores.anatomy;
+        poseScore = adjustedScores.pose;
+        faceQuality = adjustedScores.face;
+        backgroundQuality = adjustedScores.background;
+        objectQuality = adjustedScores.objects;
+        coherenceScore = adjustedScores.coherence;
+        
+        // Recalculate overall score after pattern corrections
+        if (isIllustrativeContent) {
+          overallScore = Math.round(
+            (anatomyScore * 0.15 + 
+             poseScore * 0.15 + 
+             faceQuality * 0.20 + 
+             backgroundQuality * 0.15 + 
+             objectQuality * 0.20 + 
+             coherenceScore * 0.15)
+          );
+        } else {
+          overallScore = Math.round(
+            (anatomyScore * 0.20 + 
+             poseScore * 0.15 + 
+             faceQuality * 0.20 + 
+             backgroundQuality * 0.15 + 
+             objectQuality * 0.15 + 
+             coherenceScore * 0.15)
+          );
+        }
+        console.log(`[Illustration] Score after learned patterns: ${overallScore}/10`);
+      }
+    }
+    
+    // ===== PHASE 2: Check for specific image feedback =====
+    // If there's feedback specifically for THIS image, it overrides learned patterns
     const priorFeedback = feedbackData.entries.find(e => e.imageId === imageId);
     let feedbackApplied = false;
     let feedbackDetails = null;
@@ -3343,35 +3612,58 @@ app.post('/api/analyze-illustration', async (req, res) => {
       feedbackApplied = true;
       const feedbackComponents = priorFeedback.components || {};
       
+      console.log(`[Illustration] FEEDBACK FOUND for ${imageId}! Applying corrections...`);
+      
       // Apply component-level corrections from user feedback
       if (feedbackComponents.anatomy !== undefined) {
+        console.log(`[Illustration]   - Anatomy: ${anatomyScore} → ${feedbackComponents.anatomy}`);
         anatomyScore = feedbackComponents.anatomy;
       }
       if (feedbackComponents.pose !== undefined) {
+        console.log(`[Illustration]   - Pose: ${poseScore} → ${feedbackComponents.pose}`);
         poseScore = feedbackComponents.pose;
       }
       if (feedbackComponents.face !== undefined) {
+        console.log(`[Illustration]   - Face: ${faceQuality} → ${feedbackComponents.face}`);
         faceQuality = feedbackComponents.face;
       }
       if (feedbackComponents.background !== undefined) {
+        console.log(`[Illustration]   - Background: ${backgroundQuality} → ${feedbackComponents.background}`);
         backgroundQuality = feedbackComponents.background;
       }
       if (feedbackComponents.objects !== undefined) {
+        console.log(`[Illustration]   - Objects: ${objectQuality} → ${feedbackComponents.objects}`);
         objectQuality = feedbackComponents.objects;
       }
       if (feedbackComponents.coherence !== undefined) {
+        console.log(`[Illustration]   - Coherence: ${coherenceScore} → ${feedbackComponents.coherence}`);
         coherenceScore = feedbackComponents.coherence;
       }
 
-      // Recalculate overall score with user feedback
-      const feedbackOverallScore = Math.round(
-        (anatomyScore * 0.20 + 
-         poseScore * 0.15 + 
-         faceQuality * 0.20 + 
-         backgroundQuality * 0.15 + 
-         objectQuality * 0.15 + 
-         coherenceScore * 0.15)
-      );
+      // Recalculate overall score with user feedback using CORRECT weights
+      let feedbackOverallScore;
+      
+      if (isIllustrativeContent) {
+        // ILLUSTRATION WEIGHTS for feedback recalculation
+        feedbackOverallScore = Math.round(
+          (anatomyScore * 0.15 + 
+           poseScore * 0.15 + 
+           faceQuality * 0.20 + 
+           backgroundQuality * 0.15 + 
+           objectQuality * 0.20 + 
+           coherenceScore * 0.15)
+        );
+      } else {
+        // PHOTO WEIGHTS for feedback recalculation
+        feedbackOverallScore = Math.round(
+          (anatomyScore * 0.20 + 
+           poseScore * 0.15 + 
+           faceQuality * 0.20 + 
+           backgroundQuality * 0.15 + 
+           objectQuality * 0.15 + 
+           coherenceScore * 0.15)
+        );
+      }
 
       feedbackDetails = {
         priorUserScore: priorFeedback.userScore,
@@ -3381,16 +3673,81 @@ app.post('/api/analyze-illustration', async (req, res) => {
         timestamp: priorFeedback.timestamp
       };
 
-      console.log(`[Illustration] Using prior feedback for ${imageId}: Original AI=${priorFeedback.aiScore}/10 → User=${priorFeedback.userScore}/10 (correction: ${priorFeedback.correction})`);
-      console.log(`[Illustration] Feedback source path: ${sourcePath}`);
-      console.log(`[Illustration] Adjusted scores - Anatomy:${anatomyScore}, Pose:${poseScore}, Face:${faceQuality}, BG:${backgroundQuality}, Objects:${objectQuality}, Coherence:${coherenceScore}`);
-      console.log(`[Illustration] Recalculated overall score: ${feedbackOverallScore}/10 (from raw AI score: ${overallScore}/10)`);
-
+      console.log(`[Illustration] Recalculated score with feedback: ${overallScore}/10 → ${feedbackOverallScore}/10`);
       overallScore = feedbackOverallScore;
+    }
+
+    // Build correction details showing what adjustments were made
+    const correctionDetails = {
+      rawAIScore: rawOverallScore,
+      learnedPatternCorrections: [],
+      specificFeedbackCorrections: [],
+      hasCorrections: false
+    };
+
+    // Track learned pattern corrections
+    if (learnedPatterns) {
+      for (const [component, pattern] of Object.entries(learnedPatterns)) {
+        if (pattern.confidence >= 0.6) {
+          const componentKey = component === 'face' ? 'faceQuality' : 
+                              component === 'background' ? 'backgroundQuality' :
+                              component === 'objects' ? 'objectQuality' :
+                              component === 'coherence' ? 'coherenceScore' :
+                              `${component}Score`;
+          
+          const rawScore = rawComponentScores[component];
+          const adjustedScore = adjustedScores[component];
+          
+          if (adjustedScore !== rawScore) {
+            correctionDetails.learnedPatternCorrections.push({
+              component: component,
+              rawScore: rawScore,
+              adjustedScore: adjustedScore,
+              adjustment: adjustedScore - rawScore,
+              confidence: pattern.confidence,
+              pattern: pattern.avg
+            });
+            correctionDetails.hasCorrections = true;
+          }
+        }
+      }
+    }
+
+    // Track specific feedback corrections
+    if (feedbackApplied && priorFeedback) {
+      const feedbackComponents = priorFeedback.components || {};
+      
+      for (const component of ['anatomy', 'pose', 'face', 'background', 'objects', 'coherence']) {
+        const componentKey = component === 'face' ? 'faceQuality' : 
+                            component === 'background' ? 'backgroundQuality' :
+                            component === 'objects' ? 'objectQuality' :
+                            component === 'coherence' ? 'coherenceScore' :
+                            `${component}Score`;
+        
+        const userScore = feedbackComponents[component];
+        if (userScore !== undefined) {
+          // Get the score before this feedback correction (which is the current score if patterns were applied)
+          const scoreBeforeFeedback = learnedPatterns && adjustedScores[component] ? 
+                                      adjustedScores[component] : 
+                                      rawComponentScores[component];
+          
+          if (userScore !== scoreBeforeFeedback) {
+            correctionDetails.specificFeedbackCorrections.push({
+              component: component,
+              beforeFeedback: scoreBeforeFeedback,
+              userScore: userScore,
+              adjustment: userScore - scoreBeforeFeedback,
+              reason: priorFeedback.reasoning || 'Your feedback for this image'
+            });
+            correctionDetails.hasCorrections = true;
+          }
+        }
+      }
     }
 
     const response = {
       overallScore,
+      rawAIScore: rawOverallScore,
       anatomyScore,
       poseScore,
       faceQuality,
@@ -3406,7 +3763,8 @@ app.post('/api/analyze-illustration', async (req, res) => {
       processingTime: 250,
       cost: '$0.0015',
       feedbackApplied,
-      feedbackDetails
+      feedbackDetails,
+      correctionDetails: correctionDetails.hasCorrections ? correctionDetails : null
     };
 
     console.log(`[Illustration] Analysis complete: ${response.overallScore}/10 (${avgConfidence}% confidence)${feedbackApplied ? ' [FEEDBACK APPLIED]' : ''}`);
@@ -3662,6 +4020,138 @@ function saveFeedback(feedbackData, sourcePath = null) {
   } catch (err) {
     console.error('[Feedback] Failed to save feedback:', err);
   }
+}
+
+/**
+ * Calculate learned correction patterns from all user feedback
+ * Analyzes the user's tendency to rate each component differently from AI scores
+ * Uses recency weighting - newer feedback has more influence
+ * 
+ * Returns an object with average corrections per component:
+ * {
+ *   anatomy: { avg: -0.5, count: 30, confidence: 0.8 },
+ *   pose: { avg: 0.2, count: 28, confidence: 0.6 },
+ *   ...
+ * }
+ */
+function calculateLearnedPatterns(feedbackData) {
+  if (!feedbackData.entries || feedbackData.entries.length === 0) {
+    console.log('[ML] No feedback entries to learn from');
+    return null;
+  }
+
+  const patterns = {};
+  const components = ['anatomy', 'pose', 'face', 'background', 'objects', 'coherence'];
+  
+  // Sort entries by timestamp for recency weighting
+  const sortedEntries = [...feedbackData.entries].sort((a, b) => {
+    const dateA = new Date(a.timestamp || 0).getTime();
+    const dateB = new Date(b.timestamp || 0).getTime();
+    return dateB - dateA; // Newest first
+  });
+
+  const totalEntries = sortedEntries.length;
+
+  for (const component of components) {
+    const corrections = [];
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    for (let i = 0; i < sortedEntries.length; i++) {
+      const entry = sortedEntries[i];
+      
+      // Recency weight: newer entries (lower index) get higher weight
+      // Use exponential decay: weight = e^(-i / totalEntries * 2)
+      const recencyFactor = Math.exp(-i / Math.max(1, totalEntries - 1) * 2);
+      
+      if (entry.components && entry.components[component] !== undefined) {
+        const userComponentScore = entry.components[component];
+        const aiComponentScore = entry.aiScore; // Base AI score, could be refined per component
+        
+        // The correction is user preference - AI preference
+        // This tells us: how much the user typically adjusts this component
+        corrections.push({
+          imageId: entry.imageId,
+          userScore: userComponentScore,
+          aiScore: entry.aiScore,
+          timestamp: entry.timestamp,
+          recencyWeight: recencyFactor
+        });
+
+        weightedSum += userComponentScore * recencyFactor;
+        totalWeight += recencyFactor;
+      }
+    }
+
+    if (corrections.length > 0) {
+      const weightedAvg = weightedSum / totalWeight;
+      
+      // Calculate confidence based on consistency (std dev)
+      const values = corrections.map(c => c.userScore);
+      const mean = values.reduce((a, b) => a + b) / values.length;
+      const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+      const stdDev = Math.sqrt(variance);
+      
+      // Confidence is inverse of std dev (high consistency = high confidence)
+      // Normalize to 0-1 range
+      const confidence = Math.max(0, 1 - (stdDev / 5)); // 5 is rough max std dev
+
+      patterns[component] = {
+        avg: Math.round(weightedAvg * 10) / 10,
+        count: corrections.length,
+        confidence: Math.round(confidence * 100) / 100,
+        stdDev: Math.round(stdDev * 100) / 100
+      };
+
+      console.log(`[ML] ${component}: avg=${patterns[component].avg}, count=${patterns[component].count}, confidence=${patterns[component].confidence}, stdDev=${patterns[component].stdDev}`);
+    }
+  }
+
+  console.log(`[ML] Learned patterns from ${totalEntries} feedback entries:`, patterns);
+  return Object.keys(patterns).length > 0 ? patterns : null;
+}
+
+/**
+ * Apply learned correction patterns to component scores
+ * Takes raw AI component scores and adjusts them based on learned user preferences
+ * Only applies adjustments with high confidence (>0.6)
+ * 
+ * @param {object} componentScores - { anatomy, pose, face, background, objects, coherence }
+ * @param {object} learnedPatterns - Patterns from calculateLearnedPatterns()
+ * @returns {object} Adjusted component scores
+ */
+function applyLearnedPatterns(componentScores, learnedPatterns) {
+  if (!learnedPatterns) {
+    return componentScores;
+  }
+
+  const adjusted = { ...componentScores };
+  let appliedCount = 0;
+
+  for (const [component, pattern] of Object.entries(learnedPatterns)) {
+    if (adjusted[component] !== undefined && pattern.confidence >= 0.6) {
+      const originalScore = adjusted[component];
+      
+      // Apply the learned average adjustment, clamped to ±2 points
+      // This prevents wild swings while still allowing meaningful corrections
+      const maxAdjustment = 2;
+      const adjustment = Math.max(-maxAdjustment, Math.min(maxAdjustment, pattern.avg));
+      
+      adjusted[component] = Math.max(1, Math.min(10, originalScore + adjustment));
+
+      if (adjusted[component] !== originalScore) {
+        const adjStr = adjustment >= 0 ? '+' + adjustment.toFixed(1) : adjustment.toFixed(1);
+        console.log(`[ML-Apply] ${component}: ${originalScore} → ${adjusted[component]} (adjustment: ${adjStr}, confidence: ${pattern.confidence})`);
+        appliedCount++;
+      }
+    }
+  }
+
+  if (appliedCount > 0) {
+    console.log(`[ML-Apply] Applied ${appliedCount} learned pattern corrections`);
+  }
+
+  return adjusted;
 }
 
 /**
