@@ -24,6 +24,47 @@ const GENERATED_DIR = path.join(__dirname, 'generated');
 // Track current source folder for feedback storage
 let currentSourcePath = null;
 
+// ===== LOGGING CONFIGURATION =====
+const LOG_LEVELS = {
+  ERROR: 0,
+  WARN: 1,
+  INFO: 2,
+  DEBUG: 3,
+  TRACE: 4
+};
+
+// Set log level via environment variable: LOG_LEVEL=DEBUG
+// Default is INFO (show errors, warnings, and info messages)
+const CURRENT_LOG_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL || 'INFO'];
+
+const logger = {
+  error: (tag, message, data = null) => {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.ERROR) {
+      console.error(`[${tag}] ERROR: ${message}`, data ? data : '');
+    }
+  },
+  warn: (tag, message, data = null) => {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.WARN) {
+      console.warn(`[${tag}] WARN: ${message}`, data ? data : '');
+    }
+  },
+  info: (tag, message, data = null) => {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.INFO) {
+      console.log(`[${tag}] INFO: ${message}`, data ? data : '');
+    }
+  },
+  debug: (tag, message, data = null) => {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.DEBUG) {
+      console.log(`[${tag}] DEBUG: ${message}`, data ? data : '');
+    }
+  },
+  trace: (tag, message, data = null) => {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.TRACE) {
+      console.log(`[${tag}] TRACE: ${message}`, data ? data : '');
+    }
+  }
+};
+
 // Ensure required directories exist
 if (!fs.existsSync(GENERATED_DIR)) {
   fs.mkdirSync(GENERATED_DIR);
@@ -41,7 +82,7 @@ function readReviews() {
     const data = fs.readFileSync(DATA_FILE, 'utf8');
     return JSON.parse(data || '[]');
   } catch (err) {
-    console.error('Failed to read reviews file:', err);
+    logger.error('Reviews', `Failed to read reviews file: ${err.message}`);
     return [];
   }
 }
@@ -102,7 +143,7 @@ app.post('/api/reviews', upload.array('images'), (req, res) => {
     writeReviews(reviews);
     res.json(newReview);
   } catch (err) {
-    console.error('Error saving review:', err);
+    logger.error('Reviews', `Error saving review: ${err.message}`);
     res.status(500).json({ error: 'Failed to save review' });
   }
 });
@@ -127,7 +168,7 @@ app.get('/api/reviews', (req, res) => {
     });
     res.json(reviews);
   } catch (err) {
-    console.error('Error reading reviews:', err);
+    logger.error('Reviews', `Error reading reviews: ${err.message}`);
     res.status(500).json({ error: 'Failed to retrieve reviews' });
   }
 });
@@ -227,7 +268,7 @@ app.put('/api/reviews/:id', upload.array('images'), (req, res) => {
     writeReviews(reviews);
     res.json(updatedReview);
   } catch (err) {
-    console.error('Error updating review:', err);
+    logger.error('Reviews', `Error updating review: ${err.message}`);
     res.status(500).json({ error: 'Failed to update review' });
   }
 });
@@ -260,7 +301,7 @@ app.delete('/api/reviews/:id', (req, res) => {
     
     res.json({ message: 'Review deleted successfully' });
   } catch (err) {
-    console.error('Error deleting review:', err);
+    logger.error('Reviews', `Error deleting review: ${err.message}`);
     res.status(500).json({ error: 'Failed to delete review' });
   }
 });
@@ -308,7 +349,7 @@ app.get('/api/image-metadata/:folder/:filename', (req, res) => {
         prompt = metadata.description;
       }
     } catch (err) {
-      console.warn('Could not read embedded PNG metadata:', err.message);
+      logger.warn('Metadata', `Could not read embedded PNG metadata: ${err.message}`);
     }
     
     // Fall back to extracting from filename if no embedded metadata found
@@ -325,7 +366,7 @@ app.get('/api/image-metadata/:folder/:filename', (req, res) => {
       generationData: generationData || undefined
     });
   } catch (err) {
-    console.error('Error extracting image metadata:', err);
+    logger.error('Metadata', `Error extracting image metadata: ${err.message}`);
     res.status(500).json({ error: 'Failed to extract metadata', details: err.message });
   }
 });
@@ -390,7 +431,7 @@ function readPNGMetadata(buffer) {
             const text = decompressed.toString('utf-8');
             metadata[keyword.toLowerCase()] = text;
           } catch (e) {
-            console.warn('Failed to decompress zTXt chunk:', e.message);
+            logger.warn('Metadata', `Failed to decompress zTXt chunk: ${e.message}`);
           }
         }
       }
@@ -429,7 +470,7 @@ function readPNGMetadata(buffer) {
               }
             }
           } catch (e) {
-            console.warn('Failed to decompress iTXt chunk:', e.message);
+            logger.warn('Metadata', `Failed to decompress iTXt chunk: ${e.message}`);
           }
         }
       }
@@ -506,7 +547,7 @@ app.post('/api/group-by-artists/:folder', (req, res) => {
           artistKey
         });
       } catch (err) {
-        console.warn(`Error processing image ${filename}:`, err.message);
+        logger.warn('Grouping', `Error processing image ${filename}: ${err.message}`);
       }
     });
     
@@ -542,7 +583,7 @@ app.post('/api/group-by-artists/:folder', (req, res) => {
           // Use fs.copyFile to copy instead of move (safer)
           fs.copyFileSync(srcPath, destPath);
         } catch (err) {
-          console.warn(`Error copying ${filename}:`, err.message);
+          logger.warn('Grouping', `Error copying ${filename}: ${err.message}`);
         }
       });
       
@@ -569,7 +610,7 @@ app.post('/api/group-by-artists/:folder', (req, res) => {
       imageMetadata: imageMetadata
     });
   } catch (err) {
-    console.error('Error grouping images by artists:', err);
+    logger.error('Grouping', `Error grouping images by artists: ${err.message}`);
     res.status(500).json({ error: 'Failed to group images', details: err.message });
   }
 });
@@ -591,7 +632,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
     
     // ===== NEW: Set current source path for feedback storage =====
     currentSourcePath = resolvedSourcePath;
-    console.log(`[Feedback] Set current source path to: ${currentSourcePath}`);
+    logger.debug('Feedback', `Set current source path to: ${currentSourcePath}`);
     
     // Check if source folder exists
     if (!fs.existsSync(resolvedSourcePath)) {
@@ -622,7 +663,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
           }
         });
       } catch (e) {
-        console.warn('Could not load existing mapping:', e.message);
+        logger.warn('Mapping', `Could not load existing mapping: ${e.message}`);
       }
     }
     
@@ -654,7 +695,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
         try {
           sourceMapping = JSON.parse(fs.readFileSync(sourceMappingFile, 'utf8'));
         } catch (e) {
-          console.warn('Could not load source mapping:', e.message);
+          logger.warn('Mapping', `Could not load source mapping: ${e.message}`);
         }
       }
 
@@ -726,7 +767,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
               artistKey
             });
           } catch (err) {
-            console.warn(`Error copying ${filename}:`, err.message);
+            logger.warn('Grouping', `Error copying ${filename}: ${err.message}`);
           }
         });
 
@@ -769,7 +810,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
     if (srcFiles.length === 0) {
       // Check if this might be a pre-sorted folder with subdirectories
       const allItems = fs.readdirSync(resolvedSourcePath);
-      console.log(`[GroupByArtists] Source folder contents: ${allItems.join(', ')}`);
+      logger.debug('GroupByArtists', `Source folder contents: ${allItems.join(', ')}`);
       
       const hasSubdirectories = allItems.some(item => {
         try {
@@ -779,8 +820,8 @@ app.post('/api/group-by-artists-path', (req, res) => {
         }
       });
       
-      console.log(`[GroupByArtists] Has subdirectories: ${hasSubdirectories}`);
-      console.log(`[GroupByArtists] Is pre-sorted: ${isSourcePreSorted}`);
+      logger.debug('GroupByArtists', `Has subdirectories: ${hasSubdirectories}`);
+      logger.debug('GroupByArtists', `Is pre-sorted: ${isSourcePreSorted}`);
       
       if (hasSubdirectories) {
         return res.status(400).json({ 
@@ -845,7 +886,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
           artistKey
         });
       } catch (err) {
-        console.warn(`Error processing image ${filename}:`, err.message);
+        logger.warn('Grouping', `Error processing image ${filename}: ${err.message}`);
       }
     });
     
@@ -896,7 +937,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
             copiedCount++;
           }
         } catch (err) {
-          console.warn(`Error copying ${filename}:`, err.message);
+          logger.warn('Grouping', `Error copying ${filename}: ${err.message}`);
         }
       });
       
@@ -975,7 +1016,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
           artistKey
         });
       } catch (err) {
-        console.warn(`Error processing image ${filename}:`, err.message);
+        logger.warn('Grouping', `Error processing image ${filename}: ${err.message}`);
       }
     });
     
@@ -1026,7 +1067,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
             copiedCount++;
           }
         } catch (err) {
-          console.warn(`Error copying ${filename}:`, err.message);
+          logger.warn('Grouping', `Error copying ${filename}: ${err.message}`);
         }
       });
       
@@ -1060,7 +1101,7 @@ app.post('/api/group-by-artists-path', (req, res) => {
       imageMetadata: srcImageMetadata
     });
   } catch (err) {
-    console.error('Error grouping images by artists:', err);
+    logger.error('Grouping', `Error grouping images by artists: ${err.message}`);
     res.status(500).json({ error: 'Failed to group images', details: err.message });
   }
 });
@@ -1165,7 +1206,7 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
     // This ensures ratings are stored where the user expects them
     const baseFolder = resolvedPath;
     
-    console.log(`[artist-gallery/load-groups] Resolved sorted folder: ${resolvedPath}, base folder for ratings: ${baseFolder}`);
+    logger.debug('ArtistGallery', `Resolved sorted folder: ${resolvedPath}, base folder for ratings: ${baseFolder}`);
 
     // Load mapping file if it exists
     const mappingFile = path.join(resolvedPath, '.artist-mapping.json');
@@ -1174,7 +1215,7 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
       try {
         artistKeyToFolder = JSON.parse(fs.readFileSync(mappingFile, 'utf8'));
       } catch (err) {
-        console.warn('Failed to read mapping file:', err.message);
+        logger.warn('Mapping', `Failed to read mapping file: ${err.message}`);
       }
     }
 
@@ -1207,7 +1248,7 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
               latestModifiedTime = fileModTime;
             }
           } catch (err) {
-            console.warn(`Failed to get mtime for ${file}:`, err.message);
+            logger.warn('Mapping', `Failed to get mtime for ${file}: ${err.message}`);
           }
         });
 
@@ -1235,7 +1276,7 @@ app.post('/api/artist-gallery/load-groups', (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Error loading artist groups:', err);
+    logger.error('ArtistGallery', `Error loading artist groups: ${err.message}`);
     res.status(500).json({ error: 'Failed to load artist groups', details: err.message });
   }
 });
@@ -1267,7 +1308,7 @@ app.post('/api/artist-gallery/group-images', (req, res) => {
       images: files
     });
   } catch (err) {
-    console.error('Error loading group images:', err);
+    logger.error('ArtistGallery', `Error loading group images: ${err.message}`);
     res.status(500).json({ error: 'Failed to load group images', details: err.message });
   }
 });
@@ -1288,13 +1329,13 @@ app.get('/api/artist-gallery/image-metadata', (req, res) => {
     const filePath = decodeURIComponent(encodedFilePath);
     const resolvedPath = path.resolve(filePath);
 
-    console.log(`[artist-gallery/image-metadata] filePath: ${filePath}`);
-    console.log(`[artist-gallery/image-metadata] resolvedPath: ${resolvedPath}`);
-    console.log(`[artist-gallery/image-metadata] exists: ${fs.existsSync(resolvedPath)}`);
+    logger.trace('ArtistGallery', `filePath: ${filePath}`);
+    logger.trace('ArtistGallery', `resolvedPath: ${resolvedPath}`);
+    logger.trace('ArtistGallery', `exists: ${fs.existsSync(resolvedPath)}`);
 
     // Security: Ensure the path exists and is not trying to escape
     if (!fs.existsSync(resolvedPath)) {
-      console.error(`[artist-gallery/image-metadata] File not found: ${resolvedPath}`);
+      logger.error('ArtistGallery', `File not found: ${resolvedPath}`);
       return res.status(404).json({ error: 'File not found', path: resolvedPath });
     }
 
@@ -1324,7 +1365,7 @@ app.get('/api/artist-gallery/image-metadata', (req, res) => {
         prompt = metadata.description;
       }
     } catch (err) {
-      console.warn('[artist-gallery/image-metadata] Could not parse PNG metadata:', err.message);
+      logger.warn('ArtistGallery', `Could not parse PNG metadata: ${err.message}`);
     }
     
     // Fall back to extracting from filename if no embedded metadata found
@@ -1337,7 +1378,7 @@ app.get('/api/artist-gallery/image-metadata', (req, res) => {
     
     const artists = extractArtistTags(prompt);
 
-    console.log(`[artist-gallery/image-metadata] Successfully read metadata, prompt length: ${prompt.length}, prompt: ${prompt.substring(0, 100)}`);
+    logger.debug('ArtistGallery', `Successfully read metadata, prompt length: ${prompt.length}`);
 
     res.json({
       success: true,
@@ -1347,7 +1388,7 @@ app.get('/api/artist-gallery/image-metadata', (req, res) => {
       generationData: JSON.stringify(metadata, null, 2)
     });
   } catch (err) {
-    console.error('Error reading image metadata:', err);
+    logger.error('ArtistGallery', `Error reading image metadata: ${err.message}`);
     res.status(500).json({ error: 'Failed to read metadata', details: err.message });
   }
 });
@@ -1369,13 +1410,13 @@ app.get('/api/artist-gallery/image', (req, res) => {
     const filePath = decodeURIComponent(encodedFilePath);
     const resolvedPath = path.resolve(filePath);
 
-    console.log(`[artist-gallery/image] filePath: ${filePath}`);
-    console.log(`[artist-gallery/image] resolvedPath: ${resolvedPath}`);
-    console.log(`[artist-gallery/image] exists: ${fs.existsSync(resolvedPath)}`);
+    logger.trace('ArtistGallery', `filePath: ${filePath}`);
+    logger.trace('ArtistGallery', `resolvedPath: ${resolvedPath}`);
+    logger.trace('ArtistGallery', `exists: ${fs.existsSync(resolvedPath)}`);
 
     // Security: Ensure the file exists
     if (!fs.existsSync(resolvedPath)) {
-      console.error(`[artist-gallery/image] File not found: ${resolvedPath}`);
+      logger.error('ArtistGallery', `File not found: ${resolvedPath}`);
       return res.status(404).json({ error: 'File not found', path: resolvedPath });
     }
 
@@ -1393,7 +1434,7 @@ app.get('/api/artist-gallery/image', (req, res) => {
     res.set('Cache-Control', 'public, max-age=3600');
     res.sendFile(resolvedPath);
   } catch (err) {
-    console.error('Error serving image:', err);
+    logger.error('ArtistGallery', `Error serving image: ${err.message}`);
     res.status(500).json({ error: 'Failed to serve image', details: err.message });
   }
 });
@@ -1439,7 +1480,7 @@ app.post('/api/artist-gallery/copy-from-source', (req, res) => {
       try {
         sourceMapping = JSON.parse(fs.readFileSync(sourceMappingFile, 'utf8'));
       } catch (err) {
-        console.warn('Failed to read source mapping:', err.message);
+        logger.warn('Copy', `Failed to read source mapping: ${err.message}`);
       }
     }
 
@@ -1461,7 +1502,7 @@ app.post('/api/artist-gallery/copy-from-source', (req, res) => {
           }
         });
       } catch (err) {
-        console.warn('Failed to read destination mapping:', err.message);
+        logger.warn('Copy', `Failed to read destination mapping: ${err.message}`);
       }
     }
 
@@ -1503,7 +1544,7 @@ app.post('/api/artist-gallery/copy-from-source', (req, res) => {
           copiedImages++;
           existingImages.add(filename);
         } catch (err) {
-          console.warn(`Failed to copy image ${filename}:`, err.message);
+          logger.warn('Copy', `Failed to copy image ${filename}: ${err.message}`);
         }
       });
 
@@ -1518,7 +1559,7 @@ app.post('/api/artist-gallery/copy-from-source', (req, res) => {
     try {
       fs.writeFileSync(destMappingFile, JSON.stringify(destMapping, null, 2));
     } catch (err) {
-      console.warn('Failed to save destination mapping:', err.message);
+      logger.warn('Copy', `Failed to save destination mapping: ${err.message}`);
     }
 
     res.json({
@@ -1529,7 +1570,7 @@ app.post('/api/artist-gallery/copy-from-source', (req, res) => {
       mergedMapping: Object.keys(destMapping).length > 0
     });
   } catch (err) {
-    console.error('Error copying from source:', err);
+    logger.error('Copy', `Error copying from source: ${err.message}`);
     res.status(500).json({
       success: false,
       error: 'Failed to copy from source folder',
@@ -1549,7 +1590,7 @@ app.post('/api/pick-folder', (req, res) => {
     const os = require('os');
     const platform = os.platform();
 
-    console.log('[FolderPicker] Platform:', platform);
+    logger.debug('FolderPicker', `Platform: ${platform}`);
 
     let selectedPath = '';
     
@@ -1562,7 +1603,7 @@ app.post('/api/pick-folder', (req, res) => {
   return folderPath
 end tell`;
         
-        console.log('[FolderPicker] Using macOS AppleScript');
+        logger.debug('FolderPicker', `Using macOS AppleScript`);
         selectedPath = execSync(`osascript -e '${script.replace(/'/g, "'\\''")}'`, {
           encoding: 'utf8',
           timeout: 60000,
@@ -1576,7 +1617,7 @@ end tell`;
           `$dialog.Description = 'Select a folder';` +
           `if ($dialog.ShowDialog() -eq 'OK') { Write-Host $dialog.SelectedPath }`;
         
-        console.log('[FolderPicker] Using Windows PowerShell');
+        logger.debug('FolderPicker', `Using Windows PowerShell`);
         selectedPath = execSync(`powershell -NoProfile -Command "${psCommand}"`, {
           encoding: 'utf8',
           timeout: 60000,
@@ -1585,7 +1626,7 @@ end tell`;
         
       } else if (platform === 'linux') {
         // Linux - try zenity first, then kdialog
-        console.log('[FolderPicker] Using Linux zenity/kdialog');
+        logger.debug('FolderPicker', `Using Linux zenity/kdialog`);
         try {
           selectedPath = execSync(`zenity --file-selection --directory --title "Select a folder"`, {
             encoding: 'utf8',
@@ -1600,7 +1641,7 @@ end tell`;
               stdio: ['pipe', 'pipe', 'pipe']
             }).trim();
           } catch (e2) {
-            console.log('[FolderPicker] Neither zenity nor kdialog available');
+            logger.warn('FolderPicker', `Neither zenity nor kdialog available`);
             throw new Error('No folder picker available on this Linux system');
           }
         }
@@ -1609,11 +1650,11 @@ end tell`;
       }
 
       if (!selectedPath) {
-        console.log('[FolderPicker] No path selected (empty output)');
+        logger.info('FolderPicker', `No path selected (empty output)`);
         return res.json({ success: false, cancelled: true, path: null });
       }
 
-      console.log('[FolderPicker] Selected path:', selectedPath);
+      logger.debug('FolderPicker', `Selected path: ${selectedPath}`);
 
       // Decode the path if needed
       let decodedPath = selectedPath;
@@ -1625,27 +1666,27 @@ end tell`;
 
       // Verify the path exists and is a directory
       if (!fs.existsSync(decodedPath)) {
-        console.error('[FolderPicker] Path does not exist:', decodedPath);
+        logger.error('FolderPicker', `Path does not exist: ${decodedPath}`);
         return res.json({ success: false, error: 'Path does not exist', path: null });
       }
 
       const stats = fs.statSync(decodedPath);
       if (!stats.isDirectory()) {
-        console.error('[FolderPicker] Path is not a directory:', decodedPath);
+        logger.error('FolderPicker', `Path is not a directory: ${decodedPath}`);
         return res.json({ success: false, error: 'Not a directory', path: null });
       }
 
-      console.log('[FolderPicker] Successfully selected folder:', decodedPath);
+      logger.info('FolderPicker', `Successfully selected folder: ${decodedPath}`);
       res.json({ success: true, path: decodedPath });
       
     } catch (error) {
-      console.log('[FolderPicker] Execution error:', error.message);
+      logger.debug('FolderPicker', `Execution error: ${error.message}`);
       // Check if user cancelled (exit code 1 is common for cancelled operations)
       return res.json({ success: false, cancelled: true, path: null });
     }
     
   } catch (err) {
-    console.error('[FolderPicker] Error in endpoint:', err.message);
+    logger.error('FolderPicker', `Error in endpoint: ${err.message}`);
     res.status(500).json({ error: 'Failed to open folder picker', details: err.message });
   }
 });
@@ -1665,13 +1706,13 @@ app.post('/api/open-folder', (req, res) => {
 
     // Verify path exists and is a directory
     if (!fs.existsSync(folderPath)) {
-      console.error('[OpenFolder] Path does not exist:', folderPath);
+      logger.error('OpenFolder', `Path does not exist: ${folderPath}`);
       return res.status(400).json({ error: 'Folder does not exist' });
     }
 
     const stats = fs.statSync(folderPath);
     if (!stats.isDirectory()) {
-      console.error('[OpenFolder] Path is not a directory:', folderPath);
+      logger.error('OpenFolder', `Path is not a directory: ${folderPath}`);
       return res.status(400).json({ error: 'Path is not a directory' });
     }
 
@@ -1679,7 +1720,7 @@ app.post('/api/open-folder', (req, res) => {
     const os = require('os');
     const platform = os.platform();
 
-    console.log('[OpenFolder] Opening folder:', folderPath, 'on platform:', platform);
+    logger.debug('OpenFolder', `Opening folder: ${folderPath} on platform: ${platform}`);
 
     try {
       if (platform === 'darwin') {
@@ -1699,17 +1740,17 @@ app.post('/api/open-folder', (req, res) => {
             try {
               execSync(`dolphin "${folderPath}"`, { stdio: 'ignore' });
             } catch (e3) {
-              console.warn('[OpenFolder] Could not open folder with any file manager');
+              logger.warn('OpenFolder', `Could not open folder with any file manager`);
               return res.status(500).json({ error: 'No file manager available' });
             }
           }
         }
       }
 
-      console.log('[OpenFolder] Successfully opened folder:', folderPath);
+      logger.info('OpenFolder', `Successfully opened folder: ${folderPath}`);
       res.json({ success: true, message: 'Folder opened in file explorer' });
     } catch (execError) {
-      console.error('[OpenFolder] Execution error:', execError.message);
+      logger.error('OpenFolder', `Execution error: ${execError.message}`);
       res.status(500).json({ error: 'Failed to open folder', details: execError.message });
     }
   } catch (err) {
@@ -2857,13 +2898,12 @@ async function processBatchJob(jobId) {
         const filePath = filePaths[i];
         const filename = path.basename(filePath);
         
-        console.log(`[BatchRating] Processing image ${i + 1}/${filePaths.length}:`);
-        console.log(`  - Full path: ${filePath}`);
-        console.log(`  - Basename: ${filename}`);
-        console.log(`  - Image filenames passed in: ${job.imageFilenames[i]}`);
+        logger.debug('BatchRating', `Processing image ${i + 1}/${filePaths.length}: ${filePath}`);
+        logger.trace('BatchRating', `  - Basename: ${filename}`);
+        logger.trace('BatchRating', `  - Image filenames passed in: ${job.imageFilenames[i]}`);
 
         if (!fs.existsSync(filePath)) {
-          console.warn(`[BatchRating] File not found: ${filePath}`);
+          logger.warn('BatchRating', `File not found: ${filePath}`);
           job.processedImages++;
           continue;
         }
@@ -2876,19 +2916,19 @@ async function processBatchJob(jobId) {
         while (retryCount < maxRetries && score === null) {
           try {
             score = await analyzeImageQualityLocal(filePath);
-            console.log(`[BatchRating] Got score for ${filename}: ${score}`);
+            logger.debug('BatchRating', `Got score for ${filename}: ${score}`);
           } catch (apiErr) {
             retryCount++;
-            console.error(`[BatchRating] Vision API error (attempt ${retryCount}/${maxRetries}) for ${filename}:`, apiErr.message);
+            logger.error('BatchRating', `Vision API error (attempt ${retryCount}/${maxRetries}) for ${filename}: ${apiErr.message}`);
             
             if (retryCount < maxRetries) {
               // Exponential backoff: wait longer between retries (1s, 2s, 4s)
               const backoffDelay = Math.pow(2, retryCount - 1) * 1000;
-              console.log(`[BatchRating] Retrying in ${backoffDelay}ms...`);
+              logger.debug('BatchRating', `Retrying in ${backoffDelay}ms...`);
               await new Promise(resolve => setTimeout(resolve, backoffDelay));
             } else {
               // Use fallback score after max retries
-              console.warn(`[BatchRating] Max retries exceeded for ${filename}, using fallback score`);
+              logger.warn('BatchRating', `Max retries exceeded for ${filename}, using fallback score`);
               score = Math.floor(Math.random() * 5) + 5;
             }
           }
@@ -2899,7 +2939,7 @@ async function processBatchJob(jobId) {
         const feedbackData = loadFeedback(job.folderPath);
         
         // PHASE 1: Apply learned patterns from ALL feedback
-        console.log(`[BatchRating] Learning patterns from ${feedbackData.entries.length} feedback entries for ${filename}...`);
+        logger.debug('BatchRating', `Learning patterns from ${feedbackData.entries.length} feedback entries for ${filename}...`);
         const learnedPatterns = calculateLearnedPatterns(feedbackData);
         
         if (learnedPatterns) {
@@ -3268,7 +3308,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
   }
 
   try {
-    console.log(`[Illustration] Analyzing with Vision API: ${filePath}`);
+    logger.debug('Illustration', `Analyzing image: ${path.basename(filePath)}`);
 
     const imageBuffer = fs.readFileSync(filePath);
     const base64Image = imageBuffer.toString('base64');
@@ -3325,7 +3365,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
     );
     
     const isIllustrativeContent = isIllustration || hasArtisticStyle;
-    console.log(`[Illustration] Image type - Illustration: ${isIllustrativeContent}, Labels: ${labelNames.join(', ')}`);
+    logger.debug('Illustration', `Image type - Illustration: ${isIllustrativeContent}, Labels: ${labelNames.join(', ')}`);
 
     // --- Anatomy Analysis ---
     if (labelNames.some(l => l.includes('hand') || l.includes('finger') || l.includes('arm'))) {
@@ -3464,7 +3504,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
     coherenceScore = Math.max(1, Math.min(10, Math.round(coherenceScore)));
 
     // DEBUG: Log component scores
-    console.log(`[Illustration] Component scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
+    logger.debug('Illustration', `Component scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
 
     // Calculate overall score with CUSTOM WEIGHTS based on image type (SAME AS BATCH)
     let overallScore;
@@ -3485,7 +3525,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
          objectQuality * 0.20 + 
          coherenceScore * 0.15) / 1
       );
-      console.log(`[Illustration] Using ILLUSTRATION weights (type: ${isIllustration ? 'detected' : 'artistic'})`);
+      logger.debug('Illustration', `Using ILLUSTRATION weights (type: ${isIllustration ? 'detected' : 'artistic'})`);
     } else {
       // PHOTO WEIGHTS - Standard evaluation
       // Anatomy: 20%, Pose: 15%, Face: 20%, Background: 15%, Objects: 15%, Coherence: 15%
@@ -3497,15 +3537,15 @@ app.post('/api/analyze-illustration', async (req, res) => {
          objectQuality * 0.15 + 
          coherenceScore * 0.15) / 1
       );
-      console.log(`[Illustration] Using PHOTO weights`);
+      logger.debug('Illustration', `Using PHOTO weights`);
     }
 
     // DEBUG: Log component scores before feedback
-    console.log(`[Illustration] Pre-feedback scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
+    logger.trace('Illustration', `Pre-feedback scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
     if (isIllustrativeContent) {
-      console.log(`[Illustration] Calculation: (${anatomyScore}*0.15 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.20 + ${coherenceScore}*0.15) = ${overallScore}`);
+      logger.trace('Illustration', `Calculation: (${anatomyScore}*0.15 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.20 + ${coherenceScore}*0.15) = ${overallScore}`);
     } else {
-      console.log(`[Illustration] Calculation: (${anatomyScore}*0.20 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.15 + ${coherenceScore}*0.15) = ${overallScore}`);
+      logger.trace('Illustration', `Calculation: (${anatomyScore}*0.20 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.15 + ${coherenceScore}*0.15) = ${overallScore}`);
     }
 
     // Save raw AI scores before any corrections
@@ -3544,7 +3584,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
     
     // ===== PHASE 1: Apply learned patterns from ALL feedback =====
     // This learns the user's correction tendencies and applies them to new images
-    console.log(`[Illustration] Learning patterns from ${feedbackData.entries.length} feedback entries...`);
+    logger.debug('Illustration', `Learning patterns from ${feedbackData.entries.length} feedback entries...`);
     const learnedPatterns = calculateLearnedPatterns(feedbackData);
     
     let componentScores = {
@@ -3570,7 +3610,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
       }
       
       if (patternsApplied) {
-        console.log(`[Illustration] Applying learned pattern corrections...`);
+        logger.debug('Illustration', `Applying learned pattern corrections...`);
         anatomyScore = adjustedScores.anatomy;
         poseScore = adjustedScores.pose;
         faceQuality = adjustedScores.face;
@@ -3598,7 +3638,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
              coherenceScore * 0.15)
           );
         }
-        console.log(`[Illustration] Score after learned patterns: ${overallScore}/10`);
+        logger.debug('Illustration', `Score after learned patterns: ${overallScore}/10`);
       }
     }
     
@@ -3612,31 +3652,31 @@ app.post('/api/analyze-illustration', async (req, res) => {
       feedbackApplied = true;
       const feedbackComponents = priorFeedback.components || {};
       
-      console.log(`[Illustration] FEEDBACK FOUND for ${imageId}! Applying corrections...`);
+      logger.info('Illustration', `FEEDBACK FOUND for ${imageId}! Applying corrections...`);
       
       // Apply component-level corrections from user feedback
       if (feedbackComponents.anatomy !== undefined) {
-        console.log(`[Illustration]   - Anatomy: ${anatomyScore} → ${feedbackComponents.anatomy}`);
+        logger.debug('Illustration', `   - Anatomy: ${anatomyScore} → ${feedbackComponents.anatomy}`);
         anatomyScore = feedbackComponents.anatomy;
       }
       if (feedbackComponents.pose !== undefined) {
-        console.log(`[Illustration]   - Pose: ${poseScore} → ${feedbackComponents.pose}`);
+        logger.debug('Illustration', `   - Pose: ${poseScore} → ${feedbackComponents.pose}`);
         poseScore = feedbackComponents.pose;
       }
       if (feedbackComponents.face !== undefined) {
-        console.log(`[Illustration]   - Face: ${faceQuality} → ${feedbackComponents.face}`);
+        logger.debug('Illustration', `   - Face: ${faceQuality} → ${feedbackComponents.face}`);
         faceQuality = feedbackComponents.face;
       }
       if (feedbackComponents.background !== undefined) {
-        console.log(`[Illustration]   - Background: ${backgroundQuality} → ${feedbackComponents.background}`);
+        logger.debug('Illustration', `   - Background: ${backgroundQuality} → ${feedbackComponents.background}`);
         backgroundQuality = feedbackComponents.background;
       }
       if (feedbackComponents.objects !== undefined) {
-        console.log(`[Illustration]   - Objects: ${objectQuality} → ${feedbackComponents.objects}`);
+        logger.debug('Illustration', `   - Objects: ${objectQuality} → ${feedbackComponents.objects}`);
         objectQuality = feedbackComponents.objects;
       }
       if (feedbackComponents.coherence !== undefined) {
-        console.log(`[Illustration]   - Coherence: ${coherenceScore} → ${feedbackComponents.coherence}`);
+        logger.debug('Illustration', `   - Coherence: ${coherenceScore} → ${feedbackComponents.coherence}`);
         coherenceScore = feedbackComponents.coherence;
       }
 
@@ -3673,7 +3713,7 @@ app.post('/api/analyze-illustration', async (req, res) => {
         timestamp: priorFeedback.timestamp
       };
 
-      console.log(`[Illustration] Recalculated score with feedback: ${overallScore}/10 → ${feedbackOverallScore}/10`);
+      logger.debug('Illustration', `Recalculated score with feedback: ${overallScore}/10 → ${feedbackOverallScore}/10`);
       overallScore = feedbackOverallScore;
     }
 
@@ -3767,11 +3807,11 @@ app.post('/api/analyze-illustration', async (req, res) => {
       correctionDetails: correctionDetails.hasCorrections ? correctionDetails : null
     };
 
-    console.log(`[Illustration] Analysis complete: ${response.overallScore}/10 (${avgConfidence}% confidence)${feedbackApplied ? ' [FEEDBACK APPLIED]' : ''}`);
+    logger.info('Illustration', `Analysis complete: ${response.overallScore}/10 (${avgConfidence}% confidence)${feedbackApplied ? ' [FEEDBACK APPLIED]' : ''}`);
     res.json(response);
 
   } catch (err) {
-    console.error('[Illustration] Vision API failed:', err);
+    logger.error('Illustration', `Vision API failed: ${err.message}`);
     res.status(500).json({ error: 'Analysis failed', details: err.message });
   }
 });
@@ -3979,7 +4019,7 @@ function loadFeedback(sourcePath = null) {
   const folderPath = sourcePath || currentSourcePath;
   
   if (!folderPath) {
-    console.warn('[Feedback] No source path available, returning empty feedback');
+    logger.debug('Feedback', 'No source path available, returning empty feedback');
     return { entries: [] };
   }
 
@@ -3988,13 +4028,13 @@ function loadFeedback(sourcePath = null) {
     if (fs.existsSync(feedbackFile)) {
       const data = fs.readFileSync(feedbackFile, 'utf8');
       const parsed = JSON.parse(data);
-      console.log(`[Feedback] Loaded ${parsed.entries?.length || 0} entries from ${feedbackFile}`);
+      logger.trace('Feedback', `Loaded ${parsed.entries?.length || 0} entries from feedback file`);
       return parsed;
     } else {
-      console.log(`[Feedback] No feedback file at ${feedbackFile}, creating new`);
+      logger.trace('Feedback', `No feedback file found at ${feedbackFile}`);
     }
   } catch (err) {
-    console.error('[Feedback] Failed to load feedback from', feedbackFile, ':', err);
+    logger.warn('Feedback', `Failed to load feedback from ${feedbackFile}: ${err.message}`);
   }
   return { entries: [] };
 }
@@ -4009,16 +4049,16 @@ function saveFeedback(feedbackData, sourcePath = null) {
   const folderPath = sourcePath || currentSourcePath;
   
   if (!folderPath) {
-    console.error('[Feedback] No source path available, cannot save feedback');
+    logger.error('Feedback', 'No source path available, cannot save feedback');
     return;
   }
 
   const feedbackFile = path.join(folderPath, '.ai-feedback.json');
   try {
     fs.writeFileSync(feedbackFile, JSON.stringify(feedbackData, null, 2));
-    console.log(`[Feedback] Saved ${feedbackData.entries.length} feedback entries to ${feedbackFile}`);
+    logger.info('Feedback', `Saved ${feedbackData.entries.length} feedback entries`);
   } catch (err) {
-    console.error('[Feedback] Failed to save feedback:', err);
+    logger.error('Feedback', `Failed to save feedback: ${err.message}`);
   }
 }
 
@@ -4051,6 +4091,7 @@ function calculateLearnedPatterns(feedbackData) {
   });
 
   const totalEntries = sortedEntries.length;
+  logger.debug('ML', `Learning patterns from ${totalEntries} feedback entries`);
 
   for (const component of components) {
     const corrections = [];
@@ -4103,11 +4144,11 @@ function calculateLearnedPatterns(feedbackData) {
         stdDev: Math.round(stdDev * 100) / 100
       };
 
-      console.log(`[ML] ${component}: avg=${patterns[component].avg}, count=${patterns[component].count}, confidence=${patterns[component].confidence}, stdDev=${patterns[component].stdDev}`);
+      logger.debug('ML', `${component}: avg=${patterns[component].avg}, count=${patterns[component].count}, confidence=${patterns[component].confidence}`);
     }
   }
 
-  console.log(`[ML] Learned patterns from ${totalEntries} feedback entries:`, patterns);
+  logger.debug('ML', `Calculated patterns for ${Object.keys(patterns).length} components`);
   return Object.keys(patterns).length > 0 ? patterns : null;
 }
 
@@ -4141,14 +4182,14 @@ function applyLearnedPatterns(componentScores, learnedPatterns) {
 
       if (adjusted[component] !== originalScore) {
         const adjStr = adjustment >= 0 ? '+' + adjustment.toFixed(1) : adjustment.toFixed(1);
-        console.log(`[ML-Apply] ${component}: ${originalScore} → ${adjusted[component]} (adjustment: ${adjStr}, confidence: ${pattern.confidence})`);
+        logger.trace('ML', `${component}: ${originalScore} → ${adjusted[component]} (adj: ${adjStr}, conf: ${pattern.confidence})`);
         appliedCount++;
       }
     }
   }
 
   if (appliedCount > 0) {
-    console.log(`[ML-Apply] Applied ${appliedCount} learned pattern corrections`);
+    logger.debug('ML', `Applied ${appliedCount} learned pattern corrections`);
   }
 
   return adjusted;

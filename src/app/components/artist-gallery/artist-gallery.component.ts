@@ -621,22 +621,9 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
           const allImageRatings = response.ratings as { [filename: string]: number };
           console.log('[ArtistGallery] All image ratings:', allImageRatings);
           
-          // Build a map of basename -> rating to handle both old (full prompt) and new (basename) formats
-          const basenameToRating: { [basename: string]: number } = {};
-          Object.keys(allImageRatings).forEach(key => {
-            // Extract basename from key (could be "s-227156113.png" or "1girl, ... s-227156113.png")
-            // The basename is always "s-<seed>.png" format
-            const match = key.match(/(s-\d+\.png)$/i);
-            if (match) {
-              const basename = match[1];
-              basenameToRating[basename] = allImageRatings[key];
-            } else {
-              // Fallback: if no match, assume key is already a basename
-              basenameToRating[key] = allImageRatings[key];
-            }
-          });
-          
-          console.log('[ArtistGallery] Basename to rating map:', basenameToRating);
+          // CRITICAL FIX: Match full filenames directly from ratings file
+          // This preserves all ratings even when multiple images share the same seed
+          // (e.g., "s-2509735441.png", "s-2509735441 (1).png", "s-2509735441 (2).png" are different ratings!)
           
           this.groups.forEach(group => {
             const oldRating = group.averageRating;
@@ -646,13 +633,23 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
               // Convert array of filenames to object of {filename: rating}
               const groupRatingsObj: { [filename: string]: number } = {};
               group.images.forEach((filename: string) => {
-                // Extract the seed-based basename from the full filename
-                // e.g., "1girl, {{...}} s-227156113.png" -> "s-227156113.png"
-                const basenameMatch = filename.match(/(s-\d+(?:\s+\(\d+\))?\.png)$/i);
-                const basename = basenameMatch ? basenameMatch[1] : filename;
+                // Look for exact match first, then try fuzzy matching
+                // The ratings file may have full prompts as keys, so we need to match smartly
                 
-                if (basenameToRating[basename]) {
-                  groupRatingsObj[filename] = basenameToRating[basename];
+                // Check for exact match
+                if (allImageRatings[filename]) {
+                  groupRatingsObj[filename] = allImageRatings[filename];
+                } else {
+                  // Try to find a match by checking if any rating key ends with this filename
+                  const ratingKey = Object.keys(allImageRatings).find(key => {
+                    // The rating key could be a full prompt ending with the filename
+                    // e.g., "1girl, ... s-2509735441 (1).png" contains "s-2509735441 (1).png"
+                    return key.endsWith(filename) || key.includes(filename);
+                  });
+                  
+                  if (ratingKey && allImageRatings[ratingKey]) {
+                    groupRatingsObj[filename] = allImageRatings[ratingKey];
+                  }
                 }
               });
               
