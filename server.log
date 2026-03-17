@@ -1,1 +1,220 @@
-Review server listening on port 3000
+[Server] INFO: API Server listening on port 3000
+[Server] INFO: Health check available at http://localhost:3000/health
+[ReviewsRoutes] INFO: Created new review: 19
+[ReviewsRoutes] INFO: Created new review: 20
+[ReviewsRoutes] INFO: Retrieved 20 reviews
+[ReviewsRoutes] INFO: Retrieved 20 reviews
+[ReviewsRoutes] INFO: Retrieved 20 reviews
+[ReviewsService] INFO: Deleted review: 19
+[ReviewsRoutes] INFO: Deleted review: 19
+[ReviewsRoutes] INFO: Retrieved 19 reviews
+[ReviewsRoutes] INFO: Retrieved 19 reviews
+[ReviewsRoutes] INFO: Retrieved 19 reviews
+[ReviewsRoutes] INFO: Created new review: 21
+[ReviewsRoutes] INFO: Retrieved 20 reviews
+[RatingsService] ERROR: Folder not found: /Users/leonmao/Documents/Projects/novel-ai-reviewer/21
+[RatingsService] ERROR: Failed to load ratings: Folder not found
+[RatingsRoutes] ERROR: GET /load failed: Folder not found
+[ImageMetadataRoutes] INFO: Extracted metadata for: {1boy,1girl}, {tifa lockhart,black hair,red eyes,large breasts,wide hips},artist s-3113996024.png
+[ImageMetadataRoutes] INFO: Extracted metadata for: _solo, {tifa lockhart,black hair,red eyes,large breasts,wide hips},artist_ laser s-759903878.png
+[ImageMetadataRoutes] INFO: Extracted metadata for: _solo, {tifa lockhart,black hair,red eyes,large breasts,wide hips},artist_ laser s-759903878 (7).png
+[RatingsService] ERROR: Folder not found: /Users/leonmao/Documents/Projects/novel-ai-reviewer/21
+[RatingsService] ERROR: Failed to load ratings: Folder not found
+[RatingsRoutes] ERROR: GET /load failed: Folder not found
+[RatingsService] ERROR: Folder not found: /Users/leonmao/Documents/Projects/novel-ai-reviewer/21
+[RatingsService] ERROR: Failed to load ratings: Folder not found
+[RatingsRoutes] ERROR: GET /load failed: Folder not found
+[ImageMetadataRoutes] INFO: Extracted metadata for: {1boy,1girl}, {tifa lockhart,black hair,red eyes,large breasts,wide hips},artist s-3113996024.png
+[RatingsService] ERROR: Folder not found: /Users/leonmao/Documents/Projects/novel-ai-reviewer/21
+[RatingsService] ERROR: Failed to load ratings: Folder not found
+[RatingsRoutes] ERROR: GET /load failed: Folder not found
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[PromptGroupingService] INFO: Reprocessing /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[PromptGroupingService] INFO: Found 42 PNG files
+[PromptGroupingService] INFO: Saved mapping to /Users/leonmao/.meta/NovelAI/sortedImageTest2/.prompt-mapping.json
+[RatingsService] INFO: No ratings file found at: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: No ratings file found at: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[PromptGrouping/image-metadata] Extracted prompt, artists: [[[badapple1003]]], {laserflip}, [butcha-u], {cor369}, jabara_tornado, {gtunver}, {{hero_neisan, sohn_woohyoung}}
+[BatchRating] INFO: New batch job submitted: df0207e2-2d6c-4561-900f-06be4e289576
+[BatchRating] INFO: Images: 4, Folder: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[BatchRating] INFO: Starting processing for job df0207e2-2d6c-4561-900f-06be4e289576
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[[badapple1003]]] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-1910090355.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-1910090355.png: 6/10 (1450ms)
+[BatchRating] INFO: Processed 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-1910090355.png: 6/10
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[[badapple1003]]] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2698445372.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2698445372.png: 6/10 (1256ms)
+[BatchRating] INFO: Processed 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2698445372.png: 6/10
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[[badapple1003]]] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-3724699865.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-3724699865.png: 7/10 (1735ms)
+[BatchRating] INFO: Processed 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-3724699865.png: 7/10
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[[badapple1003]]] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-638059681.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-638059681.png: 7/10 (1546ms)
+[BatchRating] INFO: Processed 1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-638059681.png: 7/10
+[BatchRating] INFO: Job df0207e2-2d6c-4561-900f-06be4e289576 completed successfully
+[PromptGrouping/image-metadata] Extracted prompt, artists: [[[badapple1003]]], {laserflip}, [butcha-u], {cor369}, jabara_tornado, {gtunver}, {{hero_neisan, sohn_woohyoung}}
+[RatingsService] INFO: No ratings file found at: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Existing: 0 entries
+[RatingsService] INFO: New: 4 entries
+[RatingsService] INFO: Merged: 4 entries
+[RatingsService] INFO: Ratings saved to: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/image-bucket
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/image-bucket
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[LegacyGrouping] INFO: Grouping from /Users/leonmao/.meta/NovelAI/image-bucket to /Users/leonmao/.meta/NovelAI/sortedImageTest2 (usePreSorted: false)
+[LegacyGrouping] INFO: Successfully grouped 4 artist groups with 6 total images, copied 6 new images
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[PromptGroupingService] INFO: Reprocessing /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[PromptGroupingService] INFO: Found 48 PNG files
+[PromptGroupingService] INFO: Saved mapping to /Users/leonmao/.meta/NovelAI/sortedImageTest2/.prompt-mapping.json
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[ReviewsRoutes] INFO: Retrieved 20 reviews
+[ReviewsRoutes] INFO: Retrieved 20 reviews
+[FolderOperationsRoutes] INFO: Folder picker cancelled by user
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/Downloads/Chrome/novelai
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/Downloads/Chrome/novelai
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[LegacyGrouping] INFO: Grouping from /Users/leonmao/Downloads/Chrome/novelai to /Users/leonmao/.meta/NovelAI/sortedImageTest3 (usePreSorted: false)
+[LegacyGrouping] INFO: Successfully grouped 8 artist groups with 90 total images, copied 90 new images
+[LegacyGrouping] INFO: Grouping from /Users/leonmao/Downloads/Chrome/novelai to /Users/leonmao/.meta/NovelAI/sortedImageTest3 (usePreSorted: false)
+[LegacyGrouping] INFO: Successfully grouped 8 artist groups with 90 total images, copied 90 new images
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[RatingsService] INFO: No ratings file found at: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[Cutesexyrobutts] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1098882213.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1086443275.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[badapple1003] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{{{hoshino ai (oshi no ko) , blue eyes, star pupil,  purple hair, large  s-1012622016.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[beeeeen] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-4197405846_1.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[beeeeen] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}} - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1505298738.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/j.k. - blushyspicy - {{{yd orange maru}}} - Cutesexyrobutts - redrop/1boy,1girl,{{hoshino ai (oshi no ko), purple hair, hair ornament, star shaped ey s-2362222215.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/laserflip - hero_neisan/1girl, {{{{hoshino ai (oshi no ko) , blue eyes, star pupil,  purple hair, large  s-3608084968_1.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/laserflip - sohn_woohyoung - {chamchami} - {{{yd orange maru}}} - Cutesexyrobutts/1 girl, 1 boy, {{kitagawa marin, pink eyes, blonde hair, large breasts, wide hip s-4082943480.png
+[RatingsService] INFO: No ratings file found at: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1086443275.png
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1900008970.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2495680573.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-3147304975.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-566901249.png
+[BatchRating] INFO: New batch job submitted: 4536b509-4338-433e-8c02-bd55978b9c99
+[BatchRating] INFO: Images: 5, Folder: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}
+[BatchRating] INFO: Starting processing for job 4536b509-4338-433e-8c02-bd55978b9c99
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1086443275.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1086443275.png: 7/10 (1325ms)
+[BatchRating] INFO: Processed 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1086443275.png: 7/10
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1900008970.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1900008970.png: 7/10 (1539ms)
+[BatchRating] INFO: Processed 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1900008970.png: 7/10
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2495680573.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2495680573.png: 7/10 (1447ms)
+[BatchRating] INFO: Processed 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2495680573.png: 7/10
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-3147304975.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-3147304975.png: 7/10 (1442ms)
+[BatchRating] INFO: Processed 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-3147304975.png: 7/10
+[VisionAnalysisService] INFO: START analyzing: /Users/leonmao/.meta/NovelAI/sortedImageTest3/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-566901249.png
+[VisionAnalysisService] INFO: FINAL SCORE for 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-566901249.png: 7/10 (1700ms)
+[BatchRating] INFO: Processed 1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-566901249.png: 7/10
+[BatchRating] INFO: Job 4536b509-4338-433e-8c02-bd55978b9c99 completed successfully
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[RatingsService] INFO: No ratings file found at: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[RatingsService] INFO: Existing: 0 entries
+[RatingsService] INFO: New: 5 entries
+[RatingsService] INFO: Merged: 5 entries
+[RatingsService] INFO: Ratings saved to: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[RatingsService] INFO: Total entries: 5
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[RatingsService] INFO: Total entries: 5
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[PromptGroupingService] INFO: Reprocessing /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[PromptGroupingService] INFO: Found 90 PNG files
+[PromptGroupingService] INFO: Saved mapping to /Users/leonmao/.meta/NovelAI/sortedImageTest3/.prompt-mapping.json
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[RatingsService] INFO: Total entries: 5
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[LegacyGrouping] INFO: Grouping from /Users/leonmao/.meta/NovelAI/sortedImageTest3 to /Users/leonmao/.meta/NovelAI/sortedImageTest2 (usePreSorted: false)
+[LegacyGrouping] INFO: Successfully grouped 8 artist groups with 90 total images, copied 90 new images
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[RatingsService] INFO: Total entries: 5
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[Cutesexyrobutts] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1098882213.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[gtunver]] - laserflip - butcha-u - {sohn_woohyoung} - {{{yd orange maru}}} - chamchami/30776045-a172-4fe6-987a-7ad18af6602c.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1086443275.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[badapple1003] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{{{hoshino ai (oshi no ko) , blue eyes, star pupil,  purple hair, large  s-1012622016.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[beeeeen] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-4197405846_1.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[beeeeen] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}} - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1505298738.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/j.k. - blushyspicy - {{{yd orange maru}}} - Cutesexyrobutts - redrop/1boy,1girl,{{hoshino ai (oshi no ko), purple hair, hair ornament, star shaped ey s-2362222215.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/laserflip - hero_neisan/1girl, {{{{hoshino ai (oshi no ko) , blue eyes, star pupil,  purple hair, large  s-3608084968_1.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/laserflip - sohn_woohyoung - {chamchami} - {{{yd orange maru}}} - Cutesexyrobutts/1 girl, 1 boy, {{kitagawa marin, pink eyes, blonde hair, large breasts, wide hip s-4082943480.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/{laserflip} - [butcha-u] - {cor369} - jabara_tornado - pija_(pianiishimo) - {hero_neisan} - {{sohn_woohyoung}}/79d3dd02-abc3-48b5-9b3f-6e753e7fc4c8.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/{laserflip} - [butcha-u] - {cor369} - jabara_tornado - {pija_(pianiishimo)} - {{hero_neisan - sohn_woohyoung}}/7a3cc781-a4d0-4b6f-a1bc-1cfd6ce76dae.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/{laserflip} - butcha-u - {cor369} - [jabara_tornado] - pija_(pianiishimo) - {melowh} - {{sohn_woohyoung}}/289be2b4-368c-4b09-937b-cdcd68520a5e.png
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[Cutesexyrobutts] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1098882213.png
+[ArtistGallery] Successfully read metadata, prompt length: 968
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[Cutesexyrobutts] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1258507708.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[Cutesexyrobutts] - {laserflip} - [butcha-u] - {cor369} - jabara_tornado - {gtunver} - {{hero_neisan - sohn_woohyoung}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-3460728383.png
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[RatingsService] INFO: Loaded existing ratings with 4 entries
+[RatingsService] INFO: Existing: 4 entries
+[RatingsService] INFO: New: 4 entries
+[RatingsService] INFO: Merged: 4 entries
+[RatingsService] INFO: Ratings saved to: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest3
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest3/.image-ratings.json
+[RatingsService] INFO: Total entries: 5
+[FolderOperationsService] INFO: Successfully selected folder: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[FolderOperationsRoutes] INFO: Folder selected: /Users/leonmao/.meta/NovelAI/sortedImageTest2
+[FolderOperationsRoutes] INFO: Folder picker cancelled by user
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1086443275.png
+[ArtistGallery] Successfully read metadata, prompt length: 887
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1900008970.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2495680573.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-3147304975.png
+[ArtistGallery] Serving image: /Users/leonmao/.meta/NovelAI/sortedImageTest2/[[yoshio (55level)]] - [[laserflip - hero_neisan]] - {{{zhen lu}}}/1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-566901249.png
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[RatingsService] INFO: Loaded existing ratings with 4 entries
+[RatingsService] INFO: Existing: 4 entries
+[RatingsService] INFO: New: 4 entries
+[RatingsService] INFO: Merged: 4 entries
+[RatingsService] INFO: Ratings saved to: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4
+[RatingsService] INFO: Loaded ratings from: /Users/leonmao/.meta/NovelAI/sortedImageTest2/.image-ratings.json
+[RatingsService] INFO: Total entries: 4

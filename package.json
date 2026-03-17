@@ -5,6 +5,7 @@
   "scripts": {
     "ng": "ng",
     "start": "concurrently \"node server.js\" \"ng serve\"",
+    "start:modular": "concurrently \"node server.modular.js\" \"ng serve\"",
     "build": "ng build",
     "test": "ng test",
     "lint": "ng lint"
