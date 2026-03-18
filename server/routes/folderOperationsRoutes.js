@@ -91,10 +91,13 @@ function createFolderOperationsRouter(folderOperationsService) {
 
       try {
         if (platform === 'darwin') {
-          execSync(`open "${filePath}"`, { stdio: 'ignore' });
+          // macOS - use open -R to reveal in Finder
+          execSync(`open -R "${filePath}"`, { stdio: 'ignore' });
         } else if (platform === 'win32') {
-          execSync(`start "" "${filePath}"`, { stdio: 'ignore', shell: 'cmd.exe' });
+          // Windows - use explorer to open folder and select file
+          execSync(`explorer /select,"${filePath}"`, { stdio: 'ignore', shell: 'cmd.exe' });
         } else if (platform === 'linux') {
+          // Linux - use xdg-open
           execSync(`xdg-open "${filePath}"`, { stdio: 'ignore' });
         }
 

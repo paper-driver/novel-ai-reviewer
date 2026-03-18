@@ -236,17 +236,84 @@ class ArtistGalleryService {
         this.saveArtistMapping(resolvedDest, destMapping);
       }
 
+      // Merge ratings files
+      const ratingsResult = this.mergeRatingsFiles(resolvedSource, resolvedDest);
+
       logger.info(TAG, `Copied ${copiedGroups} groups and ${copiedImages} images from ${resolvedSource}`);
 
       return {
         success: true,
         copiedGroups,
         copiedImages,
-        mergedMapping
+        mergedMapping,
+        ratingsMerged: ratingsResult !== null,
+        ratings: ratingsResult
       };
     } catch (err) {
       logger.error(TAG, `Error copying groups: ${err.message}`);
       throw err;
+    }
+  }
+
+  /**
+   * Merge .image-ratings.json files from source and destination
+   * Destination ratings take precedence over source ratings
+   * @param {string} sourcePath - Source folder path
+   * @param {string} destinationPath - Destination folder path
+   * @returns {Object|null} Merge statistics or null if merge failed
+   */
+  mergeRatingsFiles(sourcePath, destinationPath) {
+    try {
+      const sourceRatingsFile = path.join(sourcePath, '.image-ratings.json');
+      const destRatingsFile = path.join(destinationPath, '.image-ratings.json');
+
+      // Load ratings from both locations
+      let sourceRatings = {};
+      let destRatings = {};
+
+      if (fs.existsSync(sourceRatingsFile)) {
+        try {
+          sourceRatings = JSON.parse(fs.readFileSync(sourceRatingsFile, 'utf8'));
+          logger.debug(TAG, `Loaded ${Object.keys(sourceRatings).length} ratings from source`);
+        } catch (parseErr) {
+          logger.warn(TAG, `Failed to parse source ratings file: ${parseErr.message}`);
+        }
+      }
+
+      if (fs.existsSync(destRatingsFile)) {
+        try {
+          destRatings = JSON.parse(fs.readFileSync(destRatingsFile, 'utf8'));
+          logger.debug(TAG, `Loaded ${Object.keys(destRatings).length} ratings from destination`);
+        } catch (parseErr) {
+          logger.warn(TAG, `Failed to parse destination ratings file: ${parseErr.message}`);
+        }
+      }
+
+      // If both are empty, nothing to merge
+      if (Object.keys(sourceRatings).length === 0 && Object.keys(destRatings).length === 0) {
+        logger.debug(TAG, 'No ratings to merge');
+        return null;
+      }
+
+      // Merge: destination takes precedence, source fills gaps
+      // This preserves local ratings in destination
+      const mergedRatings = { ...sourceRatings, ...destRatings };
+
+      // Save merged ratings
+      fs.writeFileSync(destRatingsFile, JSON.stringify(mergedRatings, null, 2));
+
+      const result = {
+        sourceCount: Object.keys(sourceRatings).length,
+        destinationCount: Object.keys(destRatings).length,
+        mergedCount: Object.keys(mergedRatings).length
+      };
+
+      logger.info(TAG, `Merged ratings: source=${result.sourceCount}, destination=${result.destinationCount}, merged=${result.mergedCount}`);
+
+      return result;
+    } catch (err) {
+      logger.error(TAG, `Failed to merge ratings files: ${err.message}`);
+      return null; // Non-fatal error
     }
   }
 
