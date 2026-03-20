@@ -671,9 +671,11 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
 
     try {
       // Submit batch job
+      // Pass the folder as sourcePath - backend will search up the directory tree for .ai-feedback.json
       const jobResponse = await this.batchRatingService.submitBatchRatingJob(
         this.reviewData.folder,
-        this.reviewData.images
+        this.reviewData.images,
+        this.reviewData.folder  // Backend will auto-detect feedback file location
       ).toPromise();
 
       if (!jobResponse) {

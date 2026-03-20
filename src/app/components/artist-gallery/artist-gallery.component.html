@@ -117,6 +117,16 @@
           {{ getRatingSortLabel() }}
         </button>
       </div>
+
+      <div class="filter-group">
+        <button 
+          (click)="toggleModifiedSorting()" 
+          [class.active]="sortByModified !== 'none'"
+          class="btn-modified-sort"
+          title="Sort by latest modified date (click to cycle through sort orders)">
+          {{ getModifiedSortLabel() }}
+        </button>
+      </div>
     </div>
 
     <div class="gallery-table-wrapper">

@@ -42,7 +42,8 @@ export class BatchRatingService {
    */
   submitBatchRatingJob(
     folderPath: string,
-    imageFilenames: string[]
+    imageFilenames: string[],
+    sourcePath?: string
   ): Observable<{ jobId: string; estimatedTime: string }> {
     console.log(`[BatchRating] Submitting batch job for ${imageFilenames.length} images`);
     
@@ -51,6 +52,7 @@ export class BatchRatingService {
       {
         folderPath,
         imageFilenames,
+        sourcePath: sourcePath || folderPath,
         analysisType: 'illustration-quality'
       }
     );

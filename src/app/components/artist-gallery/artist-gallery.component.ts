@@ -55,6 +55,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     { label: '≥ 9', value: 9 }
   ];
   sortByRating: 'desc' | 'asc' | 'none' = 'none';
+  sortByModified: 'desc' | 'asc' | 'none' = 'none';
 
   // For unsubscribing from observables on component destroy
   private destroy$ = new Subject<void>();
@@ -370,21 +371,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
 
     if (!searchQuery) {
       this.filteredGroups = baseGroups;
-      
-      // Apply rating sort if enabled
-      if (this.sortByRating === 'desc') {
-        this.filteredGroups.sort((a, b) => {
-          const aRating = a.averageRating ?? 0;
-          const bRating = b.averageRating ?? 0;
-          return bRating - aRating; // Descending: highest first
-        });
-      } else if (this.sortByRating === 'asc') {
-        this.filteredGroups.sort((a, b) => {
-          const aRating = a.averageRating ?? 0;
-          const bRating = b.averageRating ?? 0;
-          return aRating - bRating; // Ascending: lowest first
-        });
-      }
+      this.applySorting();
       
       // Save to cache
       this.cacheService.setArtistGalleryData(
@@ -455,20 +442,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       return false;
     });
 
-    // Apply rating sort if enabled
-    if (this.sortByRating === 'desc') {
-      this.filteredGroups.sort((a, b) => {
-        const aRating = a.averageRating ?? 0;
-        const bRating = b.averageRating ?? 0;
-        return bRating - aRating; // Descending: highest first
-      });
-    } else if (this.sortByRating === 'asc') {
-      this.filteredGroups.sort((a, b) => {
-        const aRating = a.averageRating ?? 0;
-        const bRating = b.averageRating ?? 0;
-        return aRating - bRating; // Ascending: lowest first
-      });
-    }
+    // Apply sorting
+    this.applySorting();
 
     // Save to cache
     this.cacheService.setArtistGalleryData(
@@ -720,4 +695,62 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     }
     return '⇄ Rating (No Sort)';
   }
+
+  /**
+   * Toggle latest modified sort between none, descending (newest first), and ascending (oldest first)
+   */
+  toggleModifiedSorting(): void {
+    if (this.sortByModified === 'none') {
+      this.sortByModified = 'desc'; // Newest first
+    } else if (this.sortByModified === 'desc') {
+      this.sortByModified = 'asc'; // Oldest first
+    } else {
+      this.sortByModified = 'none';
+    }
+    this.applySearch();
+  }
+
+  /**
+   * Get the label for the modified sort button with indicator
+   */
+  getModifiedSortLabel(): string {
+    if (this.sortByModified === 'desc') {
+      return '↓ Modified (Newest First)';
+    } else if (this.sortByModified === 'asc') {
+      return '↑ Modified (Oldest First)';
+    }
+    return '⇄ Modified (No Sort)';
+  }
+
+  /**
+   * Apply all active sorting: modified date takes precedence over rating
+   */
+  private applySorting(): void {
+    if (this.sortByModified === 'desc') {
+      this.filteredGroups.sort((a, b) => {
+        const aTime = a.latestModifiedTime ? new Date(a.latestModifiedTime).getTime() : 0;
+        const bTime = b.latestModifiedTime ? new Date(b.latestModifiedTime).getTime() : 0;
+        return bTime - aTime; // Descending: newest first
+      });
+    } else if (this.sortByModified === 'asc') {
+      this.filteredGroups.sort((a, b) => {
+        const aTime = a.latestModifiedTime ? new Date(a.latestModifiedTime).getTime() : 0;
+        const bTime = b.latestModifiedTime ? new Date(b.latestModifiedTime).getTime() : 0;
+        return aTime - bTime; // Ascending: oldest first
+      });
+    } else if (this.sortByRating === 'desc') {
+      this.filteredGroups.sort((a, b) => {
+        const aRating = a.averageRating ?? 0;
+        const bRating = b.averageRating ?? 0;
+        return bRating - aRating; // Descending: highest first
+      });
+    } else if (this.sortByRating === 'asc') {
+      this.filteredGroups.sort((a, b) => {
+        const aRating = a.averageRating ?? 0;
+        const bRating = b.averageRating ?? 0;
+        return aRating - bRating; // Ascending: lowest first
+      });
+    }
+  }
 }
+

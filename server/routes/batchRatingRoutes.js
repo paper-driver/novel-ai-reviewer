@@ -5,8 +5,8 @@ function createBatchRatingRoutes(batchRatingService) {
 
   router.post('/submit', async (req, res) => {
     try {
-      const { folderPath, imageFilenames } = req.body;
-      const result = batchRatingService.submitBatchJob(folderPath, imageFilenames);
+      const { folderPath, imageFilenames, sourcePath } = req.body;
+      const result = batchRatingService.submitBatchJob(folderPath, imageFilenames, sourcePath);
       res.json(result);
     } catch (err) {
       res.status(400).json({ error: err.message });
