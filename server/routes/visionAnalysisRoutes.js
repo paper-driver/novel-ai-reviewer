@@ -60,404 +60,11 @@ function createVisionAnalysisRouter(visionAnalysisService, feedbackService) {
 
       logger.debug(TAG, `Analyzing image: ${path.basename(filePath)}`);
 
-      const imageBuffer = fs.readFileSync(filePath);
-      const base64Image = imageBuffer.toString('base64');
-
-      const request = {
-        image: {
-          content: base64Image
-        },
-        features: [
-          { type: 'LABEL_DETECTION', maxResults: 20 },
-          { type: 'OBJECT_LOCALIZATION', maxResults: 20 },
-          { type: 'SAFE_SEARCH_DETECTION' },
-          { type: 'IMAGE_PROPERTIES' },
-          { type: 'WEB_DETECTION', maxResults: 5 }
-        ]
-      };
-
-      const [result] = await visionAnalysisService.visionClient.annotateImage(request);
-      const labels = result.labelAnnotations || [];
-      const objects = result.localizedObjectAnnotations || [];
-      const safeSearch = result.safeSearchAnnotation || {};
-      const colors = result.imagePropertiesAnnotation?.dominantColors?.colors || [];
-
-      // Analyze labels
-      let anatomyScore = 6;
-      let poseScore = 6;
-      let faceQuality = 6;
-      let backgroundQuality = 6;
-      let objectQuality = 6;
-      let coherenceScore = 6;
-      const issues = [];
-      const strengths = [];
-      const recommendations = [];
-
-      const labelNames = labels.map(l => l.description.toLowerCase());
-      const confidences = labels.map(l => l.score);
-      const avgConfidence = confidences.length > 0 ? Math.round(confidences.reduce((a, b) => a + b) / confidences.length * 100) : 0;
-
-      // DETECT IMAGE TYPE: Photo vs Illustration
-      const isIllustration = labelNames.some(l => 
-        l.includes('illustration') || 
-        l.includes('drawing') || 
-        l.includes('art') ||
-        l.includes('digital art') ||
-        l.includes('anime') ||
-        l.includes('cartoon') ||
-        l.includes('painting')
-      );
+      // Use the service method which has the correct feedback logic
+      const analysis = await visionAnalysisService.analyzeImageQualityDetailed(filePath, feedbackService, sourcePath);
       
-      const hasArtisticStyle = labelNames.some(l =>
-        l.includes('style') ||
-        l.includes('texture') ||
-        l.includes('abstract')
-      );
-      
-      const isIllustrativeContent = isIllustration || hasArtisticStyle;
-      logger.debug(TAG, `Image type - Illustration: ${isIllustrativeContent}, Labels: ${labelNames.join(', ')}`);
-
-      // --- Anatomy Analysis ---
-      if (labelNames.some(l => l.includes('hand') || l.includes('finger') || l.includes('arm'))) {
-        anatomyScore = Math.min(10, anatomyScore + 2);
-        strengths.push('Clear hand/arm anatomy');
-      } else if (labelNames.some(l => l.includes('leg') || l.includes('foot'))) {
-        anatomyScore = Math.min(10, anatomyScore + 1);
-      }
-
-      if (labelNames.some(l => l.includes('proportion') || l.includes('symmetr'))) {
-        anatomyScore = Math.min(10, anatomyScore + 1);
-        strengths.push('Good proportions');
-      }
-
-      // --- Pose & Gesture Analysis ---
-      if (labelNames.some(l => l.includes('gesture') || l.includes('pose') || l.includes('standing') || l.includes('sitting') || l.includes('lying'))) {
-        poseScore = Math.min(10, poseScore + 2);
-        strengths.push('Good pose/gesture');
-      }
-
-      if (labelNames.some(l => l.includes('dynamic') || l.includes('action') || l.includes('motion'))) {
-        poseScore = Math.min(10, poseScore + 1);
-        strengths.push('Dynamic composition');
-      }
-
-      // --- Face Quality Analysis ---
-      if (labelNames.some(l => l.includes('face') || l.includes('portrait'))) {
-        faceQuality = Math.min(10, faceQuality + 2);
-        strengths.push('Clear facial features');
-      } else if (labelNames.some(l => l.includes('head') || l.includes('expression'))) {
-        faceQuality = Math.min(10, faceQuality + 1);
-      }
-
-      if (labelNames.some(l => l.includes('eye') || l.includes('mouth') || l.includes('smile'))) {
-        faceQuality = Math.min(10, faceQuality + 1);
-        strengths.push('Expressive face');
-      }
-
-      // --- Background Analysis ---
-      if (labelNames.some(l => l.includes('background') || l.includes('scene') || l.includes('landscape'))) {
-        backgroundQuality = Math.min(10, backgroundQuality + 2);
-        strengths.push('Well-defined background');
-      } else if (labelNames.some(l => l.includes('art') || l.includes('illustration') || l.includes('drawing') || l.includes('style'))) {
-        backgroundQuality = Math.min(10, backgroundQuality + 1);
-      }
-
-      if (labelNames.some(l => l.includes('nature') || l.includes('indoor') || l.includes('outdoor'))) {
-        backgroundQuality = Math.min(10, backgroundQuality + 1);
-      }
-
-      // --- Object/Clothing Analysis ---
-      if (labelNames.some(l => l.includes('cloth') || l.includes('fashion') || l.includes('uniform') || l.includes('dress') || l.includes('costume'))) {
-        objectQuality = Math.min(10, objectQuality + 2);
-        strengths.push('Good clothing detail');
-      }
-
-      if (objects.length > 3) {
-        objectQuality = Math.min(10, objectQuality + 1);
-        strengths.push(`${objects.length} objects clearly identified`);
-      }
-
-      // --- Coherence & Overall Composition ---
-      if (labels.length > 12) {
-        coherenceScore = Math.min(10, coherenceScore + 2);
-        strengths.push('Complex, well-composed image');
-      } else if (labels.length > 6) {
-        coherenceScore = Math.min(10, coherenceScore + 1);
-      }
-
-      if (colors.length > 3) {
-        coherenceScore = Math.min(10, coherenceScore + 1);
-        strengths.push('Rich color palette');
-      }
-
-      // ILLUSTRATION-SPECIFIC BOOSTS
-      if (isIllustrativeContent) {
-        if (labels.length > 6) {
-          coherenceScore = Math.min(10, coherenceScore + 1);
-          if (!strengths.includes('Artistic composition')) {
-            strengths.push('Artistic composition');
-          }
-        }
-        
-        if (labelNames.some(l => l.includes('character') || l.includes('figure'))) {
-          anatomyScore = Math.min(10, anatomyScore + 1);
-          poseScore = Math.min(10, poseScore + 1);
-        }
-        
-        if (hasArtisticStyle) {
-          coherenceScore = Math.min(10, coherenceScore + 1);
-          if (!strengths.includes('Stylized artwork')) {
-            strengths.push('Stylized artwork');
-          }
-        }
-      }
-
-      // --- Safety & Content Checks ---
-      if (safeSearch.adult === 'VERY_LIKELY' || safeSearch.adult === 'LIKELY') {
-        issues.push('Adult content detected');
-      }
-      if (safeSearch.violence === 'VERY_LIKELY' || safeSearch.violence === 'LIKELY') {
-        issues.push('Violence detected');
-        poseScore = Math.max(1, poseScore - 2);
-      }
-
-      // --- Issue Detection ---
-      if (!labelNames.some(l => l.includes('person') || l.includes('human') || l.includes('character') || l.includes('figure'))) {
-        issues.push('No clear subject/character detected');
-        anatomyScore = Math.max(1, anatomyScore - 2);
-      }
-
-      if (labelNames.some(l => l.includes('low') || l.includes('blur') || l.includes('pixelat'))) {
-        issues.push('Image quality issues detected');
-        coherenceScore = Math.max(1, coherenceScore - 2);
-        recommendations.push('Consider using a higher resolution image');
-      }
-
-      if (backgroundQuality < 5) {
-        recommendations.push('Enhance background detail and definition');
-      }
-
-      if (anatomyScore < 5) {
-        recommendations.push('Improve anatomical accuracy of the character');
-      }
-
-      // Clamp all scores to 1-10
-      anatomyScore = Math.max(1, Math.min(10, Math.round(anatomyScore)));
-      poseScore = Math.max(1, Math.min(10, Math.round(poseScore)));
-      faceQuality = Math.max(1, Math.min(10, Math.round(faceQuality)));
-      backgroundQuality = Math.max(1, Math.min(10, Math.round(backgroundQuality)));
-      objectQuality = Math.max(1, Math.min(10, Math.round(objectQuality)));
-      coherenceScore = Math.max(1, Math.min(10, Math.round(coherenceScore)));
-
-      logger.debug(TAG, `Component scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
-
-      // Save raw AI scores before any corrections
-      const rawComponentScores = {
-        anatomy: anatomyScore,
-        pose: poseScore,
-        face: faceQuality,
-        background: backgroundQuality,
-        objects: objectQuality,
-        coherence: coherenceScore
-      };
-
-      // Calculate overall score with CUSTOM WEIGHTS based on image type
-      let overallScore;
-      
-      if (isIllustrativeContent) {
-        // ILLUSTRATION WEIGHTS
-        overallScore = Math.round(
-          (anatomyScore * 0.15 + 
-           poseScore * 0.15 + 
-           faceQuality * 0.20 + 
-           backgroundQuality * 0.15 + 
-           objectQuality * 0.20 + 
-           coherenceScore * 0.15) / 1
-        );
-        logger.debug(TAG, `Using ILLUSTRATION weights`);
-      } else {
-        // PHOTO WEIGHTS
-        overallScore = Math.round(
-          (anatomyScore * 0.20 + 
-           poseScore * 0.15 + 
-           faceQuality * 0.20 + 
-           backgroundQuality * 0.15 + 
-           objectQuality * 0.15 + 
-           coherenceScore * 0.15) / 1
-        );
-        logger.debug(TAG, `Using PHOTO weights`);
-      }
-
-      const rawOverallScore = overallScore;
-
-      // ===== Apply feedback corrections if available =====
-      const imageId = path.basename(filePath);
-      
-      // Extract source folder from the full file path
-      const pathParts = filePath.split(path.sep);
-      let detectedSourcePath = null;
-      
-      // Try to find the source folder by looking for .ai-feedback.json
-      for (let i = pathParts.length - 1; i >= 0; i--) {
-        const feedbackFilePath = pathParts.slice(0, i).join(path.sep) + path.sep + '.ai-feedback.json';
-        if (fs.existsSync(feedbackFilePath)) {
-          detectedSourcePath = pathParts.slice(0, i).join(path.sep);
-          break;
-        }
-      }
-      
-      const feedbackSourcePath = sourcePath || detectedSourcePath;
-      const feedbackData = loadFeedback(feedbackSourcePath);
-      
-      // ===== PHASE 1: Apply learned patterns from ALL feedback =====
-      const learnedPatterns = calculateLearnedPatterns(feedbackData);
-      
-      let componentScores = {
-        anatomy: anatomyScore,
-        pose: poseScore,
-        face: faceQuality,
-        background: backgroundQuality,
-        objects: objectQuality,
-        coherence: coherenceScore
-      };
-      
-      // Apply learned patterns
-      const adjustedScores = applyLearnedPatterns(componentScores, learnedPatterns);
-      
-      // Only apply if patterns were actually applied
-      if (learnedPatterns) {
-        let patternsApplied = false;
-        for (const [component, pattern] of Object.entries(learnedPatterns)) {
-          if (pattern.confidence >= 0.6 && adjustedScores[component] !== componentScores[component]) {
-            patternsApplied = true;
-            break;
-          }
-        }
-        
-        if (patternsApplied) {
-          logger.debug(TAG, `Applying learned pattern corrections...`);
-          anatomyScore = adjustedScores.anatomy;
-          poseScore = adjustedScores.pose;
-          faceQuality = adjustedScores.face;
-          backgroundQuality = adjustedScores.background;
-          objectQuality = adjustedScores.objects;
-          coherenceScore = adjustedScores.coherence;
-          
-          // Recalculate overall score after pattern corrections
-          if (isIllustrativeContent) {
-            overallScore = Math.round(
-              (anatomyScore * 0.15 + 
-               poseScore * 0.15 + 
-               faceQuality * 0.20 + 
-               backgroundQuality * 0.15 + 
-               objectQuality * 0.20 + 
-               coherenceScore * 0.15)
-            );
-          } else {
-            overallScore = Math.round(
-              (anatomyScore * 0.20 + 
-               poseScore * 0.15 + 
-               faceQuality * 0.20 + 
-               backgroundQuality * 0.15 + 
-               objectQuality * 0.15 + 
-               coherenceScore * 0.15)
-            );
-          }
-          logger.debug(TAG, `Score after learned patterns: ${overallScore}/10`);
-        }
-      }
-      
-      // ===== PHASE 2: Check for specific image feedback =====
-      const priorFeedback = feedbackData.entries.find(e => e.imageId === imageId);
-      let feedbackApplied = false;
-      let feedbackDetails = null;
-
-      if (priorFeedback) {
-        feedbackApplied = true;
-        const feedbackComponents = priorFeedback.components || {};
-        
-        logger.info(TAG, `FEEDBACK FOUND for ${imageId}! Applying corrections...`);
-        
-        // Apply component-level corrections from user feedback
-        if (feedbackComponents.anatomy !== undefined) {
-          logger.debug(TAG, `   - Anatomy: ${anatomyScore} → ${feedbackComponents.anatomy}`);
-          anatomyScore = feedbackComponents.anatomy;
-        }
-        if (feedbackComponents.pose !== undefined) {
-          logger.debug(TAG, `   - Pose: ${poseScore} → ${feedbackComponents.pose}`);
-          poseScore = feedbackComponents.pose;
-        }
-        if (feedbackComponents.face !== undefined) {
-          logger.debug(TAG, `   - Face: ${faceQuality} → ${feedbackComponents.face}`);
-          faceQuality = feedbackComponents.face;
-        }
-        if (feedbackComponents.background !== undefined) {
-          logger.debug(TAG, `   - Background: ${backgroundQuality} → ${feedbackComponents.background}`);
-          backgroundQuality = feedbackComponents.background;
-        }
-        if (feedbackComponents.objects !== undefined) {
-          logger.debug(TAG, `   - Objects: ${objectQuality} → ${feedbackComponents.objects}`);
-          objectQuality = feedbackComponents.objects;
-        }
-        if (feedbackComponents.coherence !== undefined) {
-          logger.debug(TAG, `   - Coherence: ${coherenceScore} → ${feedbackComponents.coherence}`);
-          coherenceScore = feedbackComponents.coherence;
-        }
-
-        // Recalculate overall score with user feedback
-        if (isIllustrativeContent) {
-          overallScore = Math.round(
-            (anatomyScore * 0.15 + 
-             poseScore * 0.15 + 
-             faceQuality * 0.20 + 
-             backgroundQuality * 0.15 + 
-             objectQuality * 0.20 + 
-             coherenceScore * 0.15)
-          );
-        } else {
-          overallScore = Math.round(
-            (anatomyScore * 0.20 + 
-             poseScore * 0.15 + 
-             faceQuality * 0.20 + 
-             backgroundQuality * 0.15 + 
-             objectQuality * 0.15 + 
-             coherenceScore * 0.15)
-          );
-        }
-        
-        feedbackDetails = {
-          userCorrection: priorFeedback.userScore - priorFeedback.aiScore,
-          components: feedbackComponents,
-          reasoning: priorFeedback.reasoning || ''
-        };
-        
-        logger.info(TAG, `Applied feedback corrections. Score: ${rawOverallScore} → ${overallScore}`);
-      }
-
-      const response = {
-        overallScore,
-        rawAIScore: rawOverallScore,
-        anatomyScore,
-        poseScore,
-        faceQuality,
-        backgroundQuality,
-        objectQuality,
-        coherenceScore,
-        detectedIssues: issues,
-        detectedStrengths: strengths.length > 0 ? strengths : ['Image analyzed successfully'],
-        confidence: avgConfidence,
-        analysis: `Vision API detected ${labels.length} labels and ${objects.length} objects`,
-        recommendations: recommendations.length > 0 ? recommendations : [],
-        labels: labels.slice(0, 10).map(l => ({ name: l.description, score: Math.round(l.score * 100) })),
-        processingTime: 250,
-        cost: '$0.0015',
-        feedbackApplied: feedbackApplied,
-        feedbackDetails: feedbackDetails,
-        correctionDetails: null
-      };
-
-      logger.info(TAG, `Analysis complete: ${response.overallScore}/10 (${avgConfidence}% confidence)`);
-      res.json(response);
+      logger.info(TAG, `Analysis complete: ${analysis.overallScore}/10 (${analysis.confidence}% confidence)`);
+      res.json(analysis);
 
     } catch (err) {
       logger.error(TAG, `Vision API failed: ${err.message}`);
@@ -468,12 +75,13 @@ function createVisionAnalysisRouter(visionAnalysisService, feedbackService) {
   /**
    * POST /api/batch-analyze-illustrations
    * Analyze multiple illustrations in batch
-   * Body: { folderPath: "/path/to/folder", filenames?: ["file1.png", "file2.png"] }
+   * NOW includes learned patterns from ALL feedback (same as single-image analysis)
+   * Body: { folderPath: "/path/to/folder", filenames?: ["file1.png", "file2.png"], sourcePath?: "/path/to/feedback" }
    * Returns: { results: [...], totalProcessed, totalSucceeded, totalFailed }
    */
   router.post('/batch-analyze-illustrations', async (req, res) => {
     try {
-      const { folderPath, filenames } = req.body;
+      const { folderPath, filenames, sourcePath } = req.body;
 
       if (!folderPath) {
         return res.status(400).json({ error: 'Folder path required' });
@@ -495,7 +103,8 @@ function createVisionAnalysisRouter(visionAnalysisService, feedbackService) {
           .map(f => path.join(folderPath, f));
       }
 
-      logger.info(TAG, `Batch analyzing ${filesToAnalyze.length} illustrations`);
+      const feedbackSourcePath = sourcePath || folderPath;
+      logger.info(TAG, `Batch analyzing ${filesToAnalyze.length} illustrations with feedback from ${feedbackSourcePath}`);
 
       const results = [];
       let successCount = 0;
@@ -503,11 +112,26 @@ function createVisionAnalysisRouter(visionAnalysisService, feedbackService) {
 
       for (const filePath of filesToAnalyze) {
         try {
-          const score = await visionAnalysisService.analyzeImageQuality(filePath);
+          // Use detailed analysis (includes learned patterns from feedback)
+          const analysis = await visionAnalysisService.analyzeImageQualityDetailed(
+            filePath,
+            feedbackService,
+            feedbackSourcePath
+          );
           results.push({
             filename: path.basename(filePath),
             filePath,
-            score,
+            score: analysis.overallScore,
+            components: {
+              anatomy: analysis.anatomyScore,
+              pose: analysis.poseScore,
+              face: analysis.faceQuality,
+              background: analysis.backgroundQuality,
+              objects: analysis.objectQuality,
+              coherence: analysis.coherenceScore
+            },
+            feedbackApplied: analysis.feedbackApplied,
+            confidence: analysis.confidence,
             status: 'success'
           });
           successCount++;
@@ -523,6 +147,8 @@ function createVisionAnalysisRouter(visionAnalysisService, feedbackService) {
         }
       }
 
+      logger.info(TAG, `Batch analysis complete: ${successCount} succeeded, ${failureCount} failed`);
+      
       res.json({
         results,
         totalProcessed: filesToAnalyze.length,

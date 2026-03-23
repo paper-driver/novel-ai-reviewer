@@ -36,16 +36,54 @@ import { FormsModule } from '@angular/forms';
             </div>
           </div>
 
-          <!-- User Adjustment -->
+          <!-- Component-Level Adjustments -->
+          <div class="card component-adjustments">
+            <h3>Adjust Individual Components</h3>
+            <div class="component-sliders">
+              <div class="component-slider" *ngFor="let comp of componentScores; trackBy: trackByKey">
+                <div class="component-header">
+                  <span class="comp-label">{{ comp.name }}</span>
+                  <span class="comp-values">
+                    AI: <strong>{{ comp.value }}/10</strong>
+                    <span class="your-value" *ngIf="comp.adjusted !== comp.value">
+                      → <strong>{{ comp.adjusted }}/10</strong>
+                    </span>
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  [ngModel]="comp.adjusted"
+                  (ngModelChange)="setAdjustedComponentValue(comp.key, $event)"
+                  class="component-slider-input"
+                />
+                <div class="component-correction" *ngIf="comp.adjusted !== comp.value">
+                  <span [ngClass]="comp.adjusted > comp.value ? 'up' : 'down'">
+                    {{ comp.adjusted > comp.value ? '+' : '' }}{{ comp.adjusted - comp.value }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="overall-score-info">
+              <strong>Overall Score:</strong> {{ aiScore }}/10 
+              <span class="calculated-overall" *ngIf="calculatedOverallScore !== aiScore">
+                → <strong>{{ calculatedOverallScore }}/10</strong>
+              </span>
+            </div>
+          </div>
+
+          <!-- User Adjustment (Optional: adjust overall directly if preferred) -->
           <div class="card user-adjustment">
-            <h3>Your Adjustment</h3>
+            <h3>Quick Overall Adjustment</h3>
             <div class="slider-container">
-              <label>Do you agree with this score?</label>
+              <label>Or adjust overall score directly:</label>
               <input
                 type="range"
                 min="1"
                 max="10"
                 [(ngModel)]="userScore"
+                (change)="onOverallScoreChange()"
                 class="score-slider"
               />
               <div class="score-display">
@@ -54,6 +92,7 @@ import { FormsModule } from '@angular/forms';
                   {{ correctionText }}
                 </span>
               </div>
+              <div class="hint">This will override component adjustments</div>
             </div>
           </div>
 
@@ -80,7 +119,7 @@ import { FormsModule } from '@angular/forms';
           <button 
             (click)="onSubmit()" 
             class="btn-submit"
-            [disabled]="userScore === aiScore && !reasoning"
+            [disabled]="!canSubmit()"
           >
             Submit Feedback
           </button>
@@ -184,6 +223,116 @@ import { FormsModule } from '@angular/forms';
     .reasoning {
       background: linear-gradient(135deg, #2196f315 0%, #03a9f415 100%);
       border: 1px solid #2196f330;
+    }
+
+    .component-adjustments {
+      background: linear-gradient(135deg, #ff9800 0.6%, #ff5722 100%);
+      border: 1px solid #ff9800;
+      opacity: 0.95;
+    }
+
+    .component-adjustments h3 {
+      color: #fff;
+    }
+
+    .component-sliders {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .component-slider {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 152, 0, 0.2);
+    }
+
+    .component-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .comp-label {
+      color: #555;
+    }
+
+    .comp-values {
+      color: #666;
+      font-size: 11px;
+    }
+
+    .your-value {
+      margin-left: 6px;
+      color: #4caf50;
+    }
+
+    .component-slider-input {
+      width: 100%;
+      height: 5px;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #e0e0e0;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .component-slider-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff9800, #ff5722);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .component-slider-input::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff9800, #ff5722);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .component-correction {
+      text-align: right;
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .component-correction .up {
+      color: #2e7d32;
+    }
+
+    .component-correction .down {
+      color: #c62828;
+    }
+
+    .overall-score-info {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 152, 0, 0.2);
+      text-align: center;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .calculated-overall {
+      margin-left: 8px;
+      color: #ff9800;
+      font-weight: 600;
     }
 
     .component-breakdown {
@@ -400,21 +549,126 @@ export class AiFeedbackModalComponent implements OnInit {
 
   userScore: number = 6;
   reasoning: string = '';
+  
+  // Track individual component adjustments
+  adjustedComponents: { [key: string]: number } = {};
+  useComponentAdjustments: boolean = true;
+
+  // Cache component scores to avoid recalculation
+  componentScoresCache: any[] = [];
+
+  private componentKeys = ['anatomy', 'pose', 'face', 'background', 'objects', 'coherence'];
 
   ngOnInit(): void {
     this.userScore = this.aiScore;
+    this.initializeAdjustedComponents();
+    this.buildComponentScoresCache();
+  }
+
+  /**
+   * Initialize adjusted components with AI scores
+   */
+  private initializeAdjustedComponents(): void {
+    const comp = this.components || {};
+    this.componentKeys.forEach(key => {
+      this.adjustedComponents[key] = this.getComponentValue(key, comp);
+    });
+  }
+
+  /**
+   * Build cached component scores to avoid recalculation in template
+   */
+  private buildComponentScoresCache(): void {
+    const comp = this.components || {};
+    this.componentScoresCache = [
+      { name: 'Anatomy', key: 'anatomy', value: this.getComponentValue('anatomy', comp), adjusted: this.adjustedComponents['anatomy'] },
+      { name: 'Pose', key: 'pose', value: this.getComponentValue('pose', comp), adjusted: this.adjustedComponents['pose'] },
+      { name: 'Face', key: 'face', value: this.getComponentValue('face', comp), adjusted: this.adjustedComponents['face'] },
+      { name: 'Background', key: 'background', value: this.getComponentValue('background', comp), adjusted: this.adjustedComponents['background'] },
+      { name: 'Objects', key: 'objects', value: this.getComponentValue('objects', comp), adjusted: this.adjustedComponents['objects'] },
+      { name: 'Coherence', key: 'coherence', value: this.getComponentValue('coherence', comp), adjusted: this.adjustedComponents['coherence'] }
+    ];
+  }
+
+  /**
+   * Get component value from components object (handles multiple naming conventions)
+   */
+  private getComponentValue(key: string, comp: any): number {
+    const mappings: { [key: string]: string[] } = {
+      'anatomy': ['anatomyScore', 'anatomy'],
+      'pose': ['poseScore', 'pose'],
+      'face': ['faceQuality', 'face'],
+      'background': ['backgroundQuality', 'background'],
+      'objects': ['objectQuality', 'objects'],
+      'coherence': ['coherenceScore', 'coherence']
+    };
+    
+    const keys = mappings[key] || [key];
+    for (const k of keys) {
+      if (comp[k] !== undefined) return comp[k];
+    }
+    return 6; // default
+  }
+
+  /**
+   * Get current adjusted value for a component (with fallback to AI score)
+   */
+  getAdjustedComponentValue(key: string): number {
+    return this.adjustedComponents[key] !== undefined ? this.adjustedComponents[key] : 6;
+  }
+
+  /**
+   * Set adjusted value for a component - also update cached value
+   */
+  setAdjustedComponentValue(key: string, value: any): void {
+    const numValue = Number(value);
+    if (!isNaN(numValue)) {
+      this.adjustedComponents[key] = Math.max(1, Math.min(10, numValue));
+      this.useComponentAdjustments = true;
+      
+      // Update cache
+      const cached = this.componentScoresCache.find(c => c.key === key);
+      if (cached) {
+        cached.adjusted = this.adjustedComponents[key];
+      }
+      
+      // IMPORTANT: Sync userScore with calculated overall score for visual feedback
+      this.userScore = this.calculatedOverallScore;
+    }
   }
 
   get componentScores() {
-    const comp = this.components || {};
-    return [
-      { name: 'Anatomy', value: comp.anatomyScore || comp.anatomy || 6 },
-      { name: 'Pose', value: comp.poseScore || comp.pose || 6 },
-      { name: 'Face', value: comp.faceQuality || comp.face || 6 },
-      { name: 'Background', value: comp.backgroundQuality || comp.background || 6 },
-      { name: 'Objects', value: comp.objectQuality || comp.objects || 6 },
-      { name: 'Coherence', value: comp.coherenceScore || comp.coherence || 6 }
-    ];
+    return this.componentScoresCache;
+  }
+
+  /**
+   * Calculate overall score from adjusted component scores
+   */
+  get calculatedOverallScore(): number {
+    // Use illustration weights (can be configurable later)
+    const weights = {
+      anatomy: 0.15,
+      pose: 0.15,
+      face: 0.20,
+      background: 0.15,
+      objects: 0.20,
+      coherence: 0.15
+    };
+
+    let sum = 0;
+    this.componentKeys.forEach(key => {
+      const value = this.getAdjustedComponentValue(key);
+      sum += value * weights[key as keyof typeof weights];
+    });
+    
+    return Math.round(sum);
+  }
+
+  /**
+   * Called when overall score slider changes (overrides component adjustments)
+   */
+  onOverallScoreChange(): void {
+    this.useComponentAdjustments = false;
   }
 
   get correction(): number {
@@ -445,9 +699,55 @@ export class AiFeedbackModalComponent implements OnInit {
 
   onSubmit(): void {
     this.feedbackSubmitted.emit({
-      userScore: this.userScore,
+      userScore: this.useComponentAdjustments ? this.calculatedOverallScore : this.userScore,
       reasoning: this.reasoning,
-      correction: this.correction
+      correction: this.useComponentAdjustments 
+        ? (this.calculatedOverallScore - this.aiScore) 
+        : (this.userScore - this.aiScore),
+      // NEW: Include component-level adjustments
+      componentAdjustments: this.useComponentAdjustments ? { ...this.adjustedComponents } : null,
+      adjustedComponents: this.useComponentAdjustments ? this.getAdjustmentDetails() : null
     });
+  }
+
+  /**
+   * Get detailed adjustment information (which components were changed and by how much)
+   */
+  private getAdjustmentDetails(): any {
+    const details: { [key: string]: { original: number; adjusted: number; change: number } } = {};
+    
+    this.componentScoresCache.forEach(comp => {
+      const adjusted = this.getAdjustedComponentValue(comp.key);
+      if (adjusted !== comp.value) {
+        details[comp.key] = {
+          original: comp.value,
+          adjusted: adjusted,
+          change: adjusted - comp.value
+        };
+      }
+    });
+    
+    return Object.keys(details).length > 0 ? details : null;
+  }
+
+  /**
+   * Check if any components have been adjusted from their original values
+   */
+  hasComponentAdjustments(): boolean {
+    return this.componentScoresCache.some(comp => comp.adjusted !== comp.value);
+  }
+
+  /**
+   * Check if user has made any adjustments (components OR overall score OR reasoning)
+   */
+  canSubmit(): boolean {
+    return this.hasComponentAdjustments() || this.userScore !== this.aiScore || this.reasoning.trim().length > 0;
+  }
+
+  /**
+   * TrackBy function for ngFor optimization
+   */
+  trackByKey(index: number, item: any): string {
+    return item.key;
   }
 }

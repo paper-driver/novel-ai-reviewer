@@ -71,8 +71,9 @@ class FeedbackService {
 
   /**
    * Submit feedback for an image
+   * Now supports component-level adjustments
    */
-  submitFeedback(sourcePath, imageId, aiScore, userScore, reasoning, components) {
+  submitFeedback(sourcePath, imageId, aiScore, userScore, reasoning, components, adjustedComponents = null, adjustmentDetails = null) {
     const feedbackData = this.loadFeedback(sourcePath);
     
     const entry = {
@@ -82,12 +83,17 @@ class FeedbackService {
       correction: userScore - aiScore,
       reasoning: reasoning || '',
       components: components || {},
+      // NEW: Track user's adjusted component scores
+      adjustedComponents: adjustedComponents || null,
+      // NEW: Track which components were adjusted and by how much
+      adjustmentDetails: adjustmentDetails || null,
       timestamp: new Date().toISOString()
     };
 
     feedbackData.entries.push(entry);
     this.saveFeedback(feedbackData, sourcePath);
     
+    this.logger.info('Feedback', `Recorded feedback with component adjustments for ${imageId}`);
     return entry;
   }
 
@@ -217,6 +223,135 @@ class FeedbackService {
         componentPatterns: componentAnalysis
       }
     };
+  }
+
+  /**
+   * Analyze component adjustment patterns
+   * Shows which components users adjust most frequently and by how much
+   */
+  analyzeComponentAdjustments(sourcePath) {
+    const feedbackData = this.loadFeedback(sourcePath);
+    const entries = feedbackData.entries || [];
+
+    if (entries.length === 0) {
+      return {
+        status: 'no_data',
+        message: 'No feedback entries yet',
+        componentStats: {}
+      };
+    }
+
+    // Track component adjustment statistics
+    const componentStats = {
+      anatomy: { adjustedCount: 0, adjustments: [], avgChange: 0 },
+      pose: { adjustedCount: 0, adjustments: [], avgChange: 0 },
+      face: { adjustedCount: 0, adjustments: [], avgChange: 0 },
+      background: { adjustedCount: 0, adjustments: [], avgChange: 0 },
+      objects: { adjustedCount: 0, adjustments: [], avgChange: 0 },
+      coherence: { adjustedCount: 0, adjustments: [], avgChange: 0 }
+    };
+
+    let entriesWithComponentAdjustments = 0;
+
+    entries.forEach(entry => {
+      if (entry.adjustmentDetails && Object.keys(entry.adjustmentDetails).length > 0) {
+        entriesWithComponentAdjustments++;
+        
+        Object.entries(entry.adjustmentDetails).forEach(([component, details]) => {
+          if (componentStats[component]) {
+            componentStats[component].adjustedCount++;
+            componentStats[component].adjustments.push(details.change);
+          }
+        });
+      }
+    });
+
+    // Calculate averages and frequencies
+    const analysisResults = {};
+    Object.entries(componentStats).forEach(([component, stats]) => {
+      if (stats.adjustedCount > 0) {
+        stats.avgChange = stats.adjustments.reduce((a, b) => a + b, 0) / stats.adjustments.length;
+        
+        analysisResults[component] = {
+          adjustedCount: stats.adjustedCount,
+          adjustmentFrequency: Math.round((stats.adjustedCount / entriesWithComponentAdjustments) * 100),
+          averageChange: Math.round(stats.avgChange * 100) / 100,
+          minChange: Math.min(...stats.adjustments),
+          maxChange: Math.max(...stats.adjustments)
+        };
+      }
+    });
+
+    // Calculate weight suggestions based on adjustment frequency
+    const weightSuggestions = this.calculateWeightSuggestions(analysisResults);
+
+    return {
+      status: 'success',
+      totalFeedback: entries.length,
+      entriesWithComponentAdjustments: entriesWithComponentAdjustments,
+      componentStats: analysisResults,
+      weightSuggestions: weightSuggestions,
+      recommendation: this.getAdjustmentRecommendation(analysisResults)
+    };
+  }
+
+  /**
+   * Calculate suggested weight adjustments based on component adjustment patterns
+   */
+  calculateWeightSuggestions(componentStats) {
+    // Current weights for illustrations
+    const currentWeights = {
+      anatomy: 0.15,
+      pose: 0.15,
+      face: 0.20,
+      background: 0.15,
+      objects: 0.20,
+      coherence: 0.15
+    };
+
+    const suggestions = {};
+    let totalFrequency = Object.values(componentStats).reduce((sum, c) => sum + (c.adjustmentFrequency || 0), 0);
+
+    if (totalFrequency === 0) {
+      return null; // No adjustments yet
+    }
+
+    // Suggest weight increases for components that are frequently adjusted upward
+    Object.entries(componentStats).forEach(([component, stats]) => {
+      if (stats.averageChange > 0.5) { // Users frequently increase this component
+        suggestions[component] = {
+          suggestion: 'INCREASE',
+          reason: `Users frequently increase ${component} scores (avg +${stats.averageChange})`,
+          currentWeight: currentWeights[component],
+          suggestedWeight: Math.min(currentWeights[component] + 0.05, 0.25)
+        };
+      } else if (stats.averageChange < -0.5) { // Users frequently decrease this component
+        suggestions[component] = {
+          suggestion: 'DECREASE',
+          reason: `Users frequently decrease ${component} scores (avg ${stats.averageChange})`,
+          currentWeight: currentWeights[component],
+          suggestedWeight: Math.max(currentWeights[component] - 0.05, 0.05)
+        };
+      }
+    });
+
+    return Object.keys(suggestions).length > 0 ? suggestions : null;
+  }
+
+  /**
+   * Get human-readable recommendation based on adjustment patterns
+   */
+  getAdjustmentRecommendation(componentStats) {
+    const sorted = Object.entries(componentStats)
+      .sort((a, b) => (b[1].adjustmentFrequency || 0) - (a[1].adjustmentFrequency || 0))
+      .slice(0, 3); // Top 3 most adjusted components
+
+    if (sorted.length === 0) {
+      return 'Not enough adjustment data to make recommendations yet.';
+    }
+
+    const topComponents = sorted.map(([comp, stats]) => `${comp} (${stats.adjustmentFrequency}%)`).join(', ');
+    return `Users most frequently adjust: ${topComponents}. Consider re-weighing these components in the scoring algorithm.`;
   }
 
   /**

@@ -704,11 +704,14 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
               console.log(`[ImageViewer] Results keys:`, Object.keys(results));
               
               // Apply ratings to our local storage
-              Object.entries(results).forEach(([filename, rating]) => {
-                console.log(`[ImageViewer] Processing result - filename: "${filename}", rating: ${rating}, type: ${typeof rating}`);
-                this.imageRatings[filename] = rating;
+              Object.entries(results).forEach(([filename, resultData]: [string, any]) => {
+                // Handle both old format (number) and new format (object with score and correction info)
+                const score = typeof resultData === 'number' ? resultData : resultData.score;
+                console.log(`[ImageViewer] Processing result - filename: "${filename}", score: ${score}, feedback applied: ${resultData.feedbackApplied || false}`);
+                
+                this.imageRatings[filename] = score;
                 if (this.reviewData!.imageRatings) {
-                  this.reviewData!.imageRatings[filename] = rating;
+                  this.reviewData!.imageRatings[filename] = score;
                 }
               });
 
@@ -770,14 +773,15 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       ? this.currentImageName.split('/').pop()! 
       : this.currentImageName;
 
-    // Prepare feedback data
+    // Prepare feedback data - now includes component-level adjustments
     const feedbackData = {
       imageId: fileName,
       filePath: fullFilePath,
       aiScore: this.illustrationAnalysis?.overallScore || 0,
       userScore: feedback.userScore,
-      correction: feedback.userScore - (this.illustrationAnalysis?.overallScore || 0),
+      correction: feedback.correction,
       reasoning: feedback.reasoning,
+      // AI component scores
       components: {
         anatomy: this.illustrationAnalysis?.anatomyScore || 0,
         pose: this.illustrationAnalysis?.poseScore || 0,
@@ -786,6 +790,9 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
         objects: this.illustrationAnalysis?.objectQuality || 0,
         coherence: this.illustrationAnalysis?.coherenceScore || 0
       },
+      // NEW: User's adjusted component scores
+      adjustedComponents: feedback.componentAdjustments || null,
+      adjustmentDetails: feedback.adjustedComponents || null,
       sourcePath: this.reviewData?.folder
     };
 
@@ -802,6 +809,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     this.aiFeedbackService.submitFeedback(feedbackData, feedbackSourcePath).subscribe(
       (response: any) => {
         console.log('[ImageViewer] Feedback submitted successfully:', response);
+        console.log('[ImageViewer] Component adjustments recorded:', feedback.adjustedComponents);
         
         // ✅ UPDATE LOCAL RATING TO REFLECT FEEDBACK
         const fileBasename = fileName;
@@ -894,5 +902,27 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       this.openFinderError = err instanceof Error ? err.message : 'Unknown error opening file';
       console.error('[ImageViewer] Error opening file:', err);
     }
+  }
+
+  /**
+   * Display correction sign for score adjustments
+   * Positive = score increased, Negative = score decreased
+   */
+  getCorrectionSign(correction: number): string {
+    if (correction === 0) return '±0';
+    if (correction > 0) return `+${correction.toFixed(1)}`;
+    return `${correction.toFixed(1)}`;
+  }
+
+  /**
+   * Get component adjustments as readable format
+   */
+  getComponentAdjustments(components: any): string[] {
+    if (!components) return [];
+    const adjustments: string[] = [];
+    for (const [key, value] of Object.entries(components)) {
+      adjustments.push(`${key}: ${value}/10`);
+    }
+    return adjustments;
   }
 }

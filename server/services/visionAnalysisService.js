@@ -489,8 +489,14 @@ class VisionAnalysisService {
       
       const feedbackData = feedbackService ? feedbackService.loadFeedback(feedbackSourcePath) : { entries: [] };
       
+      // Initialize feedback tracking variables (before PHASE 1 and 2)
+      let feedbackApplied = false;
+      let feedbackDetails = null;
+      let feedbackSource = null;
+      
       // ===== PHASE 1: Apply learned patterns from ALL feedback =====
       const learnedPatterns = this._calculateLearnedPatterns(feedbackData);
+      let appliedPatterns = null; // Track which patterns were actually applied
       
       let componentScores = {
         anatomy: anatomyScore,
@@ -504,13 +510,27 @@ class VisionAnalysisService {
       // Apply learned patterns
       const adjustedScores = this._applyLearnedPatterns(componentScores, learnedPatterns);
       
+      logger.debug(TAG, `PHASE 1 - Learned patterns analysis:`);
+      logger.debug(TAG, `  - Patterns calculated: ${learnedPatterns ? 'YES' : 'NO'}`);
+      
       // Only apply if patterns were actually applied
       if (learnedPatterns) {
+        appliedPatterns = {};
         let patternsApplied = false;
         for (const [component, pattern] of Object.entries(learnedPatterns)) {
-          if (pattern.confidence >= 0.6 && adjustedScores[component] !== componentScores[component]) {
+          logger.debug(TAG, `  - ${component}: confidence ${Math.round(pattern.confidence * 100)}%, threshold: 80%`);
+          if (pattern.confidence >= 0.8 && adjustedScores[component] !== componentScores[component]) {
             patternsApplied = true;
-            break;
+            appliedPatterns[component] = {
+              original: componentScores[component],
+              adjusted: adjustedScores[component],
+              pattern: pattern
+            };
+            logger.debug(TAG, `    ✓ APPLIED: ${componentScores[component]} → ${adjustedScores[component]}`);
+          } else if (pattern.confidence < 0.8) {
+            logger.debug(TAG, `    ✗ SKIPPED: confidence too low (${Math.round(pattern.confidence * 100)}% < 80%)`);
+          } else if (adjustedScores[component] === componentScores[component]) {
+            logger.debug(TAG, `    ✗ SKIPPED: no score change (${componentScores[component]} = ${adjustedScores[component]})`);
           }
         }
         
@@ -544,44 +564,69 @@ class VisionAnalysisService {
             );
           }
           logger.debug(TAG, `Score after learned patterns: ${overallScore}/10`);
+          
+          // Mark that patterns were applied - will be displayed in UI
+          feedbackApplied = true;
+          feedbackSource = 'learned';
+        } else {
+          logger.debug(TAG, `No patterns applied (all below confidence threshold or no changes)`);
+          appliedPatterns = null; // Reset to null if nothing was applied
         }
       }
       
       // ===== PHASE 2: Check for specific image feedback =====
+      // Only override learned patterns if there's SPECIFIC feedback for this image
       const priorFeedback = feedbackData.entries.find(e => e.imageId === imageId);
-      let feedbackApplied = false;
-      let feedbackDetails = null;
 
       if (priorFeedback) {
         feedbackApplied = true;
-        const feedbackComponents = priorFeedback.components || {};
+        feedbackSource = 'specific'; // Specific feedback overrides learned patterns
+        feedbackDetails = null; // Will be populated below
         
-        logger.info(TAG, `FEEDBACK FOUND for ${imageId}! Applying corrections...`);
+        // BACKWARDS COMPATIBILITY:
+        // - NEW feedback: has adjustedComponents (user's component adjustments from sliders)
+        // - OLD feedback: only has components (AI scores stored for reference) + userScore (overall correction)
+        //
+        // For new feedback: use adjustedComponents directly
+        // For old feedback: apply the overall userScore correction, not the component values
         
-        // Apply component-level corrections from user feedback
-        if (feedbackComponents.anatomy !== undefined) {
-          logger.debug(TAG, `   - Anatomy: ${anatomyScore} → ${feedbackComponents.anatomy}`);
-          anatomyScore = feedbackComponents.anatomy;
-        }
-        if (feedbackComponents.pose !== undefined) {
-          logger.debug(TAG, `   - Pose: ${poseScore} → ${feedbackComponents.pose}`);
-          poseScore = feedbackComponents.pose;
-        }
-        if (feedbackComponents.face !== undefined) {
-          logger.debug(TAG, `   - Face: ${faceQuality} → ${feedbackComponents.face}`);
-          faceQuality = feedbackComponents.face;
-        }
-        if (feedbackComponents.background !== undefined) {
-          logger.debug(TAG, `   - Background: ${backgroundQuality} → ${feedbackComponents.background}`);
-          backgroundQuality = feedbackComponents.background;
-        }
-        if (feedbackComponents.objects !== undefined) {
-          logger.debug(TAG, `   - Objects: ${objectQuality} → ${feedbackComponents.objects}`);
-          objectQuality = feedbackComponents.objects;
-        }
-        if (feedbackComponents.coherence !== undefined) {
-          logger.debug(TAG, `   - Coherence: ${coherenceScore} → ${feedbackComponents.coherence}`);
-          coherenceScore = feedbackComponents.coherence;
+        if (priorFeedback.adjustedComponents) {
+          // NEW: User adjusted individual components via sliders
+          const feedbackComponents = priorFeedback.adjustedComponents;
+          logger.info(TAG, `FEEDBACK FOUND for ${imageId}! Applying NEW component adjustments...`);
+          logger.debug(TAG, `Using adjusted components from feedback`);
+          
+          if (feedbackComponents.anatomy !== undefined) {
+            logger.debug(TAG, `   - Anatomy: ${anatomyScore} → ${feedbackComponents.anatomy}`);
+            anatomyScore = feedbackComponents.anatomy;
+          }
+          if (feedbackComponents.pose !== undefined) {
+            logger.debug(TAG, `   - Pose: ${poseScore} → ${feedbackComponents.pose}`);
+            poseScore = feedbackComponents.pose;
+          }
+          if (feedbackComponents.face !== undefined) {
+            logger.debug(TAG, `   - Face: ${faceQuality} → ${feedbackComponents.face}`);
+            faceQuality = feedbackComponents.face;
+          }
+          if (feedbackComponents.background !== undefined) {
+            logger.debug(TAG, `   - Background: ${backgroundQuality} → ${feedbackComponents.background}`);
+            backgroundQuality = feedbackComponents.background;
+          }
+          if (feedbackComponents.objects !== undefined) {
+            logger.debug(TAG, `   - Objects: ${objectQuality} → ${feedbackComponents.objects}`);
+            objectQuality = feedbackComponents.objects;
+          }
+          if (feedbackComponents.coherence !== undefined) {
+            logger.debug(TAG, `   - Coherence: ${coherenceScore} → ${feedbackComponents.coherence}`);
+            coherenceScore = feedbackComponents.coherence;
+          }
+        } else {
+          // OLD: User only adjusted overall score (no component-level detail)
+          logger.info(TAG, `FEEDBACK FOUND for ${imageId}! Using OLD-format feedback (overall score only)...`);
+          logger.debug(TAG, `Overall correction: ${rawOverallScore} → ${priorFeedback.userScore}`);
+          
+          // For old feedback, just use the userScore directly as the correction target
+          // We'll apply it after recalculation
         }
 
         // Recalculate overall score with user feedback
@@ -607,11 +652,34 @@ class VisionAnalysisService {
         
         feedbackDetails = {
           userCorrection: priorFeedback.userScore - priorFeedback.aiScore,
-          components: feedbackComponents,
-          reasoning: priorFeedback.reasoning || ''
+          components: priorFeedback.components,
+          reasoning: priorFeedback.reasoning || '',
+          source: 'specific'
         };
         
         logger.info(TAG, `Applied feedback corrections. Score: ${rawOverallScore} → ${overallScore}`);
+      } else if (appliedPatterns) {
+        // No specific feedback for this image, but learned patterns were applied
+        feedbackApplied = true;
+        feedbackSource = 'learned'; // Learned from folder history
+        
+        // Build summary of learned patterns applied - create as array for UI display
+        const patternSummary = Object.entries(appliedPatterns)
+          .map(([component, data]) => {
+            return `${component}: ${data.original} → ${data.adjusted} (confidence: ${Math.round(data.pattern.confidence * 100)}%, based on ${data.pattern.count} feedback entries)`;
+          });
+
+        feedbackDetails = {
+          source: 'learned',
+          patternSummary: patternSummary, // Now an array instead of string
+          appliedPatterns: appliedPatterns,
+          folderHistoryEntries: feedbackData.entries.length
+        };
+        
+        logger.info(TAG, `Applied learned patterns from folder history. Score: ${rawOverallScore} → ${overallScore}`);
+        logger.debug(TAG, `Learned patterns applied: ${patternSummary.length} components adjusted`);
+      } else {
+        logger.debug(TAG, `No feedback applied (no specific feedback, no patterns, or patterns didn't meet threshold)`);
       }
 
       // Calculate average confidence from labels
@@ -637,6 +705,7 @@ class VisionAnalysisService {
         processingTime: Date.now() - startTime,
         cost: '$0.0015',
         feedbackApplied: feedbackApplied,
+        feedbackSource: feedbackSource,
         feedbackDetails: feedbackDetails,
         correctionDetails: null
       };
@@ -681,15 +750,21 @@ class VisionAnalysisService {
         // Recency weight: newer entries get higher weight
         const recencyFactor = Math.exp(-i / Math.max(1, totalEntries - 1) * 2);
         
-        if (entry.components && entry.components[component] !== undefined) {
-          const userComponentScore = entry.components[component];
+        // BACKWARDS COMPATIBILITY:
+        // NEW feedback: use adjustedComponents (user's component preference)
+        // OLD feedback: use components (AI scores - not really user preference, but historical data)
+        const scoreSource = entry.adjustedComponents || entry.components;
+        
+        if (scoreSource && scoreSource[component] !== undefined) {
+          const userComponentScore = scoreSource[component];
           
           corrections.push({
             imageId: entry.imageId,
             userScore: userComponentScore,
             aiScore: entry.aiScore,
             timestamp: entry.timestamp,
-            recencyWeight: recencyFactor
+            recencyWeight: recencyFactor,
+            isNew: !!entry.adjustedComponents // Track if this is new format
           });
 
           weightedSum += userComponentScore * recencyFactor;
@@ -713,7 +788,8 @@ class VisionAnalysisService {
           avg: Math.round(weightedAvg * 10) / 10,
           count: corrections.length,
           confidence: Math.round(confidence * 100) / 100,
-          stdDev: Math.round(stdDev * 100) / 100
+          stdDev: Math.round(stdDev * 100) / 100,
+          newFormatCount: corrections.filter(c => c.isNew).length // Track new format entries
         };
       }
     }
@@ -732,7 +808,7 @@ class VisionAnalysisService {
     const adjusted = { ...componentScores };
 
     for (const [component, pattern] of Object.entries(learnedPatterns)) {
-      if (adjusted[component] !== undefined && pattern.confidence >= 0.6) {
+      if (adjusted[component] !== undefined && pattern.confidence >= 0.8) {
         const originalScore = adjusted[component];
         
         // Apply the learned average adjustment, clamped to ±2 points

@@ -194,7 +194,15 @@
             <div class="ai-results">
               <div class="result-row">
                 <span class="result-label">Overall</span>
-                <span class="result-value">{{ illustrationAnalysis.overallScore }}/10</span>
+                <span class="result-value">
+                  {{ illustrationAnalysis.overallScore }}/10
+                  <span *ngIf="illustrationAnalysis.feedbackApplied && illustrationAnalysis.rawAIScore !== undefined && illustrationAnalysis.rawAIScore !== illustrationAnalysis.overallScore" 
+                        class="correction-indicator"
+                        [title]="'Adjusted from ' + illustrationAnalysis.rawAIScore + '/10 based on feedback'"
+                        [attr.data-correction]="getCorrectionSign(illustrationAnalysis.overallScore - illustrationAnalysis.rawAIScore).charAt(0)">
+                    ({{ getCorrectionSign(illustrationAnalysis.overallScore - illustrationAnalysis.rawAIScore) }})
+                  </span>
+                </span>
               </div>
               <div class="result-row">
                 <span class="result-label">Anatomy</span>
@@ -237,6 +245,57 @@
                 <ul class="recommendation-list">
                   <li *ngFor="let rec of illustrationAnalysis.recommendations">{{ rec }}</li>
                 </ul>
+              </div>
+
+              <!-- Feedback Correction Details -->
+              <div *ngIf="illustrationAnalysis.feedbackApplied && illustrationAnalysis.feedbackDetails" class="feedback-applied-section" [attr.data-source]="illustrationAnalysis.feedbackDetails.source || 'specific'">
+                <div class="feedback-title">
+                  <span *ngIf="(illustrationAnalysis.feedbackDetails.source || 'specific') === 'specific'">🎯 Specific Feedback Applied</span>
+                  <span *ngIf="illustrationAnalysis.feedbackDetails.source === 'learned'">📚 Learned from Folder History</span>
+                </div>
+                <div class="feedback-content">
+                  <!-- Score Correction -->
+                  <div *ngIf="illustrationAnalysis.rawAIScore !== undefined && illustrationAnalysis.rawAIScore !== illustrationAnalysis.overallScore" class="correction-row">
+                    <span class="correction-label">Score Adjusted</span>
+                    <span class="correction-values">
+                      {{ illustrationAnalysis.rawAIScore }}/10
+                      <span class="arrow">→</span>
+                      {{ illustrationAnalysis.overallScore }}/10
+                    </span>
+                  </div>
+
+                  <!-- Specific Feedback Details (shown when source is 'specific' or missing) -->
+                  <div *ngIf="(illustrationAnalysis.feedbackDetails.source || 'specific') === 'specific'">
+                    <div *ngIf="illustrationAnalysis.feedbackDetails.userCorrection !== undefined && illustrationAnalysis.feedbackDetails.userCorrection !== 0" class="specific-row">
+                      <span class="specific-label">Overall Correction:</span>
+                      <span class="specific-value">{{ illustrationAnalysis.feedbackDetails.userCorrection > 0 ? '+' : '' }}{{ illustrationAnalysis.feedbackDetails.userCorrection }}</span>
+                    </div>
+                    <div *ngIf="illustrationAnalysis.feedbackDetails.reasoning" class="specific-row">
+                      <span class="specific-label">Reasoning:</span>
+                      <span class="specific-value">{{ illustrationAnalysis.feedbackDetails.reasoning }}</span>
+                    </div>
+                    <div *ngIf="illustrationAnalysis.feedbackDetails.components" class="specific-row">
+                      <span class="specific-label">Component Adjustments:</span>
+                      <span class="specific-value">
+                        <div *ngFor="let comp of getComponentAdjustments(illustrationAnalysis.feedbackDetails.components)" class="component-adjustment">
+                          {{ comp }}
+                        </div>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Learned Patterns Details -->
+                  <div *ngIf="illustrationAnalysis.feedbackDetails.source === 'learned'">
+                    <div class="pattern-row">
+                      <span class="pattern-label">Based on {{illustrationAnalysis.feedbackDetails.folderHistoryEntries}} feedback entries:</span>
+                    </div>
+                    <div class="pattern-summary">
+                      <div *ngFor="let line of illustrationAnalysis.feedbackDetails.patternSummary" class="pattern-detail">
+                        {{ line }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 export interface IllustrationQualityScore {
   overallScore: number;           // 0-10 final score
+  rawAIScore?: number;            // Original AI score before feedback corrections
   
   // Specific quality metrics
   anatomyScore: number;           // Hands, feet, proportions
@@ -21,6 +22,10 @@ export interface IllustrationQualityScore {
   
   // Recommendations
   recommendations: string[];      // Suggestions for improvement
+  
+  // Feedback correction tracking
+  feedbackApplied?: boolean;      // Whether feedback corrections were applied
+  feedbackDetails?: any;          // Details about feedback corrections applied
   
   // Processing info
   processingTime: number;         // milliseconds

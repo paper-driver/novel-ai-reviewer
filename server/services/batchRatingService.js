@@ -156,21 +156,19 @@ class BatchRatingService {
           }
 
           // Analyze with full feedback correction system (same as analyze-illustration endpoint)
-          let score = null;
+          let analysisResult = null;
           let retryCount = 0;
           const maxRetries = 3;
 
-          while (retryCount < maxRetries && score === null) {
+          while (retryCount < maxRetries && analysisResult === null) {
             try {
               // Call the new detailed analysis method that includes feedback corrections
-              const analysisResult = await this.visionAnalysisService.analyzeImageQualityDetailed(
+              analysisResult = await this.visionAnalysisService.analyzeImageQualityDetailed(
                 filePath,
                 this.feedbackService,
                 job.sourcePath
               );
-              // Extract only the overall score (with feedback corrections already applied)
-              score = analysisResult.overallScore;
-              this.logger.debug('BatchRating', `Got score for ${filename}: ${score}`);
+              this.logger.debug('BatchRating', `Got analysis for ${filename}: ${analysisResult.overallScore}`);
             } catch (apiErr) {
               retryCount++;
               this.logger.error('BatchRating', `Vision API error (attempt ${retryCount}/${maxRetries}) for ${filename}: ${apiErr.message}`);
@@ -181,18 +179,39 @@ class BatchRatingService {
                 await new Promise(resolve => setTimeout(resolve, backoffDelay));
               } else {
                 this.logger.warn('BatchRating', `Max retries exceeded for ${filename}, using fallback score`);
-                score = Math.floor(Math.random() * 5) + 5;
+                // Return minimal analysis result on failure
+                analysisResult = {
+                  overallScore: Math.floor(Math.random() * 5) + 5,
+                  rawAIScore: undefined,
+                  feedbackApplied: false,
+                  feedbackDetails: null
+                };
               }
             }
           }
 
-          // Store only the score (with feedback corrections already applied)
-          job.results[filename] = score;
-          this.logger.debug('BatchRating', `Stored result - filename: ${filename}, score: ${score}`);
+          // Store the full analysis result (including correction info) instead of just the score
+          job.results[filename] = {
+            score: analysisResult.overallScore,
+            // Include feedback correction info for UI display
+            rawAIScore: analysisResult.rawAIScore,
+            feedbackApplied: analysisResult.feedbackApplied,
+            feedbackDetails: analysisResult.feedbackDetails,
+            // Also include component scores for detailed display
+            components: {
+              anatomy: analysisResult.anatomyScore,
+              pose: analysisResult.poseScore,
+              face: analysisResult.faceQuality,
+              background: analysisResult.backgroundQuality,
+              objects: analysisResult.objectQuality,
+              coherence: analysisResult.coherenceScore
+            }
+          };
+          this.logger.debug('BatchRating', `Stored detailed result - filename: ${filename}, score: ${analysisResult.overallScore}`);
           this.logger.debug('BatchRating', `job.results keys after storing: ${Object.keys(job.results).join(', ')}`);
 
           job.processedImages++;
-          this.logger.info('BatchRating', `Processed ${filename}: ${score}/10`);
+          this.logger.info('BatchRating', `Processed ${filename}: ${analysisResult.overallScore}/10`);
 
         } catch (err) {
           this.logger.error('BatchRating', `Error processing file ${i + 1}: ${err.message}`);
