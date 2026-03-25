@@ -21,6 +21,7 @@ const BatchRatingService = require('./server/services/batchRatingService');
 const FeedbackService = require('./server/services/feedbackService');
 const RatingsService = require('./server/services/ratingsService');
 const LegacyArtistGroupingService = require('./server/services/legacyArtistGroupingService');
+const ReviewsFolderService = require('./server/services/reviewsFolderService');
 
 // Import all route creators
 const createReviewsRoutes = require('./server/routes/reviewsRoutes');
@@ -33,6 +34,7 @@ const createPromptGroupingRoutes = require('./server/routes/promptGroupingRoutes
 const createBatchRatingRoutes = require('./server/routes/batchRatingRoutes');
 const createRatingsRoutes = require('./server/routes/ratingsRoutes');
 const createFeedbackRoutes = require('./server/routes/feedbackRoutes');
+const createReviewsFolderRoutes = require('./server/routes/reviewsFolderRoutes');
 const createLegacyGroupingRoutes = require('./server/routes/legacyGroupingRoutes');
 
 // Initialize Express app
@@ -96,6 +98,7 @@ const promptGroupingService = new PromptGroupingService(folderOperationsService,
 const batchRatingService = new BatchRatingService(visionAnalysisService, feedbackService, logger);
 const ratingsService = new RatingsService(logger);
 const legacyArtistGroupingService = new LegacyArtistGroupingService(imageMetadataService, feedbackService, logger);
+const reviewsFolderService = new ReviewsFolderService();
 
 // ===== ENSURE REQUIRED DIRECTORIES =====
 fileSystemService.ensureDirectoryExists(GENERATED_DIR);
@@ -110,7 +113,8 @@ if (!fs.existsSync(DATA_FILE)) {
 // Reviews endpoints
 app.use('/api/reviews', createReviewsRoutes(reviewsService, upload));
 
-// Image metadata endpoints
+// Reviews Folder endpoints (source-folder-based reviews)
+app.use('/api/reviews-folder', createReviewsFolderRoutes(reviewsFolderService));
 app.use('/api/image-metadata', createImageMetadataRoutes(imageMetadataService));
 
 // Image serving endpoints

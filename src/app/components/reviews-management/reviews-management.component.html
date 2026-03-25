@@ -1,0 +1,56 @@
+<div class="reviews-management-container">
+  <!-- Header -->
+  <header class="reviews-header">
+    <h1>📊 Review Manager</h1>
+    <p class="subtitle">Create and manage image reviews organized by source folders</p>
+  </header>
+
+  <!-- Navigation tabs/steps -->
+  <nav class="nav-steps" *ngIf="selectedSourceFolder">
+    <button (click)="onChangeFolder()" class="step-indicator" title="Change folder">
+      📁 {{ selectedSourceFolder.split('/').pop() || 'Folder' }}
+    </button>
+    <span class="step-arrow">›</span>
+    <span class="step-label">
+      {{ currentStep === 'reviews-table' ? '📋 Reviews' : currentStep === 'review-form' ? '✏️ Edit Review' : 'Select Folder' }}
+    </span>
+  </nav>
+
+  <!-- Main content area -->
+  <main class="content-area">
+    <!-- Step 1: Folder Selection -->
+    <section *ngIf="currentStep === 'folder-selection'" class="step-section">
+      <app-folder-selector (folderSelected)="onFolderSelected($event)"></app-folder-selector>
+    </section>
+
+    <!-- Step 2: Reviews Table -->
+    <section *ngIf="currentStep === 'reviews-table'" class="step-section">
+      <div class="section-toolbar">
+        <button (click)="onChangeFolder()" class="btn-change-folder" title="Change source folder">
+          📁 Change Folder
+        </button>
+      </div>
+      <app-reviews-table 
+        [sourceFolder]="selectedSourceFolder"
+        (editReview)="onEditReview($event)">
+      </app-reviews-table>
+    </section>
+
+    <!-- Step 3: Review Form -->
+    <section *ngIf="currentStep === 'review-form'" class="step-section">
+      <app-review-form 
+        [sourceFolder]="selectedSourceFolder"
+        [editingReview]="editingReview"
+        [source]="selectedReviewSource"
+        [foreignId]="selectedReviewForeignId"
+        (reviewSaved)="onReviewSaved($event)"
+        (cancelled)="onFormCancelled()">
+      </app-review-form>
+    </section>
+  </main>
+
+  <!-- Footer info -->
+  <footer class="reviews-footer">
+    <p>💡 Tip: Reviews are stored in the selected folder's <code>.reviews.json</code> file.</p>
+  </footer>
+</div>

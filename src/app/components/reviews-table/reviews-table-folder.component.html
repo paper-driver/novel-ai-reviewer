@@ -1,0 +1,94 @@
+<div class="reviews-container">
+  <div *ngIf="isLoading" class="loading-message">⏳ Loading reviews...</div>
+
+  <div *ngIf="error" class="error-message">❌ {{ error }}</div>
+
+  <div *ngIf="reviews.length === 0 && !isLoading && !error" class="empty-state">
+    📭 No reviews found in this folder.
+  </div>
+
+  <!-- Legacy-style reviews table -->
+  <table class="reviews-table" *ngIf="reviews && reviews.length > 0">
+    <thead>
+      <tr>
+        <th>Thumbnail</th>
+        <th>Source</th>
+        <th>Source ID</th>
+        <th>Anatomy</th>
+        <th>Face</th>
+        <th>Object</th>
+        <th>Background</th>
+        <th>Character</th>
+        <th>Average</th>
+        <th>Notes</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let review of reviews">
+        <tr class="review-row">
+          <!-- Thumbnail -->
+          <td class="thumbnail-cell">
+            <img 
+              *ngIf="reviewThumbnails[review.id]"
+              [src]="reviewThumbnails[review.id]" 
+              (click)="openImageModal(review)" 
+              class="thumbnail" 
+              alt="Review thumbnail"
+              title="Click to view all images"
+            >
+            <span *ngIf="!reviewThumbnails[review.id]" class="thumbnail-loading">⏳</span>
+          </td>
+          
+          <!-- Source Type -->
+          <td class="source-cell">
+            <span class="source-badge" [class]="review.source">
+              {{ formatSourceType(review.source) }}
+            </span>
+          </td>
+          
+          <!-- Source ID -->
+          <td class="source-id-cell">{{ review.foreign_id }}</td>
+          
+          <!-- Ratings -->
+          <td [ngClass]="getRatingClass(review.rating?.anatomy)">{{ review.rating?.anatomy || '-' }}</td>
+          <td [ngClass]="getRatingClass(review.rating?.face)">{{ review.rating?.face || '-' }}</td>
+          <td [ngClass]="getRatingClass(review.rating?.object)">{{ review.rating?.object || '-' }}</td>
+          <td [ngClass]="getRatingClass(review.rating?.background)">{{ review.rating?.background || '-' }}</td>
+          <td [ngClass]="getRatingClass(review.rating?.character)">{{ review.rating?.character || '-' }}</td>
+          
+          <!-- Average Rating -->
+          <td class="average-cell"><strong>{{ getAverageRating(review) }}</strong></td>
+          
+          <!-- Notes -->
+          <td class="notes-cell" [title]="review.notes || 'No notes'">
+            {{ review.notes ? review.notes.substring(0, 25) + (review.notes.length > 25 ? '...' : '') : '-' }}
+          </td>
+          
+          <!-- Actions -->
+          <td class="actions-cell" (click)="$event.stopPropagation()">
+            <button class="btn-action btn-edit" (click)="onEditReview(review)" title="Edit review">✏️</button>
+            <button class="btn-action btn-delete" (click)="onDeleteReview(review)" title="Delete review">🗑️</button>
+          </td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </table>
+
+  <!-- Image Viewer Modal -->
+  <app-image-viewer-modal 
+    *ngIf="isImageModalOpen && selectedReviewForModal && modalData"
+    [isOpen]="isImageModalOpen"
+    [reviewData]="modalData"
+    (closeModal)="closeImageModal()"
+  ></app-image-viewer-modal>
+
+  <!-- Back to Top Button -->
+  <button 
+    *ngIf="showBackToTopButton"
+    class="back-to-top-btn"
+    (click)="scrollToTop()"
+    title="Scroll back to top">
+    ↑ Top
+  </button>
+</div>

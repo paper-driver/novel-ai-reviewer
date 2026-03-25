@@ -1,0 +1,54 @@
+<div class="folder-selector-container">
+  <h2>📁 Select Source Folder</h2>
+  
+  <p class="description">
+    Choose a folder containing sorted images (artist gallery) or images organized by prompt (prompt grouping).
+    This folder will be used to manage image reviews and ratings.
+  </p>
+
+  <div class="folder-picker-group">
+    <label for="folder-path">Folder Path:</label>
+    <div class="folder-picker-controls">
+      <input 
+        id="folder-path"
+        type="text" 
+        placeholder="Enter path or click folder icon to browse"
+        [(ngModel)]="folderPath"
+        (blur)="onPathBlur()"
+        (keypress)="onKeyPress($event)"
+        [disabled]="isLoading"
+        class="folder-path-input"
+        title="Click the folder icon to pick a folder, or paste/type the full path here"
+      />
+      <button 
+        (click)="selectFolder()" 
+        [disabled]="isLoading"
+        class="btn-folder-icon"
+        title="Click to open folder picker">
+        🗂️
+      </button>
+    </div>
+    <small class="help-text">
+      Click the folder icon to open the native folder picker, or enter a path directly.
+    </small>
+  </div>
+
+  <div class="button-group">
+    <button 
+      (click)="saveAndEmit()" 
+      [disabled]="!folderPath || isLoading"
+      class="btn-primary">
+      {{ isLoading ? 'Selecting...' : 'Load Reviews' }}
+    </button>
+    <button 
+      (click)="clearFolder()" 
+      [disabled]="isLoading"
+      class="btn-secondary">
+      Clear
+    </button>
+  </div>
+
+  <div *ngIf="error" class="error-message">
+    ❌ {{ error }}
+  </div>
+</div>

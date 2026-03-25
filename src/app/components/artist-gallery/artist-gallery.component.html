@@ -138,6 +138,7 @@
             <th class="col-count">Images</th>
             <th class="col-modified">Latest Modified</th>
             <th class="col-rating">Avg Rating</th>
+            <th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -176,6 +177,18 @@
             <td class="col-rating">
               <div class="rating-display">
                 {{ group.averageRating ? (group.averageRating | number:'1.1-1') + '/10' : 'N/A' }}
+              </div>
+            </td>
+
+            <!-- Actions Column -->
+            <td class="col-actions">
+              <div class="actions-buttons">
+                <button 
+                  (click)="requestReview(group)" 
+                  class="btn-review" 
+                  title="Create or edit review for this group">
+                  📝 Review
+                </button>
               </div>
             </td>
           </tr>

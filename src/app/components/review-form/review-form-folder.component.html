@@ -1,0 +1,130 @@
+<div class="review-form-container">
+  <h2>{{ isEditing ? '✏️ Edit Review' : '➕ Create Review' }}</h2>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <!-- Error message -->
+    <div *ngIf="error" class="error-message">
+      ❌ {{ error }}
+    </div>
+
+    <!-- Source info (read-only for context) -->
+    <div class="source-info-section">
+      <div class="source-info-field">
+        <label>Source Type:</label>
+        <span class="source-value">{{ source === 'artist_gallery' ? 'Artist Gallery' : 'Prompt Grouping' }}</span>
+      </div>
+      <div class="source-info-field">
+        <label>Source ID:</label>
+        <span class="source-value">{{ foreignId || editingReview?.foreign_id || 'N/A' }}</span>
+      </div>
+    </div>
+
+    <!-- Rating fields -->
+    <div class="ratings-section">
+      <h3>Component Ratings (1-5)</h3>
+      <p class="section-hint">Rate each component on a scale of 1 (poor) to 5 (excellent)</p>
+
+      <div class="rating-fields-grid">
+        <!-- Anatomy -->
+        <div class="form-group">
+          <label for="anatomy">Anatomy</label>
+          <select id="anatomy" formControlName="anatomy" class="form-control required">
+            <option value="">Select rating...</option>
+            <option *ngFor="let opt of ratingOptions" [value]="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+          <div *ngIf="form.get('anatomy')?.invalid && form.get('anatomy')?.touched" class="field-error">
+            Anatomy rating is required
+          </div>
+        </div>
+
+        <!-- Face -->
+        <div class="form-group">
+          <label for="face">Face</label>
+          <select id="face" formControlName="face" class="form-control required">
+            <option value="">Select rating...</option>
+            <option *ngFor="let opt of ratingOptions" [value]="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+          <div *ngIf="form.get('face')?.invalid && form.get('face')?.touched" class="field-error">
+            Face rating is required
+          </div>
+        </div>
+
+        <!-- Object -->
+        <div class="form-group">
+          <label for="object">Object</label>
+          <select id="object" formControlName="object" class="form-control required">
+            <option value="">Select rating...</option>
+            <option *ngFor="let opt of ratingOptions" [value]="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+          <div *ngIf="form.get('object')?.invalid && form.get('object')?.touched" class="field-error">
+            Object rating is required
+          </div>
+        </div>
+
+        <!-- Background -->
+        <div class="form-group">
+          <label for="background">Background</label>
+          <select id="background" formControlName="background" class="form-control required">
+            <option value="">Select rating...</option>
+            <option *ngFor="let opt of ratingOptions" [value]="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+          <div *ngIf="form.get('background')?.invalid && form.get('background')?.touched" class="field-error">
+            Background rating is required
+          </div>
+        </div>
+
+        <!-- Character -->
+        <div class="form-group">
+          <label for="character">Character</label>
+          <select id="character" formControlName="character" class="form-control required">
+            <option value="">Select rating...</option>
+            <option *ngFor="let opt of ratingOptions" [value]="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+          <div *ngIf="form.get('character')?.invalid && form.get('character')?.touched" class="field-error">
+            Character rating is required
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes section -->
+    <div class="notes-section">
+      <label for="notes">Notes (Optional)</label>
+      <textarea 
+        id="notes"
+        formControlName="notes" 
+        class="form-control notes-textarea"
+        placeholder="Add any additional notes about this review..."
+        rows="4">
+      </textarea>
+      <small class="field-hint">Maximum 500 characters</small>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="form-actions">
+      <button 
+        type="submit" 
+        [disabled]="isLoading || form.invalid"
+        class="btn-submit">
+        {{ isLoading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? '💾 Update Review' : '➕ Create Review') }}
+      </button>
+      <button 
+        type="button" 
+        (click)="onCancel()" 
+        [disabled]="isLoading"
+        class="btn-cancel">
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>

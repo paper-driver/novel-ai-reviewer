@@ -191,7 +191,14 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       
       if (apiType === 'artist-gallery' || apiType === 'prompt-grouping') {
         // For artist-gallery and prompt-grouping: use the respective endpoints with encoded file path
-        const fullFilePath = `${this.reviewData.folder}/${fileName}`;
+        // If folder is empty, the fileName is already a full path (used for prompt-grouping with direct image paths)
+        let fullFilePath: string;
+        if (this.reviewData.folder) {
+          fullFilePath = `${this.reviewData.folder}/${fileName}`;
+        } else {
+          // Images already have full paths
+          fullFilePath = fileName;
+        }
         const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
         this.currentImageUrl = `http://localhost:3000/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
       } else {
@@ -512,7 +519,14 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     let url: string;
     if (apiType === 'artist-gallery' || apiType === 'prompt-grouping') {
       // For artist-gallery and prompt-grouping: use respective endpoints with encoded file path
-      const fullFilePath = `${this.reviewData.folder}/${image}`;
+      // If folder is empty, the image is already a full path (used for prompt-grouping with direct image paths)
+      let fullFilePath: string;
+      if (this.reviewData.folder) {
+        fullFilePath = `${this.reviewData.folder}/${image}`;
+      } else {
+        // Images already have full paths
+        fullFilePath = image;
+      }
       const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
       url = `http://localhost:3000/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
     } else {

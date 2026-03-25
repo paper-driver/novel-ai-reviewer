@@ -9,6 +9,7 @@ import { GalleryCacheService } from '../../services/gallery-cache.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { RatingsStateService } from '../../services/ratings-state.service';
 import { CurrentSourceFolderService } from '../../services/current-source-folder.service';
+import { ReviewRequestService } from '../../services/review-request.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 
 @Component({
@@ -65,7 +66,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     private folderPickerService: FolderPickerService,
     private cacheService: GalleryCacheService,
     private ratingsStateService: RatingsStateService,
-    private currentSourceFolderService: CurrentSourceFolderService
+    private currentSourceFolderService: CurrentSourceFolderService,
+    private reviewRequestService: ReviewRequestService
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -751,6 +753,19 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
         return aRating - bRating; // Ascending: lowest first
       });
     }
+  }
+
+  /**
+   * Request to create/edit review for this group
+   */
+  requestReview(group: ArtistGroupInfo): void {
+    const artistNames = group.artists.join(', ');
+    this.reviewRequestService.requestReview({
+      sourceFolder: this.sortedFolderPath,
+      source: 'artist_gallery',
+      foreignId: group.folderPath,
+      title: artistNames
+    });
   }
 }
 

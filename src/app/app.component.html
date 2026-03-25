@@ -10,7 +10,13 @@
       class="tab-button" 
       [class.active]="currentTab === 'reviews'"
       (click)="currentTab = 'reviews'">
-      Reviews
+      Reviews (Legacy)
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="currentTab === 'reviews-management'"
+      (click)="currentTab = 'reviews-management'">
+      📊 Review Manager
     </button>
     <button 
       class="tab-button" 
@@ -44,6 +50,11 @@
       [filters]="filters"
       (editReview)="onEditReview($event)"
     ></app-reviews-table>
+  </div>
+
+  <!-- Reviews Management Section (Folder-Based) -->
+  <div *ngIf="currentTab === 'reviews-management'" class="reviews-management-section">
+    <app-reviews-management [reviewRequest]="pendingReviewRequest"></app-reviews-management>
   </div>
 
   <!-- Artist Grouping Section -->

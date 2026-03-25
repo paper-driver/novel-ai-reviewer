@@ -498,6 +498,38 @@
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
               }
             }
+
+            &.col-actions {
+              text-align: center;
+
+              .actions-buttons {
+                display: flex;
+                justify-content: center;
+                gap: 8px;
+
+                .btn-review {
+                  padding: 8px 12px;
+                  background-color: #4a9eff;
+                  color: white;
+                  border: none;
+                  border-radius: 4px;
+                  font-size: 13px;
+                  font-weight: 500;
+                  cursor: pointer;
+                  transition: all 0.2s ease;
+                  white-space: nowrap;
+
+                  &:hover {
+                    background-color: #3a8eef;
+                    box-shadow: 0 2px 6px rgba(74, 158, 255, 0.3);
+                  }
+
+                  &:active {
+                    transform: scale(0.98);
+                  }
+                }
+              }
+            }
           }
         }
       }
