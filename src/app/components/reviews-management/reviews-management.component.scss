@@ -5,26 +5,6 @@
   background-color: #f5f5f5;
   color: #333;
 
-  .reviews-header {
-    background-color: #fff;
-    padding: 2rem;
-    border-bottom: 1px solid #ddd;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-    h1 {
-      color: #2196f3;
-      font-size: 1.8rem;
-      margin: 0 0 0.5rem 0;
-    }
-
-    .subtitle {
-      color: #666;
-      font-size: 0.95rem;
-      margin: 0;
-    }
-  }
-
   .nav-steps {
     display: flex;
     align-items: center;
@@ -143,14 +123,6 @@
   }
 
   @media (max-width: 768px) {
-    .reviews-header {
-      h1 {
-        font-size: 1.4rem;
-      }
-
-      padding: 1.5rem 1rem;
-    }
-
     .nav-steps {
       padding: 0.75rem 1rem;
       font-size: 0.85rem;
