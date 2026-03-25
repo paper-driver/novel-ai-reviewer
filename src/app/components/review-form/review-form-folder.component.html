@@ -20,7 +20,7 @@
     </div>
 
     <!-- Thumbnail section -->
-    <div *ngIf="isEditing && thumbnailUrl" class="thumbnail-section">
+    <div *ngIf="thumbnailUrl" class="thumbnail-section">
       <label>Source Image Thumbnail:</label>
       <div class="thumbnail-container">
         <img [src]="thumbnailUrl" 

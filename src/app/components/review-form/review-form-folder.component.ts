@@ -75,6 +75,12 @@ export class ReviewFormComponent implements OnInit, OnChanges {
         this.populateForm();
       }
     }
+
+    // Load thumbnail for new reviews when source or foreignId changes
+    if ((changes['source'] || changes['foreignId']) && !this.editingReview && this.source && this.foreignId) {
+      console.log('[ReviewForm] Loading thumbnail for new review:', { source: this.source, foreignId: this.foreignId });
+      this.loadThumbnailForReview();
+    }
   }
 
   /**
@@ -112,28 +118,33 @@ export class ReviewFormComponent implements OnInit, OnChanges {
    * Load thumbnail based on review source
    */
   private loadThumbnailForReview(): void {
-    if (!this.editingReview) return;
+    // Determine source and foreignId from either editingReview or input properties
+    const source = this.editingReview?.source || this.source;
+    const foreignId = this.editingReview?.foreign_id || this.foreignId;
     
-    if (this.editingReview.source === 'artist_gallery') {
-      this.loadArtistGalleryThumbnail();
-    } else if (this.editingReview.source === 'prompt_grouping') {
-      this.loadPromptGroupingThumbnail();
+    if (!source || !foreignId) {
+      console.log('[ReviewForm] Missing source or foreignId for thumbnail loading');
+      return;
+    }
+    
+    if (source === 'artist_gallery') {
+      this.loadArtistGalleryThumbnail(foreignId);
+    } else if (source === 'prompt_grouping') {
+      this.loadPromptGroupingThumbnail(foreignId);
     }
   }
 
   /**
    * Load thumbnail from artist gallery folder
    */
-  private loadArtistGalleryThumbnail(): void {
-    if (!this.editingReview) return;
-    
+  private loadArtistGalleryThumbnail(galleryFolderId: string): void {
     this.http.post('http://localhost:3000/api/artist-gallery/group-images', {
-      folderPath: this.editingReview.foreign_id
+      folderPath: galleryFolderId
     }).subscribe({
       next: (response: any) => {
         if (response.images && response.images.length > 0) {
           const firstImage = response.images[0];
-          this.thumbnailUrl = this.galleryService.getThumbnailUrl(this.editingReview!.foreign_id, firstImage);
+          this.thumbnailUrl = this.galleryService.getThumbnailUrl(galleryFolderId, firstImage);
           console.log('[ReviewForm] Loaded artist gallery thumbnail:', this.thumbnailUrl);
         }
       },
@@ -146,15 +157,18 @@ export class ReviewFormComponent implements OnInit, OnChanges {
   /**
    * Load thumbnail from prompt grouping folder
    */
-  private loadPromptGroupingThumbnail(): void {
-    if (!this.editingReview || !this.sourceFolder) return;
+  private loadPromptGroupingThumbnail(groupId: string): void {
+    if (!this.sourceFolder) {
+      console.warn('[ReviewForm] sourceFolder not set for prompt grouping thumbnail');
+      return;
+    }
     
     this.http.post('http://localhost:3000/api/prompt-grouping/load-groups', {
       folderPath: this.sourceFolder
     }).subscribe({
       next: (response: any) => {
-        if (response.groups && response.groups[this.editingReview!.foreign_id]) {
-          const groupData = response.groups[this.editingReview!.foreign_id];
+        if (response.groups && response.groups[groupId]) {
+          const groupData = response.groups[groupId];
           if (groupData.images && groupData.images.length > 0) {
             const firstImage = groupData.images[0];
             // Images are relative paths, prepend sourceFolder

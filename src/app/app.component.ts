@@ -46,6 +46,9 @@ export class AppComponent implements OnInit, OnDestroy {
           this.currentTab = 'reviews-management';
           // Scroll to top
           window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          // Clear pending review request when service clears it
+          this.pendingReviewRequest = null;
         }
       });
   }

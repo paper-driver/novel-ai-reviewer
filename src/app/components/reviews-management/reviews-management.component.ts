@@ -44,6 +44,7 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
   constructor(
     private currentSourceFolderService: CurrentSourceFolderService,
     private reviewsFolderService: ReviewsFolderService,
+    private reviewRequestService: ReviewRequestService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -142,6 +143,8 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
     this.editingReview = null;
     this.currentStep = 'reviews-table';
     console.log('[ReviewsManagement] Review saved:', savedReview.id);
+    // Clear the pending review request after successful save
+    this.reviewRequestService.clearRequest();
   }
 
   /**
@@ -150,6 +153,8 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
   onFormCancelled(): void {
     this.editingReview = null;
     this.currentStep = 'reviews-table';
+    // Clear the pending review request so it doesn't persist when user navigates back
+    this.reviewRequestService.clearRequest();
   }
 
   /**
