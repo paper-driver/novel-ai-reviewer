@@ -15,8 +15,9 @@ const TAG = 'PromptGroupingService';
 const loadingProgress = new Map();
 
 class PromptGroupingService {
-  constructor(folderOperationsService) {
+  constructor(folderOperationsService, imageMetadataService = null) {
     this.folderOperationsService = folderOperationsService;
+    this.imageMetadataService = imageMetadataService;
     this.loadingProgress = loadingProgress;
   }
 
@@ -241,7 +242,7 @@ class PromptGroupingService {
         const fileBuffer = fs.readFileSync(filePath);
 
         // Extract prompt from PNG metadata
-        let prompt = this._extractPrompt(fileBuffer, path.basename(filePath));
+        let prompt = this._extractPrompt(fileBuffer, path.basename(filePath), filePath);
 
         if (prompt) {
           const normalizedPrompt = this._normalizePrompt(prompt);
@@ -363,17 +364,55 @@ class PromptGroupingService {
   /**
    * Extract prompt from PNG metadata or filename
    */
-  _extractPrompt(buffer, filename) {
-    // This would use ImageMetadataService in practice
-    // For now, simplified version
+  _extractPrompt(buffer, filename, filePath) {
     try {
-      // Try to find prompt in filename
+      // Try to extract from PNG metadata (comment, description) using ImageMetadataService
+      if (this.imageMetadataService && filePath && buffer) {
+        try {
+          const metadata = this.imageMetadataService.readPNGMetadata(buffer);
+          
+          // Check Comment chunk first (usually contains JSON with prompt)
+          if (metadata.comment) {
+            try {
+              const commentData = JSON.parse(metadata.comment);
+              if(commentData.v4_prompt) {
+                logger.debug(TAG, `Extracted prompt from PNG comment for: ${filename}`);
+                let data = commentData.v4_prompt.caption.base_caption;
+                if(commentData.v4_prompt.caption.char_captions && commentData.v4_prompt.caption.char_captions.length > 0) {
+                  data += ', ' + commentData.v4_prompt.caption.char_captions.map(c => c.char_caption).join(', ');
+                }
+                return data;
+              } else if (commentData.prompt) {
+                logger.debug(TAG, `Extracted prompt from PNG comment for: ${filename}`);
+                return commentData.prompt;
+              }
+            } catch (e) {
+              // Comment is not JSON, use as-is
+              logger.debug(TAG, `Extracted prompt from PNG comment text for: ${filename}`);
+              return metadata.comment;
+            }
+          }
+          
+          // Check Description field
+          if (metadata.description) {
+            logger.debug(TAG, `Extracted prompt from PNG description for: ${filename}`);
+            return metadata.description;
+          }
+        } catch (err) {
+          logger.debug(TAG, `Failed to extract PNG metadata: ${err.message}`);
+        }
+      }
+      
+      // Fall back to extracting from filename
       const match = filename.match(/^(.+?)\s+s-\d+\.png$/i);
       if (match) {
+        logger.debug(TAG, `Extracted prompt from filename for: ${filename}`);
         return match[1];
       }
+      
       return null;
     } catch (err) {
+      logger.error(TAG, `Error extracting prompt: ${err.message}`);
       return null;
     }
   }

@@ -36,7 +36,13 @@ class ImageMetadataService {
         if (metadata.comment) {
           try {
             const commentData = JSON.parse(metadata.comment);
-            if (commentData.prompt) {
+            if (commentData.v4_prompt) {
+              prompt = commentData.v4_prompt.caption.base_caption;
+              if(commentData.v4_prompt.caption.char_captions && commentData.v4_prompt.caption.char_captions.length > 0) {
+                prompt += ', ' + commentData.v4_prompt.caption.char_captions.map(c => c.char_caption).join(', ');
+              }
+              generationData = commentData;
+            } else if (commentData.prompt) {
               prompt = commentData.prompt;
               generationData = commentData;
             }
