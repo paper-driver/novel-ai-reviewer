@@ -8,12 +8,6 @@
   <div class="nav-tabs">
     <button 
       class="tab-button" 
-      [class.active]="currentTab === 'reviews'"
-      (click)="currentTab = 'reviews'">
-      Reviews (Legacy)
-    </button>
-    <button 
-      class="tab-button" 
       [class.active]="currentTab === 'reviews-management'"
       (click)="currentTab = 'reviews-management'">
       📊 Review Manager
@@ -36,20 +30,6 @@
       (click)="currentTab = 'prompt-grouping'">
       Prompt-Based Grouping
     </button>
-  </div>
-
-  <!-- Reviews Section -->
-  <div *ngIf="currentTab === 'reviews'" class="reviews-section">
-    <app-review-form 
-      [editingReview]="editingReview"
-      (reviewCreated)="onReviewChange()"
-      (reviewUpdated)="onReviewChange()"
-    ></app-review-form>
-    <app-filter-panel (filtersChanged)="onFiltersChange($event)"></app-filter-panel>
-    <app-reviews-table 
-      [filters]="filters"
-      (editReview)="onEditReview($event)"
-    ></app-reviews-table>
   </div>
 
   <!-- Reviews Management Section (Folder-Based) -->
