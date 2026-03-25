@@ -1,7 +1,9 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { ReviewsFolderService, Review } from '../../services/reviews-folder.service';
+import { ArtistGalleryService } from '../../services/artist-gallery.service';
 
 /**
  * Review Form Component (Source Folder Based)
@@ -10,7 +12,7 @@ import { ReviewsFolderService, Review } from '../../services/reviews-folder.serv
 @Component({
   selector: 'app-review-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, HttpClientModule],
   templateUrl: './review-form-folder.component.html',
   styleUrls: ['./review-form-folder.component.scss']
 })
@@ -27,6 +29,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
   isLoading: boolean = false;
   error: string | null = null;
   isEditing: boolean = false;
+  thumbnailUrl: string | null = null;
 
   ratingOptions = [
     { value: 1, label: '1 - Very Poor' },
@@ -38,7 +41,9 @@ export class ReviewFormComponent implements OnInit, OnChanges {
 
   constructor(
     private fb: FormBuilder,
-    private reviewsFolderService: ReviewsFolderService
+    private reviewsFolderService: ReviewsFolderService,
+    private http: HttpClient,
+    private galleryService: ArtistGalleryService
   ) {
     this.form = this.fb.group({
       anatomy: ['', Validators.required],
@@ -97,7 +102,72 @@ export class ReviewFormComponent implements OnInit, OnChanges {
         character: this.editingReview.rating?.character || '',
         notes: this.editingReview.notes || ''
       });
+      
+      // Load thumbnail for the review source
+      this.loadThumbnailForReview();
     }
+  }
+
+  /**
+   * Load thumbnail based on review source
+   */
+  private loadThumbnailForReview(): void {
+    if (!this.editingReview) return;
+    
+    if (this.editingReview.source === 'artist_gallery') {
+      this.loadArtistGalleryThumbnail();
+    } else if (this.editingReview.source === 'prompt_grouping') {
+      this.loadPromptGroupingThumbnail();
+    }
+  }
+
+  /**
+   * Load thumbnail from artist gallery folder
+   */
+  private loadArtistGalleryThumbnail(): void {
+    if (!this.editingReview) return;
+    
+    this.http.post('http://localhost:3000/api/artist-gallery/group-images', {
+      folderPath: this.editingReview.foreign_id
+    }).subscribe({
+      next: (response: any) => {
+        if (response.images && response.images.length > 0) {
+          const firstImage = response.images[0];
+          this.thumbnailUrl = this.galleryService.getThumbnailUrl(this.editingReview!.foreign_id, firstImage);
+          console.log('[ReviewForm] Loaded artist gallery thumbnail:', this.thumbnailUrl);
+        }
+      },
+      error: (err) => {
+        console.warn('[ReviewForm] Error loading artist gallery images:', err);
+      }
+    });
+  }
+
+  /**
+   * Load thumbnail from prompt grouping folder
+   */
+  private loadPromptGroupingThumbnail(): void {
+    if (!this.editingReview || !this.sourceFolder) return;
+    
+    this.http.post('http://localhost:3000/api/prompt-grouping/load-groups', {
+      folderPath: this.sourceFolder
+    }).subscribe({
+      next: (response: any) => {
+        if (response.groups && response.groups[this.editingReview!.foreign_id]) {
+          const groupData = response.groups[this.editingReview!.foreign_id];
+          if (groupData.images && groupData.images.length > 0) {
+            const firstImage = groupData.images[0];
+            // Images are relative paths, prepend sourceFolder
+            const fullImagePath = `${this.sourceFolder}/${firstImage}`;
+            this.thumbnailUrl = `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullImagePath)}&thumbnail=true&v=${Date.now()}`;
+            console.log('[ReviewForm] Loaded prompt grouping thumbnail:', this.thumbnailUrl);
+          }
+        }
+      },
+      error: (err) => {
+        console.warn('[ReviewForm] Error loading prompt grouping groups:', err);
+      }
+    });
   }
 
   /**
@@ -210,6 +280,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
     this.isEditing = false;
     this.editingReview = null;
     this.error = null;
+    this.thumbnailUrl = null;
   }
 
   /**

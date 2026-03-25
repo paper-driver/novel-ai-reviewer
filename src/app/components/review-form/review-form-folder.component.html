@@ -19,6 +19,17 @@
       </div>
     </div>
 
+    <!-- Thumbnail section -->
+    <div *ngIf="isEditing && thumbnailUrl" class="thumbnail-section">
+      <label>Source Image Thumbnail:</label>
+      <div class="thumbnail-container">
+        <img [src]="thumbnailUrl" 
+             alt="Review source thumbnail" 
+             class="thumbnail-image"
+             onerror="this.style.display='none'">
+      </div>
+    </div>
+
     <!-- Rating fields -->
     <div class="ratings-section">
       <h3>Component Ratings (1-5)</h3>

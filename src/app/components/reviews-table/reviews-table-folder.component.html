@@ -80,6 +80,7 @@
     *ngIf="isImageModalOpen && selectedReviewForModal && modalData"
     [isOpen]="isImageModalOpen"
     [reviewData]="modalData"
+    (ratingsChanged)="onRatingsChanged($event)"
     (closeModal)="closeImageModal()"
   ></app-image-viewer-modal>
 

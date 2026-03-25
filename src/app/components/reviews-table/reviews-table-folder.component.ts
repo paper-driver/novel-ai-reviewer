@@ -37,6 +37,8 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
   isImageModalOpen: boolean = false;
   selectedReviewForModal: Review | null = null;
   modalData: ReviewImage | null = null;
+  // Store latest ratings from modal for saving
+  private latestModalRatings: { [filename: string]: number } | null = null;
 
   private destroy$ = new Subject<void>();
   private scrollListener: (() => void) | null = null;
@@ -304,6 +306,7 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
               if (ratingsResponse.success) {
                 const allRatings = ratingsResponse.ratings as { [filename: string]: number };
                 // Filter to only ratings for images in this group
+                // Ratings are stored with filename as key for cross-source compatibility
                 images.forEach((filename: string) => {
                   if (allRatings[filename]) {
                     imageRatings[filename] = allRatings[filename];
@@ -366,9 +369,13 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
                 if (ratingsResponse.success) {
                   const allRatings = ratingsResponse.ratings as { [filename: string]: number };
                   // Filter to only ratings for images in this group
+                  // Ratings are stored with basename as key for cross-source compatibility
+                  // (same format as artist gallery and image modal)
                   images.forEach((fullPath: string) => {
-                    if (allRatings[fullPath]) {
-                      imageRatings[fullPath] = allRatings[fullPath];
+                    // Extract basename to match rating keys
+                    const basename = fullPath.includes('/') ? fullPath.split('/').pop()! : fullPath;
+                    if (allRatings[basename]) {
+                      imageRatings[basename] = allRatings[basename];
                     }
                   });
                 }
@@ -407,11 +414,76 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /**
-   * Close image viewer modal
+   * Handle ratings changed from modal
+   */
+  onRatingsChanged(ratings: { [filename: string]: number }): void {
+    console.log('[ReviewsTable] Ratings changed from modal:', ratings);
+    this.latestModalRatings = ratings;
+    if (this.modalData) {
+      this.modalData.imageRatings = ratings;
+      console.log('[ReviewsTable] Stored ratings in modal data:', this.modalData.imageRatings);
+    }
+  }
+
+  /**
+   * Close image viewer modal and save ratings
    */
   closeImageModal(): void {
+    console.log('[ReviewsTable] Closing image modal');
+    console.log('[ReviewsTable] Latest modal ratings:', this.latestModalRatings);
+    
+    // Save ratings if any were modified
+    const ratingsToSave = this.latestModalRatings || (this.modalData?.imageRatings);
+    if (ratingsToSave && this.selectedReviewForModal && Object.keys(ratingsToSave).length > 0) {
+      this.saveImageRatings(ratingsToSave);
+    }
+    
     this.isImageModalOpen = false;
     this.selectedReviewForModal = null;
     this.modalData = null;
+    this.latestModalRatings = null;
+  }
+
+  /**
+   * Save image ratings to the ratings file
+   */
+  private saveImageRatings(newRatings: { [filename: string]: number }): void {
+    if (!this.sourceFolder) return;
+    
+    console.log('[ReviewsTable] Saving image ratings:', newRatings);
+    
+    // Load existing ratings first to merge (don't overwrite)
+    this.galleryService.loadRatings(this.sourceFolder).subscribe({
+      next: (loadResponse) => {
+        const existingRatings = (loadResponse.success && loadResponse.ratings) ? loadResponse.ratings : {};
+        console.log('[ReviewsTable] Existing ratings:', existingRatings);
+        
+        // Merge: keep all existing, update with new ones
+        const mergedRatings = { ...existingRatings, ...newRatings };
+        console.log('[ReviewsTable] Merged ratings:', mergedRatings);
+        
+        // Save merged ratings
+        this.galleryService.saveRatings(this.sourceFolder!, mergedRatings).subscribe({
+          next: (saveResponse) => {
+            console.log('[ReviewsTable] Image ratings saved successfully:', saveResponse);
+          },
+          error: (err) => {
+            console.error('[ReviewsTable] Failed to save ratings:', err);
+          }
+        });
+      },
+      error: (err) => {
+        console.warn('[ReviewsTable] Failed to load existing ratings, saving new ratings only:', err);
+        // If we can't load existing, just save what we have
+        this.galleryService.saveRatings(this.sourceFolder!, newRatings).subscribe({
+          next: (saveResponse) => {
+            console.log('[ReviewsTable] Image ratings saved:', saveResponse);
+          },
+          error: (err2) => {
+            console.error('[ReviewsTable] Failed to save ratings:', err2);
+          }
+        });
+      }
+    });
   }
 }
