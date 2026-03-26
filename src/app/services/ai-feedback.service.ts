@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class AiFeedbackService {
-  private apiUrl = 'http://localhost:3000/api/feedback';
+  private apiUrl = 'http://localhost:3001/api/feedback';
 
   constructor(private http: HttpClient) { }
 

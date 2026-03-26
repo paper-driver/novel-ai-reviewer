@@ -31,7 +31,7 @@ export interface ReviewsListResponse {
   providedIn: 'root'
 })
 export class ReviewsFolderService {
-  private apiUrl = 'http://localhost:3000/api/reviews-folder';
+  private apiUrl = 'http://localhost:3001/api/reviews-folder';
 
   constructor(private http: HttpClient) { }
 

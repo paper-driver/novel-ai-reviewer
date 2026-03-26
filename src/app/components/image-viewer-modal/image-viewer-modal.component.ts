@@ -200,10 +200,10 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
           fullFilePath = fileName;
         }
         const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
-        this.currentImageUrl = `http://localhost:3000/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
+        this.currentImageUrl = `http://localhost:3001/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
       } else {
         // For reviews: use the standard images endpoint
-        this.currentImageUrl = `http://localhost:3000/api/images/${this.reviewData.folder}/${fileName}`;
+        this.currentImageUrl = `http://localhost:3001/api/images/${this.reviewData.folder}/${fileName}`;
       }
       
       console.log(`[ImageViewer] Image URL: ${this.currentImageUrl}`);
@@ -312,10 +312,10 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
         // For artist-gallery and prompt-grouping: use respective endpoints with encoded file path
         const fullFilePath = `${this.reviewData.folder}/${this.currentImageName}`;
         const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
-        metadataUrl = `http://localhost:3000/api/${endpoint}/image-metadata?filePath=${encodeURIComponent(fullFilePath)}`;
+        metadataUrl = `http://localhost:3001/api/${endpoint}/image-metadata?filePath=${encodeURIComponent(fullFilePath)}`;
       } else {
         // For reviews: use standard endpoint
-        metadataUrl = `http://localhost:3000/api/image-metadata/${this.reviewData.folder}/${this.currentImageName}`;
+        metadataUrl = `http://localhost:3001/api/image-metadata/${this.reviewData.folder}/${this.currentImageName}`;
       }
       
       console.log(`[ImageViewer] Fetching metadata from: ${metadataUrl}`);
@@ -528,10 +528,10 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
         fullFilePath = image;
       }
       const endpoint = apiType === 'artist-gallery' ? 'artist-gallery' : 'prompt-grouping';
-      url = `http://localhost:3000/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
+      url = `http://localhost:3001/api/${endpoint}/image?filePath=${encodeURIComponent(fullFilePath)}`;
     } else {
       // For reviews: use the standard images endpoint
-      url = `http://localhost:3000/api/images/${this.reviewData.folder}/${image}`;
+      url = `http://localhost:3001/api/images/${this.reviewData.folder}/${image}`;
     }
     
     // Cache the URL so it doesn't change on subsequent renders
@@ -902,7 +902,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     try {
       this.openFinderError = '';
       const response = await this.http.post<{ success: boolean; error?: string }>(
-        'http://localhost:3000/api/open-file',
+        'http://localhost:3001/api/open-file',
         { path: fullFilePath }
       ).toPromise();
 

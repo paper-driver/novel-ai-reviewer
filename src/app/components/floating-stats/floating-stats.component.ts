@@ -87,7 +87,7 @@ export class FloatingStatsComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    const url = `http://localhost:3000/api/feedback/stats?sourcePath=${encodeURIComponent(this.currentSourceFolder)}`;
+    const url = `http://localhost:3001/api/feedback/stats?sourcePath=${encodeURIComponent(this.currentSourceFolder)}`;
 
     this.http.get<{ success: boolean; stats: CorrectionStats; error?: string }>(url)
       .pipe(takeUntil(this.destroy$))

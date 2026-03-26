@@ -45,7 +45,7 @@ export class IllustrationQualityService {
   analyzeIllustration(filePath: string): Observable<IllustrationQualityScore> {
     console.log('[IllustrationQuality] Analyzing illustration:', filePath);
     return this.http.post<IllustrationQualityScore>(
-      'http://localhost:3000/api/analyze-illustration',
+      'http://localhost:3001/api/analyze-illustration',
       { filePath }
     );
   }
@@ -56,7 +56,7 @@ export class IllustrationQualityService {
   batchAnalyzeIllustrations(filePaths: string[]): Observable<IllustrationQualityScore[]> {
     console.log('[IllustrationQuality] Batch analyzing', filePaths.length, 'illustrations');
     return this.http.post<IllustrationQualityScore[]>(
-      'http://localhost:3000/api/batch-analyze-illustrations',
+      'http://localhost:3001/api/batch-analyze-illustrations',
       { filePaths }
     );
   }

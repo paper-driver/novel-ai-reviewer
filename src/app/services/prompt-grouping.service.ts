@@ -58,7 +58,7 @@ export class PromptGroupingService {
    */
   loadPromptGroups(folderPath: string, useCache: boolean = true): Observable<PromptGroupingResult> {
     return this.http.post<PromptGroupingResult>(
-      'http://localhost:3000/api/prompt-grouping/load-groups',
+      'http://localhost:3001/api/prompt-grouping/load-groups',
       { folderPath: folderPath, useCache: useCache }
     );
   }
@@ -68,7 +68,7 @@ export class PromptGroupingService {
    */
   getLoadingProgress(folderPath: string): Observable<LoadingProgress> {
     return this.http.get<LoadingProgress>(
-      `http://localhost:3000/api/prompt-grouping/progress?folderPath=${encodeURIComponent(folderPath)}`
+      `http://localhost:3001/api/prompt-grouping/progress?folderPath=${encodeURIComponent(folderPath)}`
     );
   }
 
@@ -77,7 +77,7 @@ export class PromptGroupingService {
    */
   getGroupImages(folderPath: string): Observable<{ images: string[] }> {
     return this.http.post<{ images: string[] }>(
-      'http://localhost:3000/api/prompt-grouping/group-images',
+      'http://localhost:3001/api/prompt-grouping/group-images',
       { folderPath }
     );
   }
@@ -87,7 +87,7 @@ export class PromptGroupingService {
    */
   getImageMetadata(filePath: string): Observable<ImageMetadata> {
     return this.http.get<ImageMetadata>(
-      `http://localhost:3000/api/prompt-grouping/image-metadata?filePath=${encodeURIComponent(filePath)}`
+      `http://localhost:3001/api/prompt-grouping/image-metadata?filePath=${encodeURIComponent(filePath)}`
     );
   }
 
@@ -98,7 +98,7 @@ export class PromptGroupingService {
     const fullFilePath = `${folderPath}/${filename}`;
     // Add cache-busting parameter to force fresh download and bypass stale cached partial files
     const cacheBuster = 'v2';
-    return `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}&thumbnail=true&v=${cacheBuster}`;
+    return `http://localhost:3001/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}&thumbnail=true&v=${cacheBuster}`;
   }
 
   /**
@@ -106,7 +106,7 @@ export class PromptGroupingService {
    */
   getImageUrl(folderPath: string, filename: string): string {
     const fullFilePath = `${folderPath}/${filename}`;
-    return `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}`;
+    return `http://localhost:3001/api/prompt-grouping/image?filePath=${encodeURIComponent(fullFilePath)}`;
   }
 
   /**
@@ -115,7 +115,7 @@ export class PromptGroupingService {
   async openFolderInFinder(folderPath: string): Promise<OpenFolderResponse> {
     try {
       const response = await this.http.post<OpenFolderResponse>(
-        'http://localhost:3000/api/open-folder',
+        'http://localhost:3001/api/open-folder',
         { path: folderPath }
       ).toPromise();
       return response || { success: false, error: 'No response from server' };
@@ -132,7 +132,7 @@ export class PromptGroupingService {
    */
   setGroupNickname(folderPath: string, groupId: number, nickname: string): Observable<any> {
     return this.http.post<any>(
-      'http://localhost:3000/api/prompt-grouping/set-nickname',
+      'http://localhost:3001/api/prompt-grouping/set-nickname',
       { folderPath, groupId, nickname }
     );
   }
@@ -150,7 +150,7 @@ export class PromptGroupingService {
     error?: string;
   }> {
     return this.http.post<any>(
-      'http://localhost:3000/api/prompt-grouping/copy-from-source',
+      'http://localhost:3001/api/prompt-grouping/copy-from-source',
       { sourcePath, destinationPath }
     );
   }
@@ -163,7 +163,7 @@ export class PromptGroupingService {
   saveRatings(folderPath: string, ratings: { [filename: string]: number }): Observable<any> {
     console.log('[PromptGroupingService] Saving ratings:', { folderPath, ratings });
     return this.http.post<any>(
-      'http://localhost:3000/api/ratings/save',
+      'http://localhost:3001/api/ratings/save',
       { folderPath, ratings }
     );
   }
@@ -176,7 +176,7 @@ export class PromptGroupingService {
   loadRatings(folderPath: string): Observable<{ success: boolean; ratings: { [filename: string]: number } }> {
     console.log('[PromptGroupingService] Loading ratings from:', folderPath);
     return this.http.get<any>(
-      `http://localhost:3000/api/ratings/load?folderPath=${encodeURIComponent(folderPath)}`
+      `http://localhost:3001/api/ratings/load?folderPath=${encodeURIComponent(folderPath)}`
     );
   }
 }

@@ -1,14 +1,27 @@
 {
   "name": "novel-ai-reviewer",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "description": "Novel AI Image Reviewer - Desktop Application",
+  "author": "Your Name",
+  "license": "MIT",
   "private": true,
+  "main": "electron.js",
+  "homepage": "/",
   "scripts": {
     "ng": "ng",
     "start": "concurrently \"node server.js\" \"ng serve\"",
     "start:modular": "concurrently \"node server.modular.js\" \"ng serve\"",
-    "build": "ng build",
+    "build": "ng build --base-href ./",
+    "build:web": "ng build",
     "test": "ng test",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "electron": "npm run build && electron .",
+    "electron:dev": "concurrently \"ng serve\" \"wait-on http://localhost:4200 && electron .\"",
+    "electron:prod": "npm run build && electron . --prod",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
     "@angular/animations": "~19.2.19",
@@ -34,9 +47,63 @@
     "@angular/cli": "~19.2.19",
     "@angular/compiler-cli": "~19.2.19",
     "concurrently": "^8.2.0",
-    "typescript": "~5.6.0"
+    "electron": "^41.0.4",
+    "electron-builder": "^26.8.1",
+    "electron-is-dev": "^3.0.1",
+    "typescript": "~5.6.0",
+    "wait-on": "^9.0.4"
   },
   "engines": {
     "node": ">=22.0.0 <23.0.0"
+  },
+  "build": {
+    "appId": "com.novelaireviewer.app",
+    "productName": "Novel AI Reviewer",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "electron.js",
+      "preload.js",
+      "dist/**/*",
+      "server.modular.js",
+      "server/**/*",
+      "data/**/*",
+      "google-vision-credentials.json",
+      "package.json",
+      "package-lock.json",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

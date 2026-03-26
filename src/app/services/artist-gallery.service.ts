@@ -47,7 +47,7 @@ export class ArtistGalleryService {
    */
   loadArtistGroups(sortedFolderPath: string): Observable<ArtistGalleryResult> {
     return this.http.post<ArtistGalleryResult>(
-      'http://localhost:3000/api/artist-gallery/load-groups',
+      'http://localhost:3001/api/artist-gallery/load-groups',
       { folderPath: sortedFolderPath }
     );
   }
@@ -57,7 +57,7 @@ export class ArtistGalleryService {
    */
   getGroupImages(folderPath: string): Observable<{ images: string[] }> {
     return this.http.post<{ images: string[] }>(
-      'http://localhost:3000/api/artist-gallery/group-images',
+      'http://localhost:3001/api/artist-gallery/group-images',
       { folderPath }
     );
   }
@@ -68,7 +68,7 @@ export class ArtistGalleryService {
   getImageMetadata(folderPath: string, filename: string): Observable<ImageMetadata> {
     const fullFilePath = `${folderPath}/${filename}`;
     return this.http.get<ImageMetadata>(
-      `http://localhost:3000/api/artist-gallery/image-metadata?filePath=${encodeURIComponent(fullFilePath)}`
+      `http://localhost:3001/api/artist-gallery/image-metadata?filePath=${encodeURIComponent(fullFilePath)}`
     );
   }
 
@@ -79,7 +79,7 @@ export class ArtistGalleryService {
     const fullFilePath = `${folderPath}/${filename}`;
     // Add cache-busting parameter to force fresh download and bypass stale cached partial files
     const cacheBuster = 'v2';
-    return `http://localhost:3000/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}&thumbnail=true&v=${cacheBuster}`;
+    return `http://localhost:3001/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}&thumbnail=true&v=${cacheBuster}`;
   }
 
   /**
@@ -87,7 +87,7 @@ export class ArtistGalleryService {
    */
   getImageUrl(folderPath: string, filename: string): string {
     const fullFilePath = `${folderPath}/${filename}`;
-    return `http://localhost:3000/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}`;
+    return `http://localhost:3001/api/artist-gallery/image?filePath=${encodeURIComponent(fullFilePath)}`;
   }
 
   /**
@@ -96,7 +96,7 @@ export class ArtistGalleryService {
   async openFolderInFinder(folderPath: string): Promise<OpenFolderResponse> {
     try {
       const response = await this.http.post<OpenFolderResponse>(
-        'http://localhost:3000/api/open-folder',
+        'http://localhost:3001/api/open-folder',
         { path: folderPath }
       ).toPromise();
       return response || { success: false, error: 'No response from server' };
@@ -121,7 +121,7 @@ export class ArtistGalleryService {
     error?: string;
   }> {
     return this.http.post<any>(
-      'http://localhost:3000/api/artist-gallery/copy-from-source',
+      'http://localhost:3001/api/artist-gallery/copy-from-source',
       { sourcePath, destinationPath }
     );
   }
@@ -134,7 +134,7 @@ export class ArtistGalleryService {
   saveRatings(folderPath: string, ratings: { [filename: string]: number }): Observable<any> {
     console.log('[ArtistGalleryService] Saving ratings:', { folderPath, ratings });
     return this.http.post<any>(
-      'http://localhost:3000/api/ratings/save',
+      'http://localhost:3001/api/ratings/save',
       { folderPath, ratings }
     );
   }
@@ -147,7 +147,7 @@ export class ArtistGalleryService {
   loadRatings(folderPath: string): Observable<{ success: boolean; ratings: { [filename: string]: number } }> {
     console.log('[ArtistGalleryService] Loading ratings from:', folderPath);
     return this.http.get<any>(
-      `http://localhost:3000/api/ratings/load?folderPath=${encodeURIComponent(folderPath)}`
+      `http://localhost:3001/api/ratings/load?folderPath=${encodeURIComponent(folderPath)}`
     );
   }
 }

@@ -48,7 +48,7 @@ export interface ArtistGroupResult {
   providedIn: 'root'
 })
 export class ReviewService {
-  private apiUrl = 'http://localhost:3000/api';
+  private apiUrl = 'http://localhost:3001/api';
   constructor(private http: HttpClient) {}
 
   /**

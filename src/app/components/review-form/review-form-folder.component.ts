@@ -138,7 +138,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
    * Load thumbnail from artist gallery folder
    */
   private loadArtistGalleryThumbnail(galleryFolderId: string): void {
-    this.http.post('http://localhost:3000/api/artist-gallery/group-images', {
+    this.http.post('http://localhost:3001/api/artist-gallery/group-images', {
       folderPath: galleryFolderId
     }).subscribe({
       next: (response: any) => {
@@ -163,7 +163,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
       return;
     }
     
-    this.http.post('http://localhost:3000/api/prompt-grouping/load-groups', {
+    this.http.post('http://localhost:3001/api/prompt-grouping/load-groups', {
       folderPath: this.sourceFolder
     }).subscribe({
       next: (response: any) => {
@@ -173,7 +173,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
             const firstImage = groupData.images[0];
             // Images are relative paths, prepend sourceFolder
             const fullImagePath = `${this.sourceFolder}/${firstImage}`;
-            this.thumbnailUrl = `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullImagePath)}&thumbnail=true&v=${Date.now()}`;
+            this.thumbnailUrl = `http://localhost:3001/api/prompt-grouping/image?filePath=${encodeURIComponent(fullImagePath)}&thumbnail=true&v=${Date.now()}`;
             console.log('[ReviewForm] Loaded prompt grouping thumbnail:', this.thumbnailUrl);
           }
         }

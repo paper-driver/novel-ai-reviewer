@@ -39,7 +39,7 @@ const createLegacyGroupingRoutes = require('./server/routes/legacyGroupingRoutes
 
 // Initialize Express app
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3001;
 
 // ===== CONFIGURATION =====
 process.env.GOOGLE_APPLICATION_CREDENTIALS = path.join(__dirname, 'google-vision-credentials.json');
@@ -173,8 +173,10 @@ app.use((err, req, res, next) => {
 
 // ===== START SERVER =====
 app.listen(PORT, () => {
-  logger.info('Server', `API Server listening on port ${PORT}`);
+  logger.info('Server', `[Server Ready] API Server listening on port ${PORT}`);
   logger.info('Server', `Health check available at http://localhost:${PORT}/health`);
+  // Also log to stdout for Electron to detect
+  console.log(`[Server Ready] http://localhost:${PORT}`);
   processBackgroundJobs();
 });
 

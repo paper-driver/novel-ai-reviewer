@@ -145,7 +145,7 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
    */
   private loadArtistGalleryThumbnail(review: Review): void {
     // Get images from the folder
-    this.http.post('http://localhost:3000/api/artist-gallery/group-images', {
+    this.http.post('http://localhost:3001/api/artist-gallery/group-images', {
       folderPath: review.foreign_id
     }).subscribe({
       next: (response: any) => {
@@ -167,7 +167,7 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
    * The groupData.images array contains relative paths from sourceFolder
    */
   private loadPromptGroupingThumbnail(review: Review): void {
-    this.http.post('http://localhost:3000/api/prompt-grouping/load-groups', {
+    this.http.post('http://localhost:3001/api/prompt-grouping/load-groups', {
       folderPath: this.sourceFolder
     }).subscribe({
       next: (response: any) => {
@@ -177,7 +177,7 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
             const firstImage = groupData.images[0];
             // The images array contains relative paths from sourceFolder, so prepend it
             const fullImagePath = `${this.sourceFolder}/${firstImage}`;
-            const thumbnailUrl = `http://localhost:3000/api/prompt-grouping/image?filePath=${encodeURIComponent(fullImagePath)}&thumbnail=true&v=${Date.now()}`;
+            const thumbnailUrl = `http://localhost:3001/api/prompt-grouping/image?filePath=${encodeURIComponent(fullImagePath)}&thumbnail=true&v=${Date.now()}`;
             this.reviewThumbnails[review.id] = thumbnailUrl;
             console.log('[ReviewsTable] Loaded prompt grouping thumbnail:', thumbnailUrl);
           }
@@ -290,7 +290,7 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
    * Load artist gallery images for modal
    */
   private loadArtistGalleryImagesForModal(review: Review): void {
-    this.http.post('http://localhost:3000/api/artist-gallery/group-images', {
+    this.http.post('http://localhost:3001/api/artist-gallery/group-images', {
       folderPath: review.foreign_id
     }).subscribe({
       next: (response: any) => {
@@ -349,7 +349,7 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
    * The groupData.images array contains relative paths from sourceFolder
    */
   private loadPromptGroupingImagesForModal(review: Review): void {
-    this.http.post('http://localhost:3000/api/prompt-grouping/load-groups', {
+    this.http.post('http://localhost:3001/api/prompt-grouping/load-groups', {
       folderPath: this.sourceFolder
     }).subscribe({
       next: (response: any) => {

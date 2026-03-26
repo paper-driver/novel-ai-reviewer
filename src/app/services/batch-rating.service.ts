@@ -48,7 +48,7 @@ export class BatchRatingService {
     console.log(`[BatchRating] Submitting batch job for ${imageFilenames.length} images`);
     
     return this.http.post<{ jobId: string; estimatedTime: string }>(
-      'http://localhost:3000/api/batch-rating/submit',
+      'http://localhost:3001/api/batch-rating/submit',
       {
         folderPath,
         imageFilenames,
@@ -64,7 +64,7 @@ export class BatchRatingService {
    */
   getBatchJobStatus(jobId: string): Observable<BatchRatingJob> {
     return this.http.get<BatchRatingJob>(
-      `http://localhost:3000/api/batch-rating/status/${jobId}`
+      `http://localhost:3001/api/batch-rating/status/${jobId}`
     );
   }
 
@@ -73,7 +73,7 @@ export class BatchRatingService {
    */
   getActiveJobs(): Observable<BatchRatingJob[]> {
     return this.http.get<BatchRatingJob[]>(
-      'http://localhost:3000/api/batch-rating/jobs'
+      'http://localhost:3001/api/batch-rating/jobs'
     );
   }
 
@@ -82,7 +82,7 @@ export class BatchRatingService {
    */
   cancelBatchJob(jobId: string): Observable<{ success: boolean }> {
     return this.http.post<{ success: boolean }>(
-      `http://localhost:3000/api/batch-rating/cancel/${jobId}`,
+      `http://localhost:3001/api/batch-rating/cancel/${jobId}`,
       {}
     );
   }
@@ -92,7 +92,7 @@ export class BatchRatingService {
    */
   getBatchResults(jobId: string): Observable<{ [filename: string]: number }> {
     return this.http.get<{ [filename: string]: number }>(
-      `http://localhost:3000/api/batch-rating/results/${jobId}`
+      `http://localhost:3001/api/batch-rating/results/${jobId}`
     );
   }
 
