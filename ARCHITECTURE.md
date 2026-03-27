@@ -17,19 +17,20 @@
 │  └───────────────────┘              └─────────────────────┘     │
 │           │                                                       │
 │           │ HTTP                   ┌─────────────────────┐     │
-│           └───────────────────────►│   Express Server    │     │
-│            localhost:3001          │   (port 3001)       │     │
+│           └───────────────────────►│ server.modular.js   │     │
+│            localhost:3001          │ (Express Server)    │     │
+│                                    │ port 3001           │     │
 │                                    │                     │     │
-│                                    │  - API routes       │     │
-│                                    │  - Services         │     │
-│                                    │  - Vision AI        │     │
-│                                    │  - File operations  │     │
+│                                    │ - 11 route modules  │     │
+│                                    │ - 49 endpoints      │     │
+│                                    │ - Services layer    │     │
+│                                    │ - Utils             │     │
 │                                    └──────────┬──────────┘     │
 │                                               │                  │
 │                                    ┌──────────▼──────────┐     │
 │                                    │   Local Storage     │     │
 │                                    │                     │     │
-│                                    │  - reviews.json     │     │
+│                                    │  - .reviews.json    │     │
 │                                    │  - folder .reviews  │     │
 │                                    └─────────────────────┘     │
 │                                                                   │
@@ -42,6 +43,10 @@
                 │  (External - AI Analysis)   │
                 └─────────────────────────────┘
 ```
+
+**Backend Architecture Note:**
+- **Current**: `server.modular.js` with clean architecture (11 route modules, services layer)
+- **Legacy**: `server.js` is a monolithic file kept for reference only - NOT used by the app
 
 ## Layers
 

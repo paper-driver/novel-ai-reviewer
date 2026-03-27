@@ -80,22 +80,32 @@ novel-ai-reviewer/
 │   ├── styles.css
 │   └── main.ts
 │
-├── server/                   # Express backend
-│   ├── routes/              # HTTP endpoints (Route Layer)
-│   ├── services/            # Business logic (Service Layer)
+├── server/                   # ✅ CURRENT: Express backend (modular, clean architecture)
+│   ├── routes/              # HTTP endpoints (Route Layer) - 11 modules
+│   ├── services/            # Business logic (Service Layer) - pure functions
 │   ├── utils/               # Shared utilities (Utility Layer)
 │   └── middleware/
 │
 ├── electron.js              # Electron main process
 ├── preload.js               # Electron security bridge
-├── server.modular.js        # Express server entry
+├── server.modular.js        # ✅ CURRENT: Express server entry point
+├── server.js                # ⚠️ LEGACY: Monolithic backend (reference only, not used)
 ├── package.json
 └── tsconfig.json
 ```
 
 ---
 
+**Architecture Note:**
+- `server.modular.js` is the currently active backend (started by Electron)
+- `server.js` is a legacy monolithic file kept for reference only
+- **Always add new features to `server/routes/` and `server/services/`, never to `server.js`**
+
 ## Adding a New Feature
+
+**Important**: The app uses a **modularized architecture** with clean separation of concerns.
+- ❌ **Do NOT** add code to `server.js` (legacy monolithic file)
+- ✅ **DO** follow the modular pattern: Service → Route
 
 ### Step 1: Create a Service
 

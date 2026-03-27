@@ -95,14 +95,21 @@ novel-ai-reviewer/
 │   │   ├── components/    # UI components
 │   │   └── services/      # Frontend services
 │   └── assets/
-├── server/                # Node.js backend (clean architecture)
+├── server/                # ✅ CURRENT: Node.js backend (modular, clean architecture)
+│   ├── routes/            # Express endpoints (1 file per feature)
 │   ├── services/          # Business logic (no HTTP code)
-│   ├── routes/            # Express endpoints
 │   └── utils/             # Shared utilities
+├── server.modular.js      # ✅ CURRENT: Express server entry point
+├── server.js              # ⚠️ LEGACY: Monolithic backend (keep for reference only)
 ├── electron.js            # Main Electron process
 ├── preload.js             # Electron security bridge
 └── data/                  # Local JSON data files
 ```
+
+**Important**: 
+- Use `server.modular.js` for running the app
+- All new features go in `server/routes/` and `server/services/`
+- `server.js` is kept for reference but is **not used** by the app
 
 ## How It Works
 
