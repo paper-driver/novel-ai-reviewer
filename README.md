@@ -294,7 +294,7 @@ npm run dist:linux       # Linux AppImage
 
 ## License
 
-Proprietary - Leon Mao
+Proprietary - paperdriver
 
 ---
 

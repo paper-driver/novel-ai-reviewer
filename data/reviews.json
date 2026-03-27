@@ -1,0 +1,506 @@
+[
+  {
+    "id": 1,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: pija_(pianiishimo), {{{artist: hero_neisan, artist: sohn_woohyoung}}}",
+    "review": "Observed some incosistent generation",
+    "ratings": {
+      "handFeet": "S",
+      "facialExpression": "A",
+      "anatomy": "A",
+      "object": "S",
+      "sideCharacter": "A",
+      "background": "B+"
+    },
+    "folder": "1",
+    "images": [
+      "sample-1.png",
+      "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1250496170.png",
+      "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-1693924251.png",
+      "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-3330318404.png",
+      "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-3824055674.png",
+      "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-489122915.png",
+      "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-2814988395.png",
+      "1girl, {{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breasts s-3656475166.png",
+      "sample-3.png",
+      "sample-2.png"
+    ],
+    "thumbnail": "sample-1.png"
+  },
+  {
+    "id": 2,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: ponchi, {{{artist: hero_neisan, artist: sohn_woohyoung}}}",
+    "review": "Observed some inconsistent generation",
+    "ratings": {
+      "handFeet": "A+",
+      "facialExpression": "A",
+      "anatomy": "A",
+      "object": "A+",
+      "sideCharacter": "A",
+      "background": "B+"
+    },
+    "folder": "2",
+    "images": [
+      "sample-3.png",
+      "sample-2.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-3609780233.png",
+      "sample-1.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-800424462.png"
+    ],
+    "thumbnail": "sample-3.png"
+  },
+  {
+    "id": 3,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: piko, {{{artist: hero_neisan, artist: sohn_woohyoung}}}",
+    "review": "Observed few incosistent generation",
+    "ratings": {
+      "handFeet": "A+",
+      "facialExpression": "A",
+      "anatomy": "A",
+      "object": "S",
+      "sideCharacter": "A",
+      "background": "A"
+    },
+    "folder": "3",
+    "images": [
+      "sample-3.png",
+      "1girl, {{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nude s-911013468.png",
+      "1girl, {{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nude s-4080970758.png",
+      "sample-1.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-1424321600.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-3618032251.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-670125615.png",
+      "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-1816570460.png",
+      "sample-2.png"
+    ],
+    "thumbnail": "sample-3.png"
+  },
+  {
+    "id": 4,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: janong, {{{artist: hero_neisan, artist: sohn_woohyoung}}}",
+    "review": "Observed some incosistent generation and malformed feet or fingers",
+    "ratings": {
+      "handFeet": "A",
+      "facialExpression": "A",
+      "anatomy": "A-",
+      "object": "A",
+      "sideCharacter": "A-",
+      "background": "A"
+    },
+    "folder": "4",
+    "images": [
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-4114902843.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-3228493669.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-3756054337.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2389267813.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-4246350095.png",
+      "sample-1.png",
+      "sample-3.png",
+      "1girl, {{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nude s-1287484058.png",
+      "sample-2.png"
+    ],
+    "thumbnail": "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-4114902843.png"
+  },
+  {
+    "id": 5,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: pija_(pianiishimo), {{artist: hero_neisan}}, {{{artist: sohn_woohyoung}}}",
+    "review": "Observed few incosistent generation and malformed feet or fingers",
+    "ratings": {
+      "handFeet": "S",
+      "facialExpression": "A",
+      "anatomy": "S",
+      "object": "S",
+      "sideCharacter": "A+",
+      "background": "B+"
+    },
+    "folder": "5",
+    "images": [
+      "1girl, {{{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large b s-2846128511 (1).png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-2162008987.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-4081737822.png",
+      "sample-3.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-413983982.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2842327497.png",
+      "sample-1.png",
+      "sample-2.png"
+    ],
+    "thumbnail": "1girl, {{{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large b s-2846128511 (1).png"
+  },
+  {
+    "id": 6,
+    "prompt": "artist: laserflip, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: chamichami, {{artist: hero_neisan}}, {{{artist: sohn_woohyoung}}}",
+    "review": "Observed some incosistent generation and missing some details for some scene but it also has really detailed drawing for other scenes",
+    "ratings": {
+      "handFeet": "A",
+      "facialExpression": "A",
+      "anatomy": "A-",
+      "object": "S",
+      "sideCharacter": "A",
+      "background": "A"
+    },
+    "folder": "6",
+    "images": [
+      "sample-2.png",
+      "1girl, {{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nude s-4243878719.png",
+      "sample-3.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-571988292.png",
+      "1girl, {{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nude s-678697736.png",
+      "1girl, {{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nude s-2721201960.png",
+      "1girl, {{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nude s-2031159778.png",
+      "sample-1.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1294510417.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2691915187.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2680266514.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2073578299.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-2297432102.png"
+    ],
+    "thumbnail": "sample-2.png"
+  },
+  {
+    "id": 7,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: pija_(pianiishimo), artist: hero_neisan, {{{artist: sohn_woohyoung}}}",
+    "review": "Observed some incosistent generation and not outputting expected image based on prompt but it has high quality image. Observed birth scene does not work really well for some scene but worked pretty good for shrine theme",
+    "ratings": {
+      "handFeet": "A",
+      "facialExpression": "A",
+      "anatomy": "S",
+      "object": "S",
+      "sideCharacter": "B+",
+      "background": "B"
+    },
+    "folder": "7",
+    "images": [
+      "sample-3.png",
+      "1girl, {{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude, s-2696950396.png",
+      "1girl, {{{{Ieiri shoko (jujutsu kaisen), brown eyes, brown hair, large breasts,  s-3584928649.png",
+      "sample-2.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3068182848.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-1446078879.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-2212637130.png",
+      "sample-1.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-1948606913.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-1438012232.png",
+      "1girl, {{{{Ieiri shoko (jujutsu kaisen), brown eyes, brown hair, large breasts,  s-2615344684.png",
+      "1girl, {{{{Ieiri shoko (jujutsu kaisen), brown eyes, brown hair, large breasts,  s-1753960177 (1).png"
+    ],
+    "thumbnail": "sample-3.png"
+  },
+  {
+    "id": 8,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: chamichami, {{{artist: hero_neisan, artist: sohn_woohyoung}}}",
+    "review": "Observed some incosistent generation and not outputting expected image based on prompt. Observed birth scene does not work really well for some scene but worked pretty good for shrine theme",
+    "ratings": {
+      "handFeet": "B",
+      "facialExpression": "A",
+      "anatomy": "B+",
+      "object": "A",
+      "sideCharacter": "B+",
+      "background": "B+"
+    },
+    "folder": "8",
+    "images": [
+      "1girl, {{{{Ieiri shoko (jujutsu kaisen), brown eyes, brown hair, large breasts,  s-3365744441.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3981033876.png",
+      "sample-3.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-157434658.png",
+      "sample-2.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-183843382.png",
+      "sample-1.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1819239929 (1).png"
+    ],
+    "thumbnail": "1girl, {{{{Ieiri shoko (jujutsu kaisen), brown eyes, brown hair, large breasts,  s-3365744441.png"
+  },
+  {
+    "id": 9,
+    "prompt": "artist: laserflip,artist:butcha-u, artist:sohn_woohyoung, [artist:aiue oka],{artist:cor369}, {{artist: yd orange maru}}, artist:chamchami",
+    "review": "Observed some incosistent generation. lack some detail in image and looks more like an illustration instead of an art. birth scene is inconsistent but side chara often looks copy paste",
+    "ratings": {
+      "handFeet": "B",
+      "facialExpression": "A",
+      "anatomy": "B",
+      "object": "B+",
+      "sideCharacter": "B-",
+      "background": "B"
+    },
+    "folder": "9",
+    "images": [
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1062410053.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-2719141528.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1638242844.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-714605317.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1796560763.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3613784925.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-739069161.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-2283444404.png",
+      "sample-1.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-2474989223.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1243990198.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-2506582811.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1513032181.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1513032181 (1).png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-2264717862.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1355103898.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-2649006860.png",
+      "sample-2.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3345177497.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3424060336.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3408779423.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3408779424.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3118943064.png",
+      "1girl, {{{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, n s-2952497088.png",
+      "1girl, {{{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, n s-1271079303.png",
+      "sample-3.png"
+    ],
+    "thumbnail": "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1062410053.png"
+  },
+  {
+    "id": 10,
+    "prompt": "artist: laserflip,artist:butcha-u,{artist:cor369}, {{{artist: aiue oka}}}, artist:chamchami",
+    "review": "Observed some incosistent generation but most of output follows key prompts. However, line of image is thick and it looks more like illustration. Angle of image is more dynamic in some case",
+    "ratings": {
+      "handFeet": "B",
+      "facialExpression": "B",
+      "anatomy": "B",
+      "object": "B",
+      "sideCharacter": "B",
+      "background": "B"
+    },
+    "folder": "10",
+    "images": [
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-881768204.png",
+      "sample-1.png",
+      "sample-2.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2606086635.png",
+      "sample-3.png"
+    ],
+    "thumbnail": "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-881768204.png"
+  },
+  {
+    "id": 11,
+    "prompt": "artist: laserflip, artist:butcha-u,{artist:thirty8ight}, {{{artist: yd orange maru}}}, artist:chamchami",
+    "review": "Observed some incosistent generation but most of output follows key prompts. The proportion of main chara is pretty good and accessaries are generated pretty accurate with less mistake. However, background image and side chara generation lacks significant detail most of times",
+    "ratings": {
+      "handFeet": "B+",
+      "facialExpression": "S",
+      "anatomy": "B-",
+      "object": "A",
+      "sideCharacter": "C",
+      "background": "C"
+    },
+    "folder": "11",
+    "images": [
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-4288182233.png",
+      "sample-2.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-4079095421.png",
+      "sample-3.png",
+      "sample-1.png",
+      "1girl, {{{{èä¾¿å¨}}}}, japanese text, tattoo on the female thigh, {{{{kugisaki noba s-1401560247.png",
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-1430450404.png",
+      "1girl, {{{tattoo on the thigh, penis shaped tattoo}}} {{{{kugisaki nobara (Jujut s-1430450404.png",
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-1469514260.png",
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-1374634587.png",
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-345502428.png"
+    ],
+    "thumbnail": "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-4288182233.png"
+  },
+  {
+    "id": 12,
+    "prompt": "artist: laserflip,artist:Aiue Oka, {{artist:butcha-u}},{artist:thirty8ight}, {{{artist: yd orange maru}}}, artist:chamchami",
+    "review": "Some scene (city) is not really working as expected and observed some inconsistent output. However, it has really high quality and crisp image generation for temple scene. Monster imsage is really scary and convincing",
+    "ratings": {
+      "handFeet": "A+",
+      "facialExpression": "A+",
+      "anatomy": "A",
+      "object": "A+",
+      "sideCharacter": "S",
+      "background": "B-"
+    },
+    "folder": "12",
+    "images": [
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2141825365.png",
+      "1girl, {{{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large b s-2382123506.png",
+      "sample-2.png",
+      "sample-3.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-1645967109.png",
+      "1girl, {{{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large b s-3272162728.png",
+      "sample-1.png"
+    ],
+    "thumbnail": "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2141825365.png"
+  },
+  {
+    "id": 13,
+    "prompt": "artist: laserflip,artist:Aiue Oka, artist:butcha-u,{artist:thirty8ight}, {{{artist: yd orange maru}}}, artist:chamchami",
+    "review": "Observed inconsistent image output often for some scene but temple scene output is fairly consistent. image is fairly detail for main chara but backgorund and side chara lacks details. lack details in accessaries as well",
+    "ratings": {
+      "handFeet": "B",
+      "facialExpression": "A+",
+      "anatomy": "A",
+      "object": "B",
+      "sideCharacter": "B",
+      "background": "C"
+    },
+    "folder": "13",
+    "images": [
+      "1girl, {{{{Kurashiki Reina (Saimin Seishidou), blue eyes, blonde hair, large bre s-2343352000.png",
+      "1girl, {{{{Kurashiki Reina (Saimin Seishidou), blue eyes, blonde hair, large bre s-2293076289_upscale.png",
+      "1girl, {{{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large b s-53632918.png",
+      "sample-1.png",
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-2777753938.png",
+      "sample-2.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-3687406596.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-1457109172.png",
+      "sample-3.png",
+      "1girl, {{{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large b s-2275960127.png"
+    ],
+    "thumbnail": "1girl, {{{{Kurashiki Reina (Saimin Seishidou), blue eyes, blonde hair, large bre s-2343352000.png"
+  },
+  {
+    "id": 14,
+    "prompt": "artist: laserflip,artist:butcha-u,{artist:thirty8ight}, {{{artist: yd orange maru}}}, artist:chamchami",
+    "review": "Observed inconsistent image generation often especially at city scene. It has potential at temple scene but generation is not consistent everytime and require repeat generation for some acceptable output",
+    "ratings": {
+      "handFeet": "B",
+      "facialExpression": "B+",
+      "anatomy": "A-",
+      "object": "B",
+      "sideCharacter": "B",
+      "background": "C"
+    },
+    "folder": "14",
+    "images": [
+      "sample-3.png",
+      "1girl, {{{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, n s-1383495834.png",
+      "sample-2.png",
+      "1girl, {{{{yae miko, purple eyes, pink hair, large breasts, wide hips, nude, nak s-3329620678.png",
+      "1girl, {{{{raiden shogun, purple eyes, purple hair, large breasts, wide hips, nu s-1461512429.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1454774066 (2).png",
+      "1girl, {{{{mei mei (jujutsu kaisen), black eyes, white hair, large breasts, wide s-531852636.png",
+      "1girl, {{{{Ieiri shoko (jujutsu kaisen), brown eyes, brown hair, large breasts,  s-3336418945.png",
+      "sample-1.png"
+    ],
+    "thumbnail": "sample-3.png"
+  },
+  {
+    "id": 15,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: jabara_tornado, artist: pija_(pianiishimo), {artist: hero_neisan}, {{ artist: sohn_woohyoung}}",
+    "review": "Fairly consistent quality generation. Image has detail on both main and side chara. However, birth scene works most of time but not convincing enough for viewer sometimes",
+    "ratings": {
+      "handFeet": "S",
+      "facialExpression": "S",
+      "anatomy": "A+",
+      "object": "A+",
+      "sideCharacter": "A+",
+      "background": "A"
+    },
+    "folder": "15",
+    "images": [
+      "sample-1.png",
+      "sample-3.png",
+      "sample-2.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1752183761.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-3674196534.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-1853885861.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-819039525.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-4058017223.png",
+      "1girl, {{{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, n s-4246164717.png",
+      "1girl, {{{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, n s-1710959473.png",
+      "1girl, {{{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, n s-2201818007.png"
+    ],
+    "thumbnail": "sample-1.png"
+  },
+  {
+    "id": 16,
+    "prompt": "{artist: laserflip}, artist:butcha-u, {artist: cor369}, [artist: jabara_tornado], artist: pija_(pianiishimo), {artist: hero_neisan}, {{ artist: sohn_woohyoung}}",
+    "review": "Fairly consistent quality generation. Image has detail on both main and side chara. However, birth scene works most of time but not convincing enough for viewer sometimes. Observed feet detail can be improved as some image has no toe detail",
+    "ratings": {
+      "handFeet": "S",
+      "facialExpression": "A+",
+      "anatomy": "A+",
+      "object": "A+",
+      "sideCharacter": "A",
+      "background": "A"
+    },
+    "folder": "16",
+    "images": [
+      "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2021478460.png",
+      "sample-3.png",
+      "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2838957069.png",
+      "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-4088724313.png",
+      "1girl, {{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, na s-871727571.png",
+      "sample-1.png",
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-2253742846.png",
+      "1girl, {{{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breas s-3397686785.png",
+      "sample-2.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-725201622.png",
+      "1girl, {{{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nu s-1700752229.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-634873409.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-3846272382.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-1465864332.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2617740516.png",
+      "1girl, {{{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, n s-2565329597.png"
+    ],
+    "thumbnail": "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2021478460.png"
+  },
+  {
+    "id": 17,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, [artist: yd_(orange_maru)], artist: pija_(pianiishimo), artist: hero_neisan, {{ artist: sohn_woohyoung}}",
+    "review": "Fairly consistent quality generation. Image has detail on both main and side chara. However, birth scene works most of time but not convincing enough for viewer sometimes. Observed feet detail can be improved as some image has no toe detail",
+    "ratings": {
+      "handFeet": "S",
+      "facialExpression": "A+",
+      "anatomy": "A",
+      "object": "A+",
+      "sideCharacter": "A",
+      "background": "A"
+    },
+    "folder": "17",
+    "images": [
+      "1girl, {{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, na s-2595114349.png",
+      "sample-1.png",
+      "1girl, {{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, na s-1340239561.png",
+      "sample-2.png",
+      "1girl, {{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breast s-4247015389.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-3997628282.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-3029789606.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-1382670581.png",
+      "sample-3.png"
+    ],
+    "thumbnail": "1girl, {{{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, na s-2595114349.png"
+  },
+  {
+    "id": 18,
+    "prompt": "{artist: laserflip}, [artist:butcha-u], {artist: cor369}, artist: yd_(orange_maru), artist: hero_neisan, {{{artist: sohn_woohyoung, artist: poper}}}",
+    "review": "Fairly consistent quality generation. Image has detail on both main and side chara. Birth scene is getting better, seeing more convincing image. background detail can be improved",
+    "ratings": {
+      "handFeet": "S",
+      "facialExpression": "S",
+      "anatomy": "A+",
+      "object": "A+",
+      "sideCharacter": "A",
+      "background": "A"
+    },
+    "folder": "18",
+    "images": [
+      "sample-2.png",
+      "1girl, {{asuna (blue archive), blue eyes, blonde hair, long hair, large breasts, s-2227076344.png",
+      "sample-3.png",
+      "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-4151758179.png",
+      "1girl, {{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breast s-2409284018.png",
+      "1girl, {{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breast s-4244884302.png",
+      "1girl, {{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breast s-1622124667.png",
+      "1girl, {{{kugisaki nobara (Jujutsu kaisen), brown eyes, brown hair, large breast s-4028681107.png",
+      "1girl, {{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nud s-4074088161.png",
+      "1girl, {{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nud s-1937878870.png",
+      "1girl, {{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nud s-1211936379.png",
+      "1girl, {{{kugisaki nobara, brown eyes, brown hair, large breasts, wide hips, nud s-2631691978.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-580262746.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-63930109.png",
+      "1girl, {{{Miyajima Tsubaki (Saimin Seishidou), purple eyes, black hair, large br s-4064706729.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-3137541340.png",
+      "sample-1.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-1270712415.png",
+      "1girl, {{{kitagawa marin, pink eyes, blonde hair, large breasts, wide hips, nude s-2331423354.png",
+      "1girl, {{ayase momo, brown eyes, brown hair, large breasts, wide hips, nude, nak s-2446545526.png"
+    ],
+    "thumbnail": "sample-2.png"
+  }
+]
