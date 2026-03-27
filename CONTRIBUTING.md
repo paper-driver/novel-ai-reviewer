@@ -39,12 +39,28 @@ npm install
 
 ### Add Google Vision Credentials
 
-Create `google-vision-credentials.json` in project root:
+⚠️ **IMPORTANT - Credentials Security**:
+- Your `google-vision-credentials.json` is **PRIVATE** and **NEVER committed to Git**
+- It's already in `.gitignore` - do NOT remove it
+- Each developer uses their own credentials
 
-```bash
-# Copy from your Google Cloud Console
-cp ~/Downloads/google-vision-credentials.json .
-```
+**Setup:**
+
+1. Download your Google Cloud Vision service account key from [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts)
+
+2. Copy it to project root (NOT committed):
+   ```bash
+   cp ~/Downloads/google-vision-credentials.json .
+   ```
+
+3. **NEVER** share this file with others - each person needs their own credentials
+
+4. Git will ignore it automatically - verify it's not tracked:
+   ```bash
+   git status  # Should NOT show google-vision-credentials.json
+   ```
+
+**For reference**, see `google-vision-credentials.example.json` to understand the file structure.
 
 ### Start Development Server
 

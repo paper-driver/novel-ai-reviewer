@@ -10,7 +10,18 @@ const PORT = 3000;
 
 // Initialize Google Cloud Vision client
 // Set environment variable to the credentials JSON file
-process.env.GOOGLE_APPLICATION_CREDENTIALS = path.join(__dirname, 'google-vision-credentials.json');
+const credentialsPath = path.join(__dirname, 'google-vision-credentials.json');
+
+// Check if credentials file exists
+if (!fs.existsSync(credentialsPath)) {
+  console.error('[Server] ERROR: google-vision-credentials.json not found!');
+  console.error('[Server] Please add your Google Cloud Vision credentials:');
+  console.error('[Server] 1. Download from: https://console.cloud.google.com/iam-admin/serviceaccounts');
+  console.error('[Server] 2. Copy to project root: cp ~/Downloads/google-vision-credentials.json .');
+  console.error('[Server] Image analysis features will not work without credentials.');
+}
+
+process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
 const visionClient = new vision.ImageAnnotatorClient();
 
 app.use(cors());

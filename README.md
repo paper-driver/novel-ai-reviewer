@@ -174,13 +174,24 @@ See [API.md](./API.md) for complete endpoint documentation.
 - **Verify Node.js**: `which node` (must return a path)
 - **Try port 3001**: `curl http://localhost:3001/health`
 
-#### 3. Google Vision API Errors
+#### 3. Google Vision API Credentials
+
 **Symptom**: "Cannot find module... google-vision-credentials.json"
-- **Solution**: Ensure credentials file exists in project root:
-  ```bash
-  ls -la google-vision-credentials.json
-  ```
-- **Get credentials** from [Google Cloud Console](https://console.cloud.google.com)
+
+The app requires Google Cloud Vision API credentials to analyze images. **Each developer must use their own credentials:**
+
+1. Create a Google Cloud project and service account at [Cloud Console](https://console.cloud.google.com)
+2. Download the JSON key file
+3. Copy it to project root:
+   ```bash
+   cp ~/Downloads/google-vision-credentials.json .
+   ```
+4. Verify it's NOT tracked by Git:
+   ```bash
+   git status  # Should NOT show google-vision-credentials.json
+   ```
+
+⚠️ **SECURITY**: Your credentials are **never shared or committed**. The file is in `.gitignore` for your protection. See `google-vision-credentials.example.json` for the file structure.
 
 #### 4. App Keeps Spawning/Crashing
 **Symptom**: Multiple app instances, high CPU usage

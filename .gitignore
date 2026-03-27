@@ -4,3 +4,8 @@ generated/
 dist/
 .vscode/
 .DS_Store
+
+# Credentials (NEVER commit these!)
+google-vision-credentials.json
+*.env
+*.env.local
