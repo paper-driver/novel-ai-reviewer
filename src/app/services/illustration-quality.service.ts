@@ -51,7 +51,9 @@ export class IllustrationQualityService {
   }
 
   /**
+   * ⚠️ DEPRECATED: Not currently used by frontend
    * Batch analyze multiple illustrations
+   * Kept for potential future use
    */
   batchAnalyzeIllustrations(filePaths: string[]): Observable<IllustrationQualityScore[]> {
     console.log('[IllustrationQuality] Batch analyzing', filePaths.length, 'illustrations');

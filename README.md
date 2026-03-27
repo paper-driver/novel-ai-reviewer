@@ -15,10 +15,50 @@ A powerful desktop application for organizing, rating, and analyzing AI-generate
 
 - **Artist Gallery**: Group images by artist tags with ratings
 - **Prompt Grouping**: Group images by identical prompts
-- **AI Quality Analysis**: Get automated quality scores (0-10) for illustrations
+- **AI Quality Analysis**: Get automated quality scores (0-10) for illustrations with detailed breakdown
+- **Pattern Learning**: AI learns from your feedback to improve scoring accuracy
 - **Batch Operations**: Rate multiple images at once
+- **Feedback System**: Correct AI scores and help train the pattern learning system
 - **Cross-platform**: macOS (ARM64), Windows, Linux
 - **Offline-first**: All data stored locally
+
+## Detailed Features
+
+### 🎨 Image Organization
+- Organize by artist (extracted from metadata)
+- Group by identical prompts
+- View detailed image metadata (dimensions, file size, creation date)
+- Browse with ratings dashboard
+
+### ⭐ Rating System
+- Rate images on 0-10 scale
+- Persistent storage (never lose ratings)
+- Batch rating for efficiency
+- Individual or folder-level ratings
+- Rating statistics and analytics
+
+### 🤖 AI Analysis Features
+- **Google Vision API Integration**: Professional image analysis
+- **Detailed Breakdown**: 
+  - Sharpness & clarity
+  - Composition & framing
+  - Color balance
+  - Component detection (objects, faces, etc.)
+- **Confidence Scoring**: See how confident the AI is in its score (0-100%)
+- **Pattern Learning**: System learns from corrections to improve future scores
+- **Feedback Submission**: Correct AI scores and explain why (teaches the system)
+
+### 📊 Analytics & Insights
+- Rating distribution charts
+- Average quality scores by artist
+- Batch processing with progress tracking
+- Feedback history per folder
+
+### 💾 Data Management
+- All data stored locally (no cloud sync)
+- .reviews.json files in your folders
+- .ai-feedback.json for correction history
+- Easy backup and portability
 
 ## Getting Started
 
@@ -93,29 +133,79 @@ novel-ai-reviewer/
 
 ## API Endpoints
 
-All endpoints available at `http://localhost:3001`:
+All endpoints available at `http://localhost:3001`. The app implements **49+ endpoints** across 11 route modules:
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/health` | Server health check |
-| POST | `/api/reviews/save` | Save image ratings |
-| GET | `/api/reviews/get` | Retrieve ratings |
-| POST | `/api/analyze-illustration` | Get AI quality score |
-| GET | `/api/images` | List images in folder |
+| Category | Key Endpoints |
+|----------|---------------|
+| Vision Analysis | `POST /api/analyze-illustration` |
+| Ratings | `GET /api/ratings/load`, `POST /api/ratings/save` |
+| Artist Gallery | `POST /api/artist-gallery/load-groups`, `GET /api/artist-gallery/image`, etc. (7 endpoints) |
+| Prompt Grouping | `POST /api/prompt-grouping/load-groups`, `GET /api/prompt-grouping/progress`, etc. (7 endpoints) |
+| Batch Rating | `POST /api/batch-rating/submit`, `GET /api/batch-rating/status/:jobId`, etc. (5 endpoints) |
+| Feedback | `POST /api/feedback/submit`, `GET /api/feedback/analysis`, `GET /api/feedback/list`, etc. (6 endpoints) |
+| Reviews Folder | `GET /api/reviews-folder/list`, `POST /api/reviews-folder/create`, etc. (6 endpoints) |
+| Legacy API | `POST /api/group-by-artists/:folder`, `POST /api/group-by-artists-path` (Still actively used) |
 
-See [API.md](./API.md) for detailed documentation.
+See [API.md](./API.md) for complete endpoint documentation.
 
-## Desktop App Issues
+## Troubleshooting
 
-### Port 3001 Not Responding
-- Check logs: `~/Library/Application Support/novel-ai-reviewer/app.log`
-- Kill processes: `killall -9 "Novel AI Reviewer" node`
-- Rebuild: `npm run dist:mac`
+### Common Issues
 
-### Server Won't Start
-- Ensure Node.js is installed: `which node`
-- Check app logs for error messages
-- Verify port 3001 is free: `lsof -i :3001`
+#### 1. API Call Fails (HTTP Status 0)
+**Symptom**: "Http failure response... status 0 Unknown Error"
+- **Solution**: Ensure port 3001 is free and server started
+  ```bash
+  lsof -i :3001
+  killall -9 node  # if needed
+  npm run dist:mac  # rebuild
+  ```
+
+#### 2. Server Won't Start
+**Symptom**: App loads but can't reach API
+- **Check logs**: `~/Library/Application Support/novel-ai-reviewer/app.log`
+- **Verify Node.js**: `which node` (must return a path)
+- **Try port 3001**: `curl http://localhost:3001/health`
+
+#### 3. Google Vision API Errors
+**Symptom**: "Cannot find module... google-vision-credentials.json"
+- **Solution**: Ensure credentials file exists in project root:
+  ```bash
+  ls -la google-vision-credentials.json
+  ```
+- **Get credentials** from [Google Cloud Console](https://console.cloud.google.com)
+
+#### 4. App Keeps Spawning/Crashing
+**Symptom**: Multiple app instances, high CPU usage
+- **Fix**: Kill all processes and rebuild:
+  ```bash
+  killall -9 "Novel AI Reviewer" node npm
+  rm -rf dist/mac-arm64 dist/*.dmg dist/*.zip
+  npm run dist:mac
+  ```
+
+#### 5. Ratings Not Saving
+**Symptom**: Ratings disappear after restart
+- **Solution**: Check file permissions on data folder:
+  ```bash
+  chmod 755 ~/Library/Application\ Support/novel-ai-reviewer/
+  ```
+- **Verify data files**: Look for `reviews.json` in data directory
+
+### Getting Help
+
+1. **Check the logs first**:
+   ```bash
+   tail -f ~/Library/Application\ Support/novel-ai-reviewer/app.log
+   ```
+
+2. **Common log messages**:
+   - `[Electron]` - App startup
+   - `[Server Ready]` - Backend started
+   - `[Server stderr]` - Backend errors
+   - `[IPC]` - Inter-process communication
+
+3. **Still stuck?** Review [ARCHITECTURE.md](./ARCHITECTURE.md) for system design details
 
 ## Development
 

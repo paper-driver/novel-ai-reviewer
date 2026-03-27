@@ -74,6 +74,7 @@ function createVisionAnalysisRouter(visionAnalysisService, feedbackService) {
 
   /**
    * POST /api/batch-analyze-illustrations
+   * ⚠️ DEPRECATED: Not currently used by frontend
    * Analyze multiple illustrations in batch
    * NOW includes learned patterns from ALL feedback (same as single-image analysis)
    * Body: { folderPath: "/path/to/folder", filenames?: ["file1.png", "file2.png"], sourcePath?: "/path/to/feedback" }

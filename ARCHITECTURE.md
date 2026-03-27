@@ -149,54 +149,174 @@ Service: Processes response, calculates score
 Frontend: Displays result
 ```
 
-## Packaged App Challenges
+## Electron Packaging & Distribution
 
-### Problem: ASAR Archive
-Electron builder packages app into `.asar` archive. Node.js **cannot execute require()** from inside ASAR.
+### The ASAR Challenge
+Electron packages apps into `.asar` archive (like a ZIP file). **Critical issue**: Node.js cannot execute `require()` from inside ASAR archives.
 
-### Solution: Extract to Temp
-On startup, `electron.js` extracts files to OS temp:
-```javascript
-const tempDir = path.join(app.getPath('temp'), 'novel-ai-reviewer');
-
-// Copy server, node_modules, and credentials to temp
-copyDirSync(sourceServer, destServerDir);
-copyDirSync(sourceModules, destModules);
-fs.copyFileSync(sourceCredentials, destCredentials);
-
-// Run server from temp directory
-serverProcess = spawn(nodeBinary, [destServerJS]);
+**Problem Flow**:
+```
+app.isPackaged = true
+   ↓
+Files bundled into app.asar
+   ↓
+Node tries to require() server.js from asar
+   ↓
+❌ FAILS: "ENOENT - cannot find module"
 ```
 
+### Solution: Extract to Temp on Startup
+
+`electron.js` handles this automatically:
+
+1. **On app startup**:
+   ```javascript
+   const tempDir = path.join(app.getPath('temp'), 'novel-ai-reviewer');
+   fs.rmSync(tempDir, { recursive: true, force: true });  // Clean start
+   ```
+
+2. **Copy required files to temp**:
+   ```javascript
+   copyDirSync(sourceServer, tempDir + '/server');
+   copyDirSync(sourceModules, tempDir + '/node_modules');
+   fs.copyFileSync(sourceCredentials, tempDir + '/google-vision-credentials.json');
+   ```
+
+3. **Spawn server from temp**:
+   ```javascript
+   spawn(nodeBinary, [tempDir + '/server.modular.js']);
+   ```
+
 Files extracted:
-- `server/` - Express routes and services
-- `node_modules/` - All dependencies
+- `server/` - Backend code
+- `node_modules/` - Dependencies
 - `data/` - Local databases
 - `google-vision-credentials.json` - API credentials
 
-Temp directory is **cleared on each startup** to ensure fresh extraction.
+### Node Binary Detection
+
+The app finds Node.js using this priority:
+1. `/opt/homebrew/bin/node` (macOS ARM64)
+2. `/usr/local/bin/node` (macOS Intel)
+3. `/usr/bin/node` (Linux)
+4. System PATH lookup
+
+### Build Output
+
+```bash
+npm run dist:mac    # Creates .dmg installer
+npm run dist:win    # Creates .exe installer
+npm run dist:linux  # Creates .AppImage
+```
+
+File: `dist/Novel AI Reviewer-1.0.0-arm64.dmg` (~230 MB)
+
+
 
 ## Storage
 
-- **reviews.json**: Central image ratings file (path → 0-10 score)
-- **.reviews.json**: Per-folder review data stored alongside images
-- All data persisted as plain JSON for easy backup and portability
+The app uses JSON-based persistent storage for maximum portability:
+
+### File Structure
+```
+~/your-image-folder/
+├── image1.png
+├── image2.png
+├── .reviews.json           # Ratings for images in this folder
+├── .ai-feedback.json       # User feedback on AI scores (learning data)
+└── .prompt-mapping.json    # Cached prompt grouping
+```
+
+### Data Files
+- **reviews.json**: Central file with all image ratings (path → 0-10 score)
+- **.reviews.json**: Per-folder review data (stored with your images)
+- **.ai-feedback.json**: User corrections and reasoning (per folder)
+- **.prompt-mapping.json**: Cached prompt grouping (performance optimization)
+
+### Storage Benefits
+- ✅ Easy to backup (just copy folders)
+- ✅ Version control friendly (text-based JSON)
+- ✅ No database setup needed
+- ✅ Ratings travel with images
+- ✅ Offline operation (no cloud required)
 
 ## Services
 
-| Service | Purpose |
-|---------|---------|
-| ReviewsService | Save/load ratings |
-| FileSystemService | File operations |
-| ImageMetadataService | Extract image metadata |
-| ImageServingService | Serve images to frontend |
-| VisionAnalysisService | Google Vision AI analysis |
-| FolderOperationsService | Folder scanning |
-| PromptGroupingService | Group images by prompt |
-| ArtistGalleryService | Group images by artist |
-| BatchRatingService | Batch operations |
+| Service | Purpose | Key Methods |
+|---------|---------|-------------|
+| ReviewsService | Save/load ratings | save(), get(), getAll() |
+| FileSystemService | File operations | readDirectory(), writeFile() |
+| ImageMetadataService | Extract image metadata | getMetadata() |
+| ImageServingService | Serve images | serveImage(), serveThumbnail() |
+| VisionAnalysisService | Google Vision API analysis | analyzeImage(), analyzeQuality() |
+| FolderOperationsService | Folder scanning | loadImages(), getStructure() |
+| PromptGroupingService | Group by identical prompts | groupByPrompt(), getGroups() |
+| ArtistGalleryService | Group by artist tag | groupByArtist(), getArtists() |
+| BatchRatingService | Batch operations | startJob(), getStatus() |
+| **FeedbackService** | **User corrections & learning** | **submitFeedback(), loadFeedback()** |
+| RatingsService | Rating persistence | save(), load() |
+| LegacyArtistGroupingService | Backward compatibility | legacyGrouping() |
 
-## Build Pipeline
+### Feedback & Learning System
+
+The **FeedbackService** enables:
+1. **User Corrections**: Users adjust AI scores they disagree with
+2. **Reasoning**: Explain why the adjustment was made
+3. **Component-level Feedback**: Correct specific analysis aspects
+4. **Pattern Learning**: System learns from corrections to improve future scores
+5. **Persistence**: Feedback stored in `.ai-feedback.json` per folder
+
+**Data Flow**:
+```
+User rates image → AI gives score (7/10)
+   ↓
+User sees score → Disagrees (wants 8/10)
+   ↓
+User submits feedback with reasoning
+   ↓
+FeedbackService saves to .ai-feedback.json
+   ↓
+VisionAnalysisService reads feedback
+   ↓
+Applies learned patterns to future analyses
+```
+
+## Electron IPC Communication
+
+The app uses Electron's IPC (Inter-Process Communication) for secure communication between Angular (renderer) and Electron main process.
+
+### Folder Picker (IPC Example)
+```
+Frontend (Angular)
+   ↓
+ipcRenderer.invoke('select-folder')
+   ↓ IPC Channel
+Electron Main
+   ↓ (shows native file dialog)
+ipcMain.handle('select-folder', callback)
+   ↓
+Returns: { canceled: false, filePaths: [...] }
+   ↓
+Frontend receives selected folder path
+```
+
+### Security Configuration
+**Important**: The app sets `webSecurity: false` in BrowserWindow:
+```javascript
+mainWindow = new BrowserWindow({
+  webPreferences: {
+    webSecurity: false  // Allow file:// access to http://localhost
+  }
+});
+```
+
+This is required because:
+- Frontend loads via `file://` protocol (from packaged app)
+- Backend runs on `http://localhost:3001`
+- By default, browser blocks cross-protocol requests
+- **Safe here** because localhost is trusted internal communication
+
+
 
 1. **Angular Build** (`npm run build:app`)
    - Compiles TypeScript → JavaScript
