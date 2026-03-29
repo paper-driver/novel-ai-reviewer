@@ -1,0 +1,10 @@
+# Development Instructions
+- Any change should not break existing feature unless prompt specified
+- Any change should be designed and implemented with consideration app will be released as a desktop app
+- Any change should be designed and implemented with consideration of maintainability
+- Any change should be designed and implemented with consideration of decomposition, abstraction, encapsulation, and object oriented design to create modular and reusable code
+- Any change should be reviewed by before implementation.
+- Avoid creating duplicated or redundant codes or documentations.
+- Try to reuse existing functions instead of creating similar or same function over and over
+- Before implementing anything, make a plan and design solution
+- Use API.md, ARCHITECTURE.md, README.md, CONTRIBUTING.md as a reference and keep them updated

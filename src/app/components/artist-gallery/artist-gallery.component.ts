@@ -641,21 +641,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
             this.applySearch();
           } else {
             this.filteredGroups = [...this.groups];
-            
-            // Apply rating sort if enabled
-            if (this.sortByRating === 'desc') {
-              this.filteredGroups.sort((a, b) => {
-                const aRating = a.averageRating ?? 0;
-                const bRating = b.averageRating ?? 0;
-                return bRating - aRating;
-              });
-            } else if (this.sortByRating === 'asc') {
-              this.filteredGroups.sort((a, b) => {
-                const aRating = a.averageRating ?? 0;
-                const bRating = b.averageRating ?? 0;
-                return aRating - bRating;
-              });
-            }
+            // Apply all active sorting (rating and modified date)
+            this.applySorting();
           }
         }
       },

@@ -113,6 +113,9 @@ class LegacyArtistGroupingService {
           const destPath = path.join(subfolder, filename);
           
           fs.copyFileSync(srcPath, destPath);
+          // Preserve original file modification time
+          const sourceStats = fs.statSync(srcPath);
+          fs.utimesSync(destPath, sourceStats.atime, sourceStats.mtime);
         } catch (err) {
           this.logger.warn('LegacyGrouping', `Error copying ${filename}: ${err.message}`);
         }
@@ -300,6 +303,9 @@ class LegacyArtistGroupingService {
 
         try {
           fs.copyFileSync(srcFilePath, destFilePath);
+          // Preserve original file modification time
+          const sourceStats = fs.statSync(srcFilePath);
+          fs.utimesSync(destFilePath, sourceStats.atime, sourceStats.mtime);
           copiedImages++;
           copiedCount++;
           existingImages.add(filename);
@@ -466,6 +472,9 @@ class LegacyArtistGroupingService {
           
           if (!fs.existsSync(destPath)) {
             fs.copyFileSync(srcPath, destPath);
+            // Preserve original file modification time
+            const sourceStats = fs.statSync(srcPath);
+            fs.utimesSync(destPath, sourceStats.atime, sourceStats.mtime);
             copiedCount++;
           }
         } catch (err) {

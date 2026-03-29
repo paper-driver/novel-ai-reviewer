@@ -219,6 +219,9 @@ class ArtistGalleryService {
           // Only copy if destination doesn't have it
           if (!fs.existsSync(destFile)) {
             fs.copyFileSync(sourceFile, destFile);
+            // Preserve original file modification time
+            const sourceStats = fs.statSync(sourceFile);
+            fs.utimesSync(destFile, sourceStats.atime, sourceStats.mtime);
             copiedImages++;
           }
         });

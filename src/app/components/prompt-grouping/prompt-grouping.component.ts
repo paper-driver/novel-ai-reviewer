@@ -1120,7 +1120,7 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           });
 
           // Re-apply the existing filter to update display with new average ratings
-          // This preserves any active filters (search text, no-nickname toggle, etc.)
+          // This preserves any active filters (search text, no-nickname toggle, etc.) and sorting
           this.applyFilter();
           console.log('[PromptGrouping] Average ratings refreshed, filtered to', this.filteredGroups.length, 'groups');
         }
