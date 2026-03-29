@@ -814,6 +814,284 @@ Response:
 
 ---
 
+## Tags API
+
+Manage tags for reviews and other entities in source folders (.tags.json). Tags are generic and can be applied to reviews, galleries, or any future features.
+
+### List Tags
+
+**GET** `/api/tags/list?sourcePath=<sourcePath>`
+
+Get all available tags in a source folder.
+
+Response:
+```json
+{
+  "success": true,
+  "sourcePath": "/path/to/folder",
+  "tags": [
+    {
+      "id": "tag_uuid_001",
+      "name": "High Priority",
+      "color": "#FF5733",
+      "createdAt": "2026-03-27T12:00:00.000Z"
+    },
+    {
+      "id": "tag_uuid_002",
+      "name": "Review Later",
+      "color": "#33B5E5",
+      "createdAt": "2026-03-27T12:00:00.000Z"
+    }
+  ],
+  "count": 2
+}
+```
+
+### Create Tag
+
+**POST** `/api/tags/create`
+
+Create a new tag in a source folder.
+
+Request:
+```json
+{
+  "sourcePath": "/path/to/folder",
+  "name": "High Priority",
+  "color": "#FF5733"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "tag": {
+    "id": "tag_uuid_001",
+    "name": "High Priority",
+    "color": "#FF5733",
+    "createdAt": "2026-03-27T12:00:00.000Z"
+  }
+}
+```
+
+### Update Tag
+
+**PUT** `/api/tags/update/:tagId`
+
+Update an existing tag.
+
+Request:
+```json
+{
+  "sourcePath": "/path/to/folder",
+  "name": "Critical Priority",
+  "color": "#FF0000"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "tag": {
+    "id": "tag_uuid_001",
+    "name": "Critical Priority",
+    "color": "#FF0000",
+    "updatedAt": "2026-03-27T12:00:00.000Z"
+  }
+}
+```
+
+### Delete Tag
+
+**DELETE** `/api/tags/delete/:tagId?sourcePath=<sourcePath>`
+
+Delete a tag from a source folder.
+
+Response:
+```json
+{
+  "success": true,
+  "tag": {
+    "id": "tag_uuid_001",
+    "name": "High Priority",
+    "color": "#FF5733"
+  }
+}
+```
+
+### Add Tag to Review
+
+**POST** `/api/tags/reviews/:reviewId/add/:tagId?sourcePath=<sourcePath>`
+
+Add a tag to a specific review.
+
+Response:
+```json
+{
+  "success": true,
+  "review": {
+    "id": "review_001",
+    "tags": ["tag_uuid_001", "tag_uuid_002"],
+    ...
+  }
+}
+```
+
+### Remove Tag from Review
+
+**DELETE** `/api/tags/reviews/:reviewId/remove/:tagId?sourcePath=<sourcePath>`
+
+Remove a tag from a specific review.
+
+Response:
+```json
+{
+  "success": true,
+  "review": {
+    "id": "review_001",
+    "tags": ["tag_uuid_001"],
+    ...
+  }
+}
+```
+
+### Filter Reviews by Tags
+
+**GET** `/api/tags/reviews/filter?sourcePath=<sourcePath>&tags=<tagId1>,<tagId2>`
+
+Get reviews that have all specified tags (AND logic).
+
+Query Parameters:
+- `sourcePath` (required): Path to source folder
+- `tags` (optional): Comma-separated tag IDs to filter by
+
+Response:
+```json
+{
+  "success": true,
+  "sourcePath": "/path/to/folder",
+  "tags": ["tag_uuid_001", "tag_uuid_002"],
+  "reviews": [
+    {
+      "id": "review_001",
+      "source": "artist_gallery",
+      "foreign_id": "folder_name",
+      "rating": { ... },
+      "tags": ["tag_uuid_001", "tag_uuid_002"],
+      "notes": "..."
+    }
+  ],
+  "count": 1
+}
+```
+
+### Add Tag to Image
+
+**POST** `/api/tags/images/add-tag`
+
+Add a tag to a specific image (by filename). Supports cross-feature use (reviews, artist-gallery, prompt-grouping).
+
+Request:
+```json
+{
+  "sourcePath": "/path/to/folder",
+  "imageFilename": "image.png",
+  "tagId": "tag_uuid_001"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "imageFilename": "image.png",
+  "tags": ["tag_uuid_001"]
+}
+```
+
+### Remove Tag from Image
+
+**DELETE** `/api/tags/images/remove-tag`
+
+Remove a tag from a specific image.
+
+Request:
+```json
+{
+  "sourcePath": "/path/to/folder",
+  "imageFilename": "image.png",
+  "tagId": "tag_uuid_001"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "imageFilename": "image.png",
+  "tags": []
+}
+```
+
+### Get Image Tags
+
+**GET** `/api/tags/images/get-tags?sourcePath=<sourcePath>&imageFilename=<filename>`
+
+Get all tags assigned to a specific image.
+
+Query Parameters:
+- `sourcePath` (required): Path to source folder
+- `imageFilename` (required): Name of the image file
+
+Response:
+```json
+{
+  "success": true,
+  "imageFilename": "image.png",
+  "tagIds": ["tag_uuid_001", "tag_uuid_002"],
+  "tags": [
+    {
+      "id": "tag_uuid_001",
+      "name": "High Quality",
+      "color": "#FF5733",
+      "createdAt": "2026-03-27T12:00:00.000Z"
+    },
+    {
+      "id": "tag_uuid_002",
+      "name": "To Review",
+      "color": "#33B5E5",
+      "createdAt": "2026-03-27T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Filter Images by Tags
+
+**GET** `/api/tags/images/filter?sourcePath=<sourcePath>&imageFilenames=<file1>,<file2>&tags=<tagId1>,<tagId2>`
+
+Get images that have all specified tags (AND logic).
+
+Query Parameters:
+- `sourcePath` (required): Path to source folder
+- `imageFilenames` (optional): Comma-separated list of image filenames to filter
+- `tags` (optional): Comma-separated tag IDs to filter by
+
+Response:
+```json
+{
+  "success": true,
+  "sourcePath": "/path/to/folder",
+  "tags": ["tag_uuid_001"],
+  "imageFilenames": ["image1.png", "image2.png"],
+  "count": 2
+}
+```
+
+---
+
 ## Folder Operations API
 
 ### Pick Folder

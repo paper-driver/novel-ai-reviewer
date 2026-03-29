@@ -103,6 +103,16 @@
               </div>
             </div>
           </div>
+          
+          <!-- Image Tags -->
+          <div class="metadata-item tags-item">
+            <app-image-tags
+              [sourcePath]="reviewData?.tagsSourcePath || reviewData?.folder || ''"
+              [imageFilename]="currentImageName"
+              (tagsChanged)="onImageTagsChanged($event)"
+            ></app-image-tags>
+          </div>
+
           <div class="metadata-item prompt-item">
             <span class="metadata-label">Generation Prompt</span>
             <span class="metadata-value prompt-text">

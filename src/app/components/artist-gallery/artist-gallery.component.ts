@@ -237,6 +237,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
           this.currentGroupReviewData = {
             images: group.images,
             folder: group.folderPath,
+            tagsSourcePath: this.baseFolder || this.sortedFolderPath, // Parent folder for tags
             artists: group.artists,
             title: group.artists.join(' | '),
             apiType: 'artist-gallery',
@@ -255,6 +256,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
         this.currentGroupReviewData = {
           images: group.images,
           folder: group.folderPath,
+          tagsSourcePath: this.baseFolder || this.sortedFolderPath, // Parent folder for tags
           artists: group.artists,
           title: group.artists.join(' | '),
           apiType: 'artist-gallery',
@@ -281,6 +283,24 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     if (this.currentGroupReviewData) {
       this.currentGroupReviewData.imageRatings = ratings;
       console.log('[ArtistGallery] Stored ratings in review data:', this.currentGroupReviewData.imageRatings);
+    }
+  }
+
+  /**
+   * Handle image tags changed from image viewer modal
+   */
+  onImageTagsChanged(imageTags: { [filename: string]: string[] }): void {
+    console.log('[ArtistGallery] Image tags changed from modal:', imageTags);
+    // Tags are already persisted to backend via ImageTagsComponent
+    // Store tags in review data for reference
+    if (this.currentGroupReviewData) {
+      this.currentGroupReviewData.imageTags = imageTags;
+      console.log('[ArtistGallery] Stored image tags in review data');
+      
+      // Refresh any tag displays after a short delay to ensure backend has persisted
+      setTimeout(() => {
+        console.log('[ArtistGallery] Tag display may need refresh');
+      }, 100);
     }
   }
 

@@ -214,6 +214,7 @@
     [isOpen]="showImageViewer"
     [reviewData]="currentGroupReviewData"
     (ratingsChanged)="onRatingsChanged($event)"
+    (tagsChanged)="onImageTagsChanged($event)"
     (closeModal)="closeImageViewer()">
   </app-image-viewer-modal>
 

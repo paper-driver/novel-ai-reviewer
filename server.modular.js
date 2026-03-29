@@ -22,6 +22,7 @@ const FeedbackService = require('./server/services/feedbackService');
 const RatingsService = require('./server/services/ratingsService');
 const LegacyArtistGroupingService = require('./server/services/legacyArtistGroupingService');
 const ReviewsFolderService = require('./server/services/reviewsFolderService');
+const TagsService = require('./server/services/tagsService');
 
 // Import all route creators
 const createReviewsRoutes = require('./server/routes/reviewsRoutes');
@@ -35,6 +36,7 @@ const createBatchRatingRoutes = require('./server/routes/batchRatingRoutes');
 const createRatingsRoutes = require('./server/routes/ratingsRoutes');
 const createFeedbackRoutes = require('./server/routes/feedbackRoutes');
 const createReviewsFolderRoutes = require('./server/routes/reviewsFolderRoutes');
+const createTagsRoutes = require('./server/routes/tagsRoutes');
 const createLegacyGroupingRoutes = require('./server/routes/legacyGroupingRoutes');
 
 // Initialize Express app
@@ -112,6 +114,7 @@ const batchRatingService = new BatchRatingService(visionAnalysisService, feedbac
 const ratingsService = new RatingsService(logger);
 const legacyArtistGroupingService = new LegacyArtistGroupingService(imageMetadataService, feedbackService, logger);
 const reviewsFolderService = new ReviewsFolderService();
+const tagsService = new TagsService();
 
 // ===== ENSURE REQUIRED DIRECTORIES =====
 fileSystemService.ensureDirectoryExists(GENERATED_DIR);
@@ -128,6 +131,10 @@ app.use('/api/reviews', createReviewsRoutes(reviewsService, upload));
 
 // Reviews Folder endpoints (source-folder-based reviews)
 app.use('/api/reviews-folder', createReviewsFolderRoutes(reviewsFolderService));
+
+// Tags endpoints
+app.use('/api/tags', createTagsRoutes(tagsService, reviewsFolderService));
+
 app.use('/api/image-metadata', createImageMetadataRoutes(imageMetadataService));
 
 // Image serving endpoints

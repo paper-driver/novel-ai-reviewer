@@ -367,6 +367,7 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           this.currentGroupReviewData = {
             images: group.images,
             folder: this.folderPath,
+            tagsSourcePath: this.folderPath, // Same folder for prompt grouping
             title: `Group ${group.groupId}`,
             apiType: 'prompt-grouping',
             imageRatings: groupRatings,
@@ -397,6 +398,7 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
         this.currentGroupReviewData = {
           images: group.images,
           folder: this.folderPath,
+          tagsSourcePath: this.folderPath, // Same folder for prompt grouping
           title: `Group ${group.groupId}`,
           apiType: 'prompt-grouping',
           imageRatings: {},
@@ -423,6 +425,24 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     if (this.currentGroupReviewData) {
       this.currentGroupReviewData.imageRatings = ratings;
       console.log('[PromptGrouping] Stored ratings in review data:', this.currentGroupReviewData.imageRatings);
+    }
+  }
+
+  /**
+   * Handle image tags changed from image viewer modal
+   */
+  onImageTagsChanged(imageTags: { [filename: string]: string[] }): void {
+    console.log('[PromptGrouping] Image tags changed from modal:', imageTags);
+    // Tags are already persisted to backend via ImageTagsComponent
+    // Store tags in review data for reference
+    if (this.currentGroupReviewData) {
+      this.currentGroupReviewData.imageTags = imageTags;
+      console.log('[PromptGrouping] Stored image tags in review data');
+      
+      // Refresh any tag displays after a short delay to ensure backend has persisted
+      setTimeout(() => {
+        console.log('[PromptGrouping] Tag display may need refresh');
+      }, 100);
     }
   }
 

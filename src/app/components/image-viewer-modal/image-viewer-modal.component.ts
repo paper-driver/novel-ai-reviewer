@@ -5,10 +5,12 @@ import { IllustrationQualityService, IllustrationQualityScore } from '../../serv
 import { BatchRatingService } from '../../services/batch-rating.service';
 import { AiFeedbackModalComponent } from '../ai-feedback-modal/ai-feedback-modal.component';
 import { AiFeedbackService } from '../../services/ai-feedback.service';
+import { ImageTagsComponent } from '../image-tags/image-tags.component';
 
 export interface ReviewImage {
   images: string[];
-  folder: string;
+  folder: string; // Folder/path for image loading (artist subdir or group path)
+  tagsSourcePath?: string; // Separate path for tags (parent folder for artist gallery)
   prompt?: string;
   review?: string;
   // For artist gallery support
@@ -20,12 +22,14 @@ export interface ReviewImage {
   additionalData?: any;
   // Image ratings: filename -> rating (0-10)
   imageRatings?: { [filename: string]: number };
+  // Image tags: filename -> tag IDs array
+  imageTags?: { [filename: string]: string[] };
 }
 
 @Component({
   selector: 'app-image-viewer-modal',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, AiFeedbackModalComponent],
+  imports: [CommonModule, HttpClientModule, AiFeedbackModalComponent, ImageTagsComponent],
   templateUrl: './image-viewer-modal.component.html',
   styleUrls: ['./image-viewer-modal.component.scss']
 })
@@ -34,6 +38,7 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   @Input() reviewData: ReviewImage | null = null;
   @Output() closeModal = new EventEmitter<void>();
   @Output() ratingsChanged = new EventEmitter<{ [filename: string]: number }>();
+  @Output() tagsChanged = new EventEmitter<{ [filename: string]: string[] }>();
   @ViewChild('imageElement') imageElement: ElementRef<HTMLImageElement> | null = null;
   @ViewChild('thumbnailStrip') thumbnailStrip: ElementRef<HTMLDivElement> | null = null;
 
@@ -52,6 +57,13 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
   imageRatings: { [filename: string]: number } = {};
   // Track if ratings have been modified during this modal session
   ratingsModified: boolean = false;
+  
+  // Image tags (filename -> tag IDs array)
+  imageTags: { [filename: string]: string[] } = {};
+  currentImageTagIds: string[] = [];
+  availableTags: any[] = []; // List of all tags with id, name, color
+  isLoadingTags: boolean = false;
+  tagsError: string = '';
   
   zoomLevel: number = 100;
   minZoom: number = 50;
@@ -116,6 +128,10 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       // Merge ratings from reviewData with existing ratings to preserve local changes
       if (this.reviewData.imageRatings) {
         this.imageRatings = { ...this.imageRatings, ...this.reviewData.imageRatings };
+      }
+      // Merge image tags from reviewData
+      if (this.reviewData.imageTags) {
+        this.imageTags = { ...this.imageTags, ...this.reviewData.imageTags };
       }
       this.updateCurrentImage();
     }
@@ -870,6 +886,13 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
     } else {
       console.log('[Modal] No ratings to emit');
     }
+    
+    // Emit tags if there are any
+    if (Object.keys(this.imageTags).length > 0) {
+      console.log('[Modal] Emitting tagsChanged with:', this.imageTags);
+      this.tagsChanged.emit(this.imageTags);
+    }
+    
     console.log('[Modal] Emitting closeModal event');
     this.closeModal.emit();
   }
@@ -938,5 +961,21 @@ export class ImageViewerModalComponent implements OnInit, OnDestroy, OnChanges {
       adjustments.push(`${key}: ${value}/10`);
     }
     return adjustments;
+  }
+
+  /**
+   * Handle image tags changed from ImageTagsComponent
+   */
+  onImageTagsChanged(tagIds: string[]): void {
+    const fileBasename = this.currentImageName.includes('/') 
+      ? this.currentImageName.split('/').pop()! 
+      : this.currentImageName;
+    
+    this.imageTags[fileBasename] = tagIds;
+    this.currentImageTagIds = tagIds;
+    console.log('[ImageViewer] Image tags updated:', fileBasename, tagIds);
+    
+    // Emit tags change event for real-time synchronization
+    this.tagsChanged.emit(this.imageTags);
   }
 }

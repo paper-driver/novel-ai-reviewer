@@ -108,6 +108,16 @@
       </div>
     </div>
 
+    <!-- Tags section (only for editing) -->
+    <app-review-tags
+      *ngIf="isEditing && editingReview && sourceFolder"
+      [sourcePath]="sourceFolder"
+      [reviewId]="editingReview.id"
+      [imageFilenames]="imageFilenames"
+      [source]="editingReview.source"
+      (tagsChanged)="onTagsChanged($event)"
+    ></app-review-tags>
+
     <!-- Notes section -->
     <div class="notes-section">
       <label for="notes">Notes (Optional)</label>

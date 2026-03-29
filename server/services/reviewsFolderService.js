@@ -10,6 +10,7 @@
  *   foreign_id: "folder_name" | "group_id",
  *   rating: { anatomy, face, object, background, character },
  *   notes: "optional notes",
+ *   tags: ["tag_id_1", "tag_id_2"],
  *   timestamp: "iso-date"
  * }
  */
@@ -113,6 +114,7 @@ class ReviewsFolderService {
         character: reviewData.rating?.character || null
       },
       notes: reviewData.notes || '',
+      tags: reviewData.tags || [],
       timestamp: new Date().toISOString()
     };
 
@@ -183,6 +185,73 @@ class ReviewsFolderService {
   hasReviewFile(sourceFolderPath) {
     const reviewsPath = this.getReviewsFilePath(sourceFolderPath);
     return fs.existsSync(reviewsPath);
+  }
+
+  /**
+   * Add a tag to a review
+   */
+  addTagToReview(sourceFolderPath, reviewId, tagId) {
+    const reviews = this.loadReviews(sourceFolderPath);
+    const index = reviews.findIndex(r => r.id === reviewId);
+
+    if (index === -1) {
+      throw new Error(`Review not found: ${reviewId}`);
+    }
+
+    const review = reviews[index];
+    if (!review.tags) {
+      review.tags = [];
+    }
+
+    // Avoid duplicate tags
+    if (!review.tags.includes(tagId)) {
+      review.tags.push(tagId);
+      this.saveReviews(sourceFolderPath, reviews);
+      logger.info(TAG, `Added tag ${tagId} to review ${reviewId}`);
+    }
+
+    return review;
+  }
+
+  /**
+   * Remove a tag from a review
+   */
+  removeTagFromReview(sourceFolderPath, reviewId, tagId) {
+    const reviews = this.loadReviews(sourceFolderPath);
+    const index = reviews.findIndex(r => r.id === reviewId);
+
+    if (index === -1) {
+      throw new Error(`Review not found: ${reviewId}`);
+    }
+
+    const review = reviews[index];
+    if (!review.tags) {
+      review.tags = [];
+    }
+
+    const tagIndex = review.tags.indexOf(tagId);
+    if (tagIndex > -1) {
+      review.tags.splice(tagIndex, 1);
+      this.saveReviews(sourceFolderPath, reviews);
+      logger.info(TAG, `Removed tag ${tagId} from review ${reviewId}`);
+    }
+
+    return review;
+  }
+
+  /**
+   * Filter reviews by tags (AND logic - review must have all specified tags)
+   */
+  filterReviewsByTags(sourceFolderPath, tagIds = []) {
+    if (!tagIds || tagIds.length === 0) {
+      return this.getAllReviews(sourceFolderPath);
+    }
+
+    const reviews = this.loadReviews(sourceFolderPath);
+    return reviews.filter(review => {
+      const reviewTags = review.tags || [];
+      return tagIds.every(tagId => reviewTags.includes(tagId));
+    });
   }
 }
 

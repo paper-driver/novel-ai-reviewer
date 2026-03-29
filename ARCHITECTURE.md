@@ -250,6 +250,8 @@ The app uses JSON-based persistent storage for maximum portability:
 | Service | Purpose | Key Methods |
 |---------|---------|-------------|
 | ReviewsService | Save/load ratings | save(), get(), getAll() |
+| ReviewsFolderService | Reviews per source folder | loadReviews(), saveReviews(), addTagToReview(), removeTagFromReview(), filterReviewsByTags() |
+| TagsService | Generic tag management | getAllTags(), createTag(), deleteTag(), updateTag() |
 | FileSystemService | File operations | readDirectory(), writeFile() |
 | ImageMetadataService | Extract image metadata | getMetadata() |
 | ImageServingService | Serve images | serveImage(), serveThumbnail() |
@@ -261,6 +263,84 @@ The app uses JSON-based persistent storage for maximum portability:
 | **FeedbackService** | **User corrections & learning** | **submitFeedback(), loadFeedback()** |
 | RatingsService | Rating persistence | save(), load() |
 | LegacyArtistGroupingService | Backward compatibility | legacyGrouping() |
+
+### Tags System
+
+The **TagsService** provides:
+1. **Generic Tag Management**: Create, read, update, delete tags
+2. **Folder-scoped Storage**: Tags stored in `.tags.json` per source folder, image-to-tag mappings in `.imageTags.json`
+3. **Review Tagging**: Add/remove tags from reviews (stored in `.reviews.json`)
+4. **Image Tagging**: Add/remove tags from images (stored in `.imageTags.json`), supports reviews, artist-gallery, and prompt-grouping
+5. **Smart Filtering**: Filter reviews/images that have ALL specified tags (AND logic)
+6. **Extensibility**: Design allows tags to be applied across all features
+
+**Tag Object** (`.tags.json`):
+```json
+{
+  "id": "uuid",
+  "name": "High Priority",
+  "color": "#FF5733",
+  "createdAt": "2026-03-27T12:00:00.000Z"
+}
+```
+
+**Review with Tags** (`.reviews.json`):
+```json
+{
+  "id": "review_uuid",
+  "source": "artist_gallery",
+  "foreign_id": "folder_name",
+  "rating": { /* ... */ },
+  "tags": ["tag_id_1", "tag_id_2"],
+  "notes": "...",
+  "timestamp": "2026-03-27T12:00:00.000Z"
+}
+```
+
+**Image Tags** (`.imageTags.json`):
+```json
+{
+  "image1.png": ["tag_id_1", "tag_id_2"],
+  "subfolder/image2.png": ["tag_id_1"],
+  "image3.png": []
+}
+```
+
+**Data Flow - Review Tagging**:
+```
+User creates tag "High Priority"
+   ↓
+POST /api/tags/create → TagsService.createTag() → writes to .tags.json
+   ↓
+User assigns tag to review in ReviewsTableComponent
+   ↓
+POST /api/tags/reviews/:id/add/:tagId → ReviewsFolderService.addTagToReview() → updates .reviews.json
+   ↓
+User filters reviews by tags in table
+   ↓
+GET /api/tags/reviews/filter?tags=tag_id_1 → ReviewsFolderService.filterReviewsByTags() → returns matching (AND logic)
+```
+
+**Data Flow - Image Tagging** (new):
+```
+User opens ImageViewerModal (in reviews-table, artist-gallery, or prompt-grouping)
+   ↓
+ImageViewerModalComponent loads available tags
+   ↓
+GET /api/tags/list?sourcePath=... → TagsService.getAllTags()
+   ↓
+ImageTagsComponent displays current image tags
+   ↓
+GET /api/tags/images/get-tags → TagsService.getImageTags() → reads from .imageTags.json
+   ↓
+User adds/removes tag from image
+   ↓
+POST/DELETE /api/tags/images/add-tag or remove-tag
+   ↓
+TagsService.addTagToImage() or removeTagFromImage() → updates .imageTags.json
+   ↓
+TAG persists across all features (reviews, artist-gallery, prompt-grouping)
+```
 
 ### Feedback & Learning System
 

@@ -3,6 +3,26 @@
 
   <div *ngIf="error" class="error-message">❌ {{ error }}</div>
 
+  <!-- Tag Manager -->
+  <div *ngIf="sourceFolder">
+    <button class="btn-toggle-tags" (click)="toggleTagManager()">
+      {{ showTagManager ? '▼ Hide Tag Manager' : '▶ Show Tag Manager' }}
+    </button>
+    <app-tag-manager 
+      *ngIf="showTagManager"
+      [sourcePath]="sourceFolder"
+      (tagsUpdated)="onTagsUpdated($event)"
+    ></app-tag-manager>
+  </div>
+
+  <!-- Tag Filter -->
+  <app-tag-filter 
+    *ngIf="sourceFolder"
+    [sourcePath]="sourceFolder"
+    [resultCount]="reviews.length"
+    (filtersChanged)="onTagFiltersChanged($event)"
+  ></app-tag-filter>
+
   <div *ngIf="reviews.length === 0 && !isLoading && !error" class="empty-state">
     📭 No reviews found in this folder.
   </div>
@@ -20,6 +40,7 @@
         <th>Background</th>
         <th>Character</th>
         <th>Average</th>
+        <th>Tags</th>
         <th>Notes</th>
         <th>Actions</th>
       </tr>
@@ -60,6 +81,16 @@
           <!-- Average Rating -->
           <td class="average-cell"><strong>{{ getAverageRating(review) }}</strong></td>
           
+          <!-- Tags (from all images in the review) -->
+          <td class="tags-cell">
+            <span *ngIf="!reviewImageTags[review.id] || reviewImageTags[review.id].length === 0" class="no-tags">-</span>
+            <div *ngIf="reviewImageTags[review.id] && reviewImageTags[review.id].length > 0" class="image-tags-display">
+              <span *ngFor="let tag of reviewImageTags[review.id]" class="tag-chip" [style.backgroundColor]="tag.color" [style.color]="getTextColor(tag.color)">
+                {{ tag.name }}
+              </span>
+            </div>
+          </td>
+          
           <!-- Notes -->
           <td class="notes-cell" [title]="review.notes || 'No notes'">
             {{ review.notes ? review.notes.substring(0, 25) + (review.notes.length > 25 ? '...' : '') : '-' }}
@@ -81,6 +112,7 @@
     [isOpen]="isImageModalOpen"
     [reviewData]="modalData"
     (ratingsChanged)="onRatingsChanged($event)"
+    (tagsChanged)="onImageTagsChanged($event)"
     (closeModal)="closeImageModal()"
   ></app-image-viewer-modal>
 

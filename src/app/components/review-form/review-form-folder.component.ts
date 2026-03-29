@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { ReviewsFolderService, Review } from '../../services/reviews-folder.service';
 import { ArtistGalleryService } from '../../services/artist-gallery.service';
+import { ReviewTagsComponent } from '../review-tags/review-tags.component';
 
 /**
  * Review Form Component (Source Folder Based)
@@ -12,7 +13,7 @@ import { ArtistGalleryService } from '../../services/artist-gallery.service';
 @Component({
   selector: 'app-review-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HttpClientModule],
+  imports: [CommonModule, ReactiveFormsModule, HttpClientModule, ReviewTagsComponent],
   templateUrl: './review-form-folder.component.html',
   styleUrls: ['./review-form-folder.component.scss']
 })
@@ -30,7 +31,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
   error: string | null = null;
   isEditing: boolean = false;
   thumbnailUrl: string | null = null;
-
+  imageFilenames: string[] = []; // Images in the current review
   ratingOptions = [
     { value: 1, label: '1 - Very Poor' },
     { value: 2, label: '2 - Poor' },
@@ -111,6 +112,12 @@ export class ReviewFormComponent implements OnInit, OnChanges {
       
       // Load thumbnail for the review source
       this.loadThumbnailForReview();
+      
+      // Load images for this review (for bulk tagging)
+      this.loadImagesForReview();
+      
+      // Initialize tags
+      this.loadReviewTags();
     }
   }
 
@@ -182,6 +189,58 @@ export class ReviewFormComponent implements OnInit, OnChanges {
         console.warn('[ReviewForm] Error loading prompt grouping groups:', err);
       }
     });
+  }
+
+  /**
+   * Load images for the current review (for bulk tagging)
+   */
+  private loadImagesForReview(): void {
+    if (!this.editingReview) {
+      return;
+    }
+
+    const source = this.editingReview.source;
+    const foreignId = this.editingReview.foreign_id;
+
+    if (source === 'artist_gallery') {
+      this.http.post<any>('http://localhost:3001/api/artist-gallery/group-images', {
+        folderPath: foreignId
+      }).subscribe({
+        next: (response) => {
+          if (response.images && Array.isArray(response.images)) {
+            this.imageFilenames = response.images;
+            console.log('[ReviewForm] Loaded', this.imageFilenames.length, 'images for review');
+          }
+        },
+        error: (err) => {
+          console.warn('[ReviewForm] Error loading artist gallery images:', err);
+        }
+      });
+    } else if (source === 'prompt_grouping') {
+      if (!this.sourceFolder) {
+        return;
+      }
+
+      this.http.post<any>('http://localhost:3001/api/prompt-grouping/load-groups', {
+        folderPath: this.sourceFolder
+      }).subscribe({
+        next: (response) => {
+          if (response.groups && response.groups[foreignId]) {
+            const groupData = response.groups[foreignId];
+            if (groupData.images && Array.isArray(groupData.images)) {
+              // Convert relative paths to full paths
+              this.imageFilenames = groupData.images.map((relativePath: string) =>
+                `${this.sourceFolder}/${relativePath}`
+              );
+              console.log('[ReviewForm] Loaded', this.imageFilenames.length, 'images for review');
+            }
+          }
+        },
+        error: (err) => {
+          console.warn('[ReviewForm] Error loading prompt grouping groups:', err);
+        }
+      });
+    }
   }
 
   /**
@@ -303,5 +362,30 @@ export class ReviewFormComponent implements OnInit, OnChanges {
   onCancel(): void {
     this.resetForm();
     this.cancelled.emit();
+  }
+
+  /**
+   * Handle tags changed in ReviewTagsComponent
+   */
+  onTagsChanged(tagIds: string[]): void {
+    if (this.editingReview) {
+      this.editingReview.tags = tagIds;
+      console.log('[ReviewForm] Tags updated:', tagIds);
+    }
+  }
+
+  /**
+   * Load review tags from the service
+   */
+  private loadReviewTags(): void {
+    if (!this.editingReview) {
+      return;
+    }
+
+    // The tags will be loaded by ReviewTagsComponent via input
+    // This method ensures the tags property is initialized
+    if (!this.editingReview.tags) {
+      this.editingReview.tags = [];
+    }
   }
 }

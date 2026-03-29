@@ -16,6 +16,7 @@ export interface Review {
   foreign_id: string;
   rating: ReviewRating;
   notes?: string;
+  tags?: string[];
   timestamp: string;
   updatedAt?: string;
 }
