@@ -93,6 +93,12 @@
       </div>
     </div>
 
+    <!-- Tag Filter -->
+    <app-tag-filter 
+      [sourcePath]="baseFolder || sortedFolderPath"
+      (filtersChanged)="onTagFiltersChanged($event)">
+    </app-tag-filter>
+
     <!-- Rating Filter and Sort Controls -->
     <div class="filter-controls">
       <div class="filter-group">

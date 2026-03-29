@@ -11,11 +11,12 @@ import { RatingsStateService } from '../../services/ratings-state.service';
 import { CurrentSourceFolderService } from '../../services/current-source-folder.service';
 import { ReviewRequestService } from '../../services/review-request.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
+import { TagFilterComponent } from '../tag-filter/tag-filter.component';
 
 @Component({
   selector: 'app-artist-gallery',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, ImageViewerModalComponent],
+  imports: [CommonModule, FormsModule, HttpClientModule, ImageViewerModalComponent, TagFilterComponent],
   templateUrl: './artist-gallery.component.html',
   styleUrls: ['./artist-gallery.component.scss']
 })
@@ -40,6 +41,13 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
 
   // Search functionality
   searchText: string = '';
+  
+  // Tags
+  showTagManager: boolean = false;
+  selectedTagFilters: string[] = [];
+  // Image tags map: group folderPath -> array of tag details { id, name, color }
+  groupImageTags: { [groupFolderPath: string]: any[] } = {};
+  allGroupsTags: any[] = [];
 
   // Rating filter and sort state
   minAverageRating: number = 0;
@@ -67,7 +75,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     private cacheService: GalleryCacheService,
     private ratingsStateService: RatingsStateService,
     private currentSourceFolderService: CurrentSourceFolderService,
-    private reviewRequestService: ReviewRequestService
+    private reviewRequestService: ReviewRequestService,
+    private http: HttpClient
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -164,6 +173,8 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     this.error = null;
     this.groups = [];
     this.filteredGroups = [];
+    this.selectedTagFilters = []; // Reset tag filters when loading new folder
+    this.groupImageTags = {}; // Clear tag cache
     // Don't clear searchText here - preserve it across page switches
     // User must manually clear search by clicking the clear button
 
@@ -179,6 +190,9 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
           // Load and calculate average ratings from base folder
           // This will update filteredGroups once ratings are loaded
           this.refreshAverageRatings();
+          
+          // Load image tags for all groups
+          this.loadImageTagsForGroups();
           
           this.isLoading = false;
           
@@ -203,6 +217,73 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
         this.isLoading = false;
         console.error('Error loading groups:', err);
       }
+    });
+  }
+
+  /**
+   * Load image tags for all groups
+   */
+  private loadImageTagsForGroups(): void {
+    this.groups.forEach(group => {
+      this.loadImageTagsForGroup(group);
+    });
+  }
+
+  /**
+   * Load image tags for a single artist group
+   */
+  private loadImageTagsForGroup(group: ArtistGroupInfo): void {
+    if (!group.images || group.images.length === 0 || !this.baseFolder) {
+      return;
+    }
+
+    // Get union of tags for all images in this group
+    const imageFilenames = group.images.join('|');
+    this.http.get<any>(
+      `http://localhost:3001/api/tags/images/union-tags?sourcePath=${encodeURIComponent(this.baseFolder)}&imageFilenames=${encodeURIComponent(imageFilenames)}`
+    ).subscribe({
+      next: (response) => {
+        if (response.success && response.tags && Array.isArray(response.tags)) {
+          this.groupImageTags[group.folderPath] = response.tags;
+          console.log('[ArtistGallery] Loaded tags for group', group.folderPath, ':', response.tags.map((t: any) => t.name));
+          // Re-apply filters to update display
+          this.applySearch();
+        }
+      },
+      error: (err) => {
+        console.warn('[ArtistGallery] Error loading tags for group:', err);
+        this.groupImageTags[group.folderPath] = [];
+      }
+    });
+  }
+
+  /**
+   * Handle tag filter changes
+   */
+  onTagFiltersChanged(tagIds: string[]): void {
+    this.selectedTagFilters = tagIds;
+    this.applySearch();
+  }
+
+  /**
+   * Apply tag filters to groups
+   * Filters based on image-level tags (stored in groupImageTags)
+   * AND logic - group must have ALL selected tags on its images
+   */
+  private applyTagFilters(baseGroups: ArtistGroupInfo[]): ArtistGroupInfo[] {
+    if (this.selectedTagFilters.length === 0) {
+      return baseGroups;
+    }
+
+    return baseGroups.filter(group => {
+      // Check image-level tags from groupImageTags
+      const imageTags = this.groupImageTags[group.folderPath] || [];
+      const imageTagIds = imageTags.map((tag: any) => tag.id || tag);
+      
+      // Group must have ALL selected tags (AND logic)
+      return this.selectedTagFilters.every((tagId: string) =>
+        imageTagIds.includes(tagId)
+      );
     });
   }
 
@@ -378,6 +459,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
    * Apply search filter to artist groups.
    * Searches for artist tag combinations with intelligent parsing.
    * Supports multiple search formats and handles whitespace variations.
+   * Also applies tag and rating filters.
    */
   applySearch(): void {
     let searchQuery = this.searchText.trim();
@@ -390,6 +472,9 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
         group.averageRating !== undefined && group.averageRating >= this.minAverageRating
       );
     }
+
+    // Apply tag filter
+    baseGroups = this.applyTagFilters(baseGroups);
 
     if (!searchQuery) {
       this.filteredGroups = baseGroups;
@@ -656,14 +741,9 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
             }
           });
 
-          // Re-apply search to update display
-          if (this.searchText && this.searchText.trim()) {
-            this.applySearch();
-          } else {
-            this.filteredGroups = [...this.groups];
-            // Apply all active sorting (rating and modified date)
-            this.applySorting();
-          }
+          // Re-apply all filters (search, tag, rating) to update display
+          // Always use applySearch() to ensure all filters are respected
+          this.applySearch();
         }
       },
       error: (err) => {
