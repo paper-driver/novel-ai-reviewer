@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { TagChipComponent } from '../tag-chip/tag-chip.component';
 
@@ -11,7 +12,7 @@ import { TagChipComponent } from '../tag-chip/tag-chip.component';
 @Component({
   selector: 'app-review-tags',
   standalone: true,
-  imports: [CommonModule, TagChipComponent],
+  imports: [CommonModule, FormsModule, TagChipComponent],
   template: `
     <div class="review-tags">
       <div class="tags-header">
@@ -51,6 +52,59 @@ import { TagChipComponent } from '../tag-chip/tag-chip.component';
 
           <div *ngIf="availableTagsToAdd.length === 0" class="empty-tags">
             All tags are assigned or no tags available
+          </div>
+        </div>
+      </div>
+
+      <!-- Create New Tag Section -->
+      <div class="create-tag-section">
+        <div class="section-header">
+          <p class="section-label">Create New Tag</p>
+          <button type="button" class="btn-toggle-section" (click)="toggleCreateTagSection()" [title]="showCreateTagSection ? 'Collapse' : 'Expand'">
+            {{ showCreateTagSection ? '▼' : '▶' }}
+          </button>
+        </div>
+        <div *ngIf="showCreateTagSection" class="create-form">
+          <div class="form-group">
+            <input 
+              type="text" 
+              [(ngModel)]="newTagName"
+              [ngModelOptions]="{standalone: true}"
+              placeholder="Tag name"
+              class="form-input"
+              autocomplete="off"
+              (keydown.enter)="createAndAddTag()"
+            />
+          </div>
+          <div class="form-group color-group">
+            <div class="color-palette">
+              <button 
+                type="button"
+                *ngFor="let color of presetColors"
+                [style.background-color]="color"
+                [class.selected]="newTagColor === color"
+                (click)="newTagColor = color"
+                class="color-button"
+                title="Quick color"
+              ></button>
+            </div>
+            <input 
+              type="color" 
+              [(ngModel)]="newTagColor"
+              [ngModelOptions]="{standalone: true}"
+              class="color-picker"
+            />
+          </div>
+          <button 
+            type="button"
+            (click)="createAndAddTag()" 
+            [disabled]="!newTagName.trim() || isCreatingTag"
+            class="btn-create-tag"
+          >
+            {{ isCreatingTag ? '⏳ Creating...' : '+ Create & Add' }}
+          </button>
+          <div *ngIf="createTagError" class="create-error-message">
+            ❌ {{ createTagError }}
           </div>
         </div>
       </div>
@@ -158,6 +212,145 @@ import { TagChipComponent } from '../tag-chip/tag-chip.component';
       padding: 8px;
     }
 
+    .create-tag-section {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .section-header .section-label {
+      margin: 0;
+      color: #666;
+    }
+
+    .btn-toggle-section {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      color: #666;
+      padding: 0;
+      margin: 0;
+      transition: color 0.2s;
+    }
+
+    .btn-toggle-section:hover {
+      color: #333;
+    }
+
+    .create-form {
+      margin-top: 8px;
+      padding: 10px;
+      background-color: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .form-input {
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      flex: 1;
+      transition: border-color 0.2s;
+      background-color: #fff;
+      color: #333;
+      caret-color: #8bc34a;
+    }
+
+    .form-input::placeholder {
+      color: #ccc;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #8bc34a;
+      box-shadow: 0 0 3px rgba(139, 195, 74, 0.2);
+      background-color: #fafbf8;
+    }
+
+    .color-group {
+      align-items: center;
+    }
+
+    .color-palette {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .color-button {
+      width: 24px;
+      height: 24px;
+      border: 2px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .color-button:hover {
+      transform: scale(1.1);
+    }
+
+    .color-button.selected {
+      border-color: #333;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-picker {
+      width: 40px;
+      height: 24px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-create-tag {
+      padding: 6px 10px;
+      background-color: #8bc34a;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-create-tag:hover:not(:disabled) {
+      background-color: #7cb342;
+    }
+
+    .btn-create-tag:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .create-error-message {
+      color: #d32f2f;
+      background-color: #ffebee;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
     .error-message {
       color: #d32f2f;
       background-color: #ffebee;
@@ -179,6 +372,25 @@ export class ReviewTagsComponent implements OnInit, OnChanges {
   availableTags: any[] = [];
   isUpdating: boolean = false;
   error: string | null = null;
+
+  // Tag creation properties
+  newTagName: string = '';
+  newTagColor: string = '#6BCB77'; // Default green
+  presetColors: string[] = [
+    '#FF6B6B',  // Red
+    '#FF8C42',  // Orange
+    '#FFD93D',  // Yellow
+    '#6BCB77',  // Green
+    '#4D96FF',  // Blue
+    '#9D4EDD',  // Purple
+    '#FF006E',  // Pink
+    '#00D9FF',  // Cyan
+    '#808080',  // Gray
+    '#2A2A2A'   // Dark Gray
+  ];
+  showCreateTagSection: boolean = false; // Collapsed by default
+  isCreatingTag: boolean = false;
+  createTagError: string = '';
 
   constructor(private http: HttpClient) {}
 
@@ -403,6 +615,108 @@ export class ReviewTagsComponent implements OnInit, OnChanges {
   get availableTagsToAdd(): any[] {
     const assignedTagIds = this.reviewTags.map(t => t.id);
     return this.availableTags.filter(tag => !assignedTagIds.includes(tag.id));
+  }
+
+  /**
+   * Toggle the "Create Tag" section visibility
+   */
+  toggleCreateTagSection(): void {
+    this.showCreateTagSection = !this.showCreateTagSection;
+    if (!this.showCreateTagSection) {
+      this.clearCreateTagForm();
+    }
+  }
+
+  /**
+   * Create a new tag and immediately add it to the current review
+   */
+  createAndAddTag(): void {
+    if (!this.newTagName.trim()) {
+      this.createTagError = 'Tag name is required';
+      return;
+    }
+
+    this.isCreatingTag = true;
+    this.createTagError = '';
+
+    this.http.post<any>(
+      'http://localhost:3001/api/tags/create',
+      {
+        sourcePath: this.sourcePath,
+        name: this.newTagName.trim(),
+        color: this.newTagColor
+      }
+    ).subscribe({
+      next: (response) => {
+        console.log('[ReviewTags] Created new tag:', response);
+        
+        // Extract tag ID from response - response.tag.id or response.id
+        const newTag = response.tag || response;
+        const newTagId = newTag?.id || newTag?.tagId;
+        
+        if (!newTagId) {
+          this.createTagError = 'Invalid response from server';
+          this.isCreatingTag = false;
+          console.error('[ReviewTags] Missing tag ID in response:', response);
+          return;
+        }
+
+        // Reload available tags to get the newly created tag
+        this.loadAvailableTags();
+
+        // Auto-add the new tag to the review
+        setTimeout(() => {
+          this.addTagToReview(newTagId);
+          
+          // Clear form
+          this.clearCreateTagForm();
+          this.showCreateTagSection = false;
+          this.isCreatingTag = false;
+          console.log('[ReviewTags] Tag created and added successfully');
+        }, 100);
+      },
+      error: (err) => {
+        console.error('[ReviewTags] Error creating tag:', err);
+        
+        // If tag already exists, try to find it and use it
+        if (err.status === 500 && err.error?.details?.includes('already exists')) {
+          console.log('[ReviewTags] Tag already exists, looking for existing tag...');
+          
+          // Reload available tags first
+          this.loadAvailableTags();
+          
+          setTimeout(() => {
+            // Find the tag by name (case-insensitive)
+            const existingTag = this.availableTags.find(t => 
+              t.name.toLowerCase() === this.newTagName.trim().toLowerCase()
+            );
+            
+            if (existingTag) {
+              console.log('[ReviewTags] Found existing tag:', existingTag);
+              this.addTagToReview(existingTag.id);
+              this.clearCreateTagForm();
+              this.showCreateTagSection = false;
+              this.isCreatingTag = false;
+            } else {
+              this.createTagError = 'Tag exists but could not be found';
+              this.isCreatingTag = false;
+            }
+          }, 100);
+        } else {
+          this.createTagError = err.error?.message || err.error?.details || 'Failed to create tag';
+          this.isCreatingTag = false;
+        }
+      }
+    });
+  }
+
+  /**
+   * Clear the create tag form
+   */
+  private clearCreateTagForm(): void {
+    this.newTagName = '';
+    this.newTagColor = '#6BCB77';
+    this.createTagError = '';
   }
 
   /**

@@ -16,12 +16,17 @@
   </div>
 
   <!-- Tag Filter -->
-  <app-tag-filter 
-    *ngIf="sourceFolder"
-    [sourcePath]="sourceFolder"
-    [resultCount]="reviews.length"
-    (filtersChanged)="onTagFiltersChanged($event)"
-  ></app-tag-filter>
+  <div *ngIf="sourceFolder">
+    <button class="btn-toggle-tags" (click)="toggleTagFilter()">
+      {{ showTagFilter ? '▼ Hide Tag Filter' : '▶ Show Tag Filter' }}
+    </button>
+    <app-tag-filter 
+      *ngIf="showTagFilter"
+      [sourcePath]="sourceFolder"
+      [resultCount]="reviews.length"
+      (filtersChanged)="onTagFiltersChanged($event)"
+    ></app-tag-filter>
+  </div>
 
   <div *ngIf="reviews.length === 0 && !isLoading && !error" class="empty-state">
     📭 No reviews found in this folder.
@@ -39,7 +44,11 @@
         <th>Object</th>
         <th>Background</th>
         <th>Character</th>
-        <th>Average</th>
+        <th class="sortable-header" (click)="onSortByAverage()" [class.sorted]="sortByAverage !== 'none'">
+          Average
+          <span class="sort-indicator" *ngIf="sortByAverage === 'asc'">▲</span>
+          <span class="sort-indicator" *ngIf="sortByAverage === 'desc'">▼</span>
+        </th>
         <th>Tags</th>
         <th>Notes</th>
         <th>Actions</th>
@@ -92,8 +101,15 @@
           </td>
           
           <!-- Notes -->
-          <td class="notes-cell" [title]="review.notes || 'No notes'">
+          <td class="notes-cell" 
+              (mouseenter)="onNotesHover(review.id)" 
+              (mouseleave)="onNotesLeave()"
+              [class.has-notes]="review.notes">
             {{ review.notes ? review.notes.substring(0, 25) + (review.notes.length > 25 ? '...' : '') : '-' }}
+            <!-- Notes Tooltip Popup -->
+            <div class="notes-tooltip" *ngIf="hoveredNoteId === review.id && review.notes">
+              {{ review.notes }}
+            </div>
           </td>
           
           <!-- Actions -->

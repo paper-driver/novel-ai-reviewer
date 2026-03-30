@@ -2,14 +2,15 @@ import { Component, OnInit, OnDestroy, ViewChild, TemplateRef } from '@angular/c
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, of } from 'rxjs';
+import { takeUntil, catchError } from 'rxjs/operators';
 import { ArtistGalleryService, ArtistGroupInfo, ImageMetadata } from '../../services/artist-gallery.service';
 import { GalleryCacheService } from '../../services/gallery-cache.service';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { RatingsStateService } from '../../services/ratings-state.service';
 import { CurrentSourceFolderService } from '../../services/current-source-folder.service';
 import { ReviewRequestService } from '../../services/review-request.service';
+import { ReviewsFolderService } from '../../services/reviews-folder.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 import { TagFilterComponent } from '../tag-filter/tag-filter.component';
 
@@ -44,6 +45,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
   
   // Tags
   showTagManager: boolean = false;
+  showTagFilter: boolean = false;
   selectedTagFilters: string[] = [];
   // Image tags map: group folderPath -> array of tag details { id, name, color }
   groupImageTags: { [groupFolderPath: string]: any[] } = {};
@@ -66,6 +68,12 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
   sortByRating: 'desc' | 'asc' | 'none' = 'none';
   sortByModified: 'desc' | 'asc' | 'none' = 'none';
 
+  // Track which groups have existing reviews
+  groupsWithReviews: Set<string> = new Set(); // Set of group folderPaths that have reviews
+
+  // Track which groups are currently being checked for reviews (for loading state)
+  groupsCheckingReview: Set<string> = new Set();
+
   // For unsubscribing from observables on component destroy
   private destroy$ = new Subject<void>();
 
@@ -76,6 +84,7 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     private ratingsStateService: RatingsStateService,
     private currentSourceFolderService: CurrentSourceFolderService,
     private reviewRequestService: ReviewRequestService,
+    private reviewsFolderService: ReviewsFolderService,
     private http: HttpClient
   ) {
     // Get user's timezone for display
@@ -92,13 +101,23 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     if (cachedData && cachedData.groups.length > 0) {
       // Restore cached data
       this.sortedFolderPath = cachedData.folderPath;
+      this.baseFolder = cachedData.folderPath; // Set baseFolder for review checking
       this.groups = cachedData.groups;
       this.filteredGroups = cachedData.filteredGroups;
       this.searchText = cachedData.searchText;
       this.totalImages = cachedData.totalImages;
       
+      // Restore filter states
+      this.minAverageRating = cachedData.minAverageRating || 0;
+      this.sortByRating = cachedData.sortByRating || 'none';
+      this.sortByModified = cachedData.sortByModified || 'none';
+      this.selectedTagFilters = cachedData.selectedTagFilters || [];
+      
       // Load and calculate average ratings from localStorage
       this.refreshAverageRatings();
+      
+      // Refresh review status for all groups
+      this.loadReviewsForGroups();
       
       this.isLoading = false;
     }
@@ -194,6 +213,9 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
           // Load image tags for all groups
           this.loadImageTagsForGroups();
           
+          // Load review status for all groups
+          this.loadReviewsForGroups();
+          
           this.isLoading = false;
           
           // Note: Don't set filteredGroups here - wait for refreshAverageRatings() to complete
@@ -205,7 +227,11 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
             this.groups,
             this.filteredGroups,
             this.searchText,
-            this.totalImages
+            this.totalImages,
+            this.minAverageRating,
+            this.sortByRating,
+            this.sortByModified,
+            this.selectedTagFilters
           );
         } else {
           this.error = 'Failed to load artist groups';
@@ -263,6 +289,13 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
   onTagFiltersChanged(tagIds: string[]): void {
     this.selectedTagFilters = tagIds;
     this.applySearch();
+  }
+
+  /**
+   * Toggle tag filter visibility
+   */
+  toggleTagFilter(): void {
+    this.showTagFilter = !this.showTagFilter;
   }
 
   /**
@@ -486,7 +519,11 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
         this.groups,
         this.filteredGroups,
         this.searchText,
-        this.totalImages
+        this.totalImages,
+        this.minAverageRating,
+        this.sortByRating,
+        this.sortByModified,
+        this.selectedTagFilters
       );
       return;
     }
@@ -558,7 +595,11 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       this.groups,
       this.filteredGroups,
       this.searchText,
-      this.totalImages
+      this.totalImages,
+      this.minAverageRating,
+      this.sortByRating,
+      this.sortByModified,
+      this.selectedTagFilters
     );
   }
 
@@ -575,7 +616,11 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       this.groups,
       this.filteredGroups,
       this.searchText,
-      this.totalImages
+      this.totalImages,
+      this.minAverageRating,
+      this.sortByRating,
+      this.sortByModified,
+      this.selectedTagFilters
     );
   }
 
@@ -662,7 +707,11 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       this.groups,
       this.filteredGroups,
       this.searchText,
-      this.totalImages
+      this.totalImages,
+      this.minAverageRating,
+      this.sortByRating,
+      this.sortByModified,
+      this.selectedTagFilters
     );
     // Complete the destroy subject to unsubscribe from all observables
     this.destroy$.next();
@@ -853,6 +902,75 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
       foreignId: group.folderPath,
       title: artistNames
     });
+  }
+
+  /**
+   * Check if a review already exists for this group
+   */
+  hasExistingReview(group: ArtistGroupInfo): boolean {
+    return this.groupsWithReviews.has(group.folderPath);
+  }
+
+  /**
+   * Load review status for all groups
+   */
+  private loadReviewsForGroups(): void {
+    if (!this.baseFolder) {
+      console.warn('[ArtistGallery] Cannot load reviews - baseFolder not set');
+      return;
+    }
+
+    this.groupsWithReviews.clear();
+    this.groupsCheckingReview.clear();
+
+    // Check reviews for each group with concurrency limit (max 5 concurrent requests)
+    // This prevents overwhelming the server and keeps UI responsive
+    const concurrencyLimit = 5;
+    let activeRequests = 0;
+    let checkIndex = 0;
+
+    const checkNextGroup = () => {
+      if (checkIndex >= this.groups.length || activeRequests >= concurrencyLimit) {
+        return;
+      }
+
+      const group = this.groups[checkIndex];
+      checkIndex++;
+      activeRequests++;
+
+      this.reviewsFolderService.getReviewBySource(
+        this.baseFolder,
+        'artist_gallery',
+        group.folderPath
+      ).pipe(
+        takeUntil(this.destroy$),
+        catchError(err => {
+          console.warn('[ArtistGallery] Error checking review for group:', group.folderPath, err);
+          return of(null);
+        })
+      ).subscribe(response => {
+        activeRequests--;
+
+        // Update the set if review exists
+        const res = response as any;
+        if (res && res.success && res.review) {
+          this.groupsWithReviews.add(group.folderPath);
+        }
+
+        // Check the next group
+        checkNextGroup();
+      });
+
+      // Start the next batch
+      if (activeRequests < concurrencyLimit) {
+        checkNextGroup();
+      }
+    };
+
+    // Start initial batch of checks
+    for (let i = 0; i < concurrencyLimit && i < this.groups.length; i++) {
+      checkNextGroup();
+    }
   }
 }
 

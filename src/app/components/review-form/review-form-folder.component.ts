@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -17,7 +17,7 @@ import { ReviewTagsComponent } from '../review-tags/review-tags.component';
   templateUrl: './review-form-folder.component.html',
   styleUrls: ['./review-form-folder.component.scss']
 })
-export class ReviewFormComponent implements OnInit, OnChanges {
+export class ReviewFormComponent implements OnInit, OnChanges, OnDestroy {
   @Input() sourceFolder: string | null = null;
   @Input() editingReview: Review | null = null;
   @Input() source: 'artist_gallery' | 'prompt_grouping' = 'artist_gallery';
@@ -32,6 +32,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
   isEditing: boolean = false;
   thumbnailUrl: string | null = null;
   imageFilenames: string[] = []; // Images in the current review
+  currentImageIndex: number = 0; // Track which image is currently displayed
   ratingOptions = [
     { value: 1, label: '1 - Very Poor' },
     { value: 2, label: '2 - Poor' },
@@ -61,6 +62,13 @@ export class ReviewFormComponent implements OnInit, OnChanges {
     if (this.editingReview) {
       this.populateForm();
     }
+    
+    // Add keyboard navigation for image gallery
+    window.addEventListener('keydown', (e) => this.handleKeyboardNavigation(e));
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('keydown', (e) => this.handleKeyboardNavigation(e));
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -150,9 +158,13 @@ export class ReviewFormComponent implements OnInit, OnChanges {
     }).subscribe({
       next: (response: any) => {
         if (response.images && response.images.length > 0) {
+          // Load all images for scrolling in the review form
+          this.imageFilenames = response.images;
+          this.currentImageIndex = 0;
+          
           const firstImage = response.images[0];
           this.thumbnailUrl = this.galleryService.getThumbnailUrl(galleryFolderId, firstImage);
-          console.log('[ReviewForm] Loaded artist gallery thumbnail:', this.thumbnailUrl);
+          console.log('[ReviewForm] Loaded', this.imageFilenames.length, 'artist gallery images for review');
         }
       },
       error: (err) => {
@@ -177,11 +189,15 @@ export class ReviewFormComponent implements OnInit, OnChanges {
         if (response.groups && response.groups[groupId]) {
           const groupData = response.groups[groupId];
           if (groupData.images && groupData.images.length > 0) {
+            // Load all images for scrolling in the review form
+            // Convert relative paths to full paths
+            this.imageFilenames = groupData.images.map((img: string) => `${this.sourceFolder}/${img}`);
+            this.currentImageIndex = 0;
+            
             const firstImage = groupData.images[0];
-            // Images are relative paths, prepend sourceFolder
             const fullImagePath = `${this.sourceFolder}/${firstImage}`;
             this.thumbnailUrl = `http://localhost:3001/api/prompt-grouping/image?filePath=${encodeURIComponent(fullImagePath)}&thumbnail=true&v=${Date.now()}`;
-            console.log('[ReviewForm] Loaded prompt grouping thumbnail:', this.thumbnailUrl);
+            console.log('[ReviewForm] Loaded', this.imageFilenames.length, 'prompt grouping images for review');
           }
         }
       },
@@ -189,6 +205,66 @@ export class ReviewFormComponent implements OnInit, OnChanges {
         console.warn('[ReviewForm] Error loading prompt grouping groups:', err);
       }
     });
+  }
+
+  /**
+   * Navigate to previous image
+   */
+  previousImage(): void {
+    if (this.currentImageIndex > 0) {
+      this.currentImageIndex--;
+    }
+  }
+
+  /**
+   * Navigate to next image
+   */
+  nextImage(): void {
+    if (this.currentImageIndex < this.imageFilenames.length - 1) {
+      this.currentImageIndex++;
+    }
+  }
+
+  /**
+   * Handle keyboard navigation (arrow keys)
+   */
+  private handleKeyboardNavigation(event: KeyboardEvent): void {
+    // Only navigate if form has images
+    if (this.imageFilenames.length === 0) return;
+    
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.previousImage();
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.nextImage();
+    }
+  }
+
+  /**
+   * Get current image to display
+   */
+  getCurrentImageUrl(): string | null {
+    if (this.imageFilenames.length === 0) {
+      return this.thumbnailUrl;
+    }
+    
+    const currentImage = this.imageFilenames[this.currentImageIndex];
+    const source = this.editingReview?.source || this.source;
+    const foreignId = this.editingReview?.foreign_id || this.foreignId;
+    
+    if (!source || !foreignId) {
+      return null;
+    }
+    
+    if (source === 'artist_gallery') {
+      return this.galleryService.getThumbnailUrl(foreignId, currentImage);
+    } else if (source === 'prompt_grouping') {
+      // currentImage is already a full path for prompt grouping
+      return `http://localhost:3001/api/prompt-grouping/image?filePath=${encodeURIComponent(currentImage)}&thumbnail=true&v=${Date.now()}`;
+    }
+    
+    return null;
   }
 
   /**
@@ -209,6 +285,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
         next: (response) => {
           if (response.images && Array.isArray(response.images)) {
             this.imageFilenames = response.images;
+            this.currentImageIndex = 0; // Reset to first image
             console.log('[ReviewForm] Loaded', this.imageFilenames.length, 'images for review');
           }
         },
@@ -232,6 +309,7 @@ export class ReviewFormComponent implements OnInit, OnChanges {
               this.imageFilenames = groupData.images.map((relativePath: string) =>
                 `${this.sourceFolder}/${relativePath}`
               );
+              this.currentImageIndex = 0; // Reset to first image
               console.log('[ReviewForm] Loaded', this.imageFilenames.length, 'images for review');
             }
           }

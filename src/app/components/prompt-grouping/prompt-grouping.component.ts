@@ -8,6 +8,7 @@ import { FolderPickerService } from '../../services/folder-picker.service';
 import { RatingsStateService } from '../../services/ratings-state.service';
 import { CurrentSourceFolderService } from '../../services/current-source-folder.service';
 import { ReviewRequestService } from '../../services/review-request.service';
+import { ReviewsFolderService } from '../../services/reviews-folder.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 import { Subject, interval, forkJoin, from, of } from 'rxjs';
 import { takeUntil, switchMap, mergeMap, map, catchError } from 'rxjs/operators';
@@ -46,6 +47,7 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   filterText: string = '';
   showFilters = false;
   showOnlyNoNickname = false;
+  selectedTagFilters: string[] = []; // Tag filters
 
   // Rating filter and sort state
   minAverageRating: number = 0;
@@ -84,6 +86,13 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
   showProgress = false;
   progressPercentage = 0;
   progressText = '';
+
+  // Track which groups have existing reviews
+  groupsWithReviews: Set<string> = new Set(); // Set of group IDs that have reviews
+
+  // Track which groups are currently being checked for reviews (for loading state)
+  groupsCheckingReview: Set<string> = new Set();
+
   private destroy$ = new Subject<void>();
   private progressSubscription: any;
 
@@ -93,7 +102,8 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
     private cacheService: GalleryCacheService,
     private ratingsStateService: RatingsStateService,
     private currentSourceFolderService: CurrentSourceFolderService,
-    private reviewRequestService: ReviewRequestService
+    private reviewRequestService: ReviewRequestService,
+    private reviewsFolderService: ReviewsFolderService
   ) {
     // Get user's timezone for display
     const timeZoneOffset = new Date().getTimezoneOffset();
@@ -116,8 +126,17 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       // selectedNicknames is { groupId: nickname }, so we need values not keys
       this.availableNicknames = Array.from(new Set(Object.values(cachedData.selectedNicknames).filter(n => n && n.trim()))).sort();
       
+      // Restore filter states
+      this.minAverageRating = cachedData.minAverageRating || 0;
+      this.sortByRating = cachedData.sortByRating || 'none';
+      this.sortByModified = cachedData.sortByModified || 'none';
+      this.selectedTagFilters = cachedData.selectedTagFilters || [];
+      
       // Load and calculate average ratings from localStorage
       this.refreshAverageRatings();
+      
+      // Refresh review status for all groups
+      this.loadReviewsForGroups();
       
       // Apply any filter that was active
       if (this.filterText) {
@@ -157,7 +176,11 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       this.groups,
       this.filteredGroups,
       this.filterText,
-      selectedNicknames
+      selectedNicknames,
+      this.minAverageRating,
+      this.sortByRating,
+      this.sortByModified,
+      this.selectedTagFilters
     );
 
     this.destroy$.next();
@@ -270,6 +293,9 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
           // Load and calculate average ratings (this will also update filteredGroups)
           this.refreshAverageRatings();
 
+          // Load review status for all groups
+          this.loadReviewsForGroups();
+
           // Save to cache
           const selectedNicknames: { [key: string]: string } = {};
           this.groups.forEach(group => {
@@ -282,7 +308,11 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
             this.groups,
             this.filteredGroups,
             this.filterText,
-            selectedNicknames
+            selectedNicknames,
+            this.minAverageRating,
+            this.sortByRating,
+            this.sortByModified,
+            this.selectedTagFilters
           );
         } else {
           this.error = 'Failed to load prompt groups';
@@ -815,7 +845,11 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       this.groups,
       this.filteredGroups,
       this.filterText,
-      selectedNicknames
+      selectedNicknames,
+      this.minAverageRating,
+      this.sortByRating,
+      this.sortByModified,
+      this.selectedTagFilters
     );
   }
 
@@ -847,7 +881,11 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       this.groups,
       this.filteredGroups,
       this.filterText,
-      selectedNicknames
+      selectedNicknames,
+      this.minAverageRating,
+      this.sortByRating,
+      this.sortByModified,
+      this.selectedTagFilters
     );
   }
 
@@ -1252,6 +1290,75 @@ export class PromptGroupingComponent implements OnInit, OnDestroy {
       foreignId: String(group.groupId),
       title: groupTitle
     });
+  }
+
+  /**
+   * Check if a review already exists for this group
+   */
+  hasExistingReview(group: PromptGroupInfo): boolean {
+    return this.groupsWithReviews.has(String(group.groupId));
+  }
+
+  /**
+   * Load review status for all groups
+   */
+  private loadReviewsForGroups(): void {
+    if (!this.folderPath) {
+      console.warn('[PromptGrouping] Cannot load reviews - folderPath not set');
+      return;
+    }
+
+    this.groupsWithReviews.clear();
+    this.groupsCheckingReview.clear();
+
+    // Check reviews for each group with concurrency limit (max 5 concurrent requests)
+    // This prevents overwhelming the server and keeps UI responsive
+    const concurrencyLimit = 5;
+    let activeRequests = 0;
+    let checkIndex = 0;
+
+    const checkNextGroup = () => {
+      if (checkIndex >= this.groups.length || activeRequests >= concurrencyLimit) {
+        return;
+      }
+
+      const group = this.groups[checkIndex];
+      checkIndex++;
+      activeRequests++;
+
+      this.reviewsFolderService.getReviewBySource(
+        this.folderPath,
+        'prompt_grouping',
+        String(group.groupId)
+      ).pipe(
+        takeUntil(this.destroy$),
+        catchError(err => {
+          console.warn('[PromptGrouping] Error checking review for group:', group.groupId, err);
+          return of(null);
+        })
+      ).subscribe(response => {
+        activeRequests--;
+
+        // Update the set if review exists
+        const res = response as any;
+        if (res && res.success && res.review) {
+          this.groupsWithReviews.add(String(group.groupId));
+        }
+
+        // Check the next group
+        checkNextGroup();
+      });
+
+      // Start the next batch
+      if (activeRequests < concurrencyLimit) {
+        checkNextGroup();
+      }
+    };
+
+    // Start initial batch of checks
+    for (let i = 0; i < concurrencyLimit && i < this.groups.length; i++) {
+      checkNextGroup();
+    }
   }
 }
 

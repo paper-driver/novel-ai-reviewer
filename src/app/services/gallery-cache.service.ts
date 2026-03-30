@@ -17,6 +17,10 @@ export class GalleryCacheService {
     filteredGroups: ArtistGroupInfo[];
     searchText: string;
     totalImages: number;
+    minAverageRating: number;
+    sortByRating: 'none' | 'asc' | 'desc';
+    sortByModified: 'none' | 'asc' | 'desc';
+    selectedTagFilters: string[];
   } | null = null;
 
   // Prompt Grouping Cache
@@ -26,6 +30,10 @@ export class GalleryCacheService {
     filteredGroups: PromptGroupInfo[];
     searchText: string;
     selectedNicknames: { [key: string]: string };
+    minAverageRating: number;
+    sortByRating: 'none' | 'asc' | 'desc';
+    sortByModified: 'none' | 'asc' | 'desc';
+    selectedTagFilters: string[];
   } | null = null;
 
   constructor() {}
@@ -40,14 +48,22 @@ export class GalleryCacheService {
     groups: ArtistGroupInfo[],
     filteredGroups: ArtistGroupInfo[],
     searchText: string,
-    totalImages: number
+    totalImages: number,
+    minAverageRating: number = 0,
+    sortByRating: 'none' | 'asc' | 'desc' = 'none',
+    sortByModified: 'none' | 'asc' | 'desc' = 'none',
+    selectedTagFilters: string[] = []
   ): void {
     this.artistGalleryCache = {
       folderPath,
       groups,
       filteredGroups,
       searchText,
-      totalImages
+      totalImages,
+      minAverageRating,
+      sortByRating,
+      sortByModified,
+      selectedTagFilters
     };
   }
 
@@ -60,6 +76,10 @@ export class GalleryCacheService {
     filteredGroups: ArtistGroupInfo[];
     searchText: string;
     totalImages: number;
+    minAverageRating: number;
+    sortByRating: 'none' | 'asc' | 'desc';
+    sortByModified: 'none' | 'asc' | 'desc';
+    selectedTagFilters: string[];
   } | null {
     return this.artistGalleryCache;
   }
@@ -88,14 +108,22 @@ export class GalleryCacheService {
     groups: PromptGroupInfo[],
     filteredGroups: PromptGroupInfo[],
     searchText: string,
-    selectedNicknames: { [key: string]: string }
+    selectedNicknames: { [key: string]: string },
+    minAverageRating: number = 0,
+    sortByRating: 'none' | 'asc' | 'desc' = 'none',
+    sortByModified: 'none' | 'asc' | 'desc' = 'none',
+    selectedTagFilters: string[] = []
   ): void {
     this.promptGroupingCache = {
       generatedFolder,
       groups,
       filteredGroups,
       searchText,
-      selectedNicknames
+      selectedNicknames,
+      minAverageRating,
+      sortByRating,
+      sortByModified,
+      selectedTagFilters
     };
   }
 
@@ -108,6 +136,10 @@ export class GalleryCacheService {
     filteredGroups: PromptGroupInfo[];
     searchText: string;
     selectedNicknames: { [key: string]: string };
+    minAverageRating: number;
+    sortByRating: 'none' | 'asc' | 'desc';
+    sortByModified: 'none' | 'asc' | 'desc';
+    selectedTagFilters: string[];
   } | null {
     return this.promptGroupingCache;
   }

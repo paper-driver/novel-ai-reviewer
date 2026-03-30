@@ -19,14 +19,48 @@
       </div>
     </div>
 
-    <!-- Thumbnail section -->
-    <div *ngIf="thumbnailUrl" class="thumbnail-section">
-      <label>Source Image Thumbnail:</label>
-      <div class="thumbnail-container">
-        <img [src]="thumbnailUrl" 
-             alt="Review source thumbnail" 
-             class="thumbnail-image"
-             onerror="this.style.display='none'">
+    <!-- Image Gallery Section -->
+    <div *ngIf="getCurrentImageUrl()" class="image-gallery-section">
+      <label>Review Images:</label>
+      <div class="image-gallery-container">
+        <!-- Image Display -->
+        <div class="image-display-wrapper">
+          <img 
+            [src]="getCurrentImageUrl()" 
+            alt="Review image"
+            class="gallery-image"
+            onerror="this.style.display='none'">
+        </div>
+        
+        <!-- Navigation Controls (only show if multiple images) -->
+        <div *ngIf="imageFilenames.length > 1" class="navigation-controls">
+          <button 
+            type="button"
+            (click)="previousImage()"
+            [disabled]="currentImageIndex === 0"
+            class="nav-button prev-button"
+            title="Previous image (← arrow key)">
+            ← Previous
+          </button>
+          
+          <div class="image-counter">
+            {{ currentImageIndex + 1 }} / {{ imageFilenames.length }}
+          </div>
+          
+          <button 
+            type="button"
+            (click)="nextImage()"
+            [disabled]="currentImageIndex === imageFilenames.length - 1"
+            class="nav-button next-button"
+            title="Next image (← arrow key)">
+            Next →
+          </button>
+        </div>
+        
+        <!-- Keyboard hint -->
+        <div *ngIf="imageFilenames.length > 1" class="keyboard-hint">
+          💡 Use ← → arrow keys to navigate
+        </div>
       </div>
     </div>
 

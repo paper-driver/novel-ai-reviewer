@@ -41,7 +41,14 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
   
   // Tags
   showTagManager: boolean = false;
+  showTagFilter: boolean = false;
   selectedTagFilters: string[] = [];
+  
+  // Sorting
+  sortByAverage: 'none' | 'asc' | 'desc' = 'none';
+  
+  // Notes tooltip hover state
+  hoveredNoteId: string | null = null;
   
   // Thumbnail URLs map: review.id -> thumbnail URL
   reviewThumbnails: { [reviewId: string]: string } = {};
@@ -173,10 +180,66 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /**
+   * Sort reviews by average rating
+   * Cycles through: none -> asc -> desc -> none
+   */
+  onSortByAverage(): void {
+    // Cycle through sort directions
+    if (this.sortByAverage === 'none') {
+      this.sortByAverage = 'asc';
+    } else if (this.sortByAverage === 'asc') {
+      this.sortByAverage = 'desc';
+    } else {
+      this.sortByAverage = 'none';
+    }
+
+    // Apply sort
+    if (this.sortByAverage === 'none') {
+      // Reset to original order from allReviews
+      this.applyTagFilters(); // Reapplies filters but in original order
+    } else {
+      // Sort current reviews array by average rating
+      const sorted = [...this.reviews];
+      sorted.sort((a, b) => {
+        const avgA = this.getAverageRatingNumber(a);
+        const avgB = this.getAverageRatingNumber(b);
+        
+        if (this.sortByAverage === 'asc') {
+          return avgA - avgB;
+        } else {
+          return avgB - avgA;
+        }
+      });
+      this.reviews = sorted;
+    }
+  }
+
+  /**
+   * Get average rating as a number for sorting
+   */
+  private getAverageRatingNumber(review: Review): number {
+    const values = [
+      review.rating?.anatomy || 0,
+      review.rating?.face || 0,
+      review.rating?.object || 0,
+      review.rating?.background || 0,
+      review.rating?.character || 0
+    ];
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  }
+
+  /**
    * Toggle tag manager visibility
    */
   toggleTagManager(): void {
     this.showTagManager = !this.showTagManager;
+  }
+
+  /**
+   * Toggle tag filter visibility
+   */
+  toggleTagFilter(): void {
+    this.showTagFilter = !this.showTagFilter;
   }
 
   /**
@@ -775,5 +838,19 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
         });
       }
     });
+  }
+
+  /**
+   * Show notes tooltip on hover
+   */
+  onNotesHover(reviewId: string): void {
+    this.hoveredNoteId = reviewId;
+  }
+
+  /**
+   * Hide notes tooltip on mouse leave
+   */
+  onNotesLeave(): void {
+    this.hoveredNoteId = null;
   }
 }

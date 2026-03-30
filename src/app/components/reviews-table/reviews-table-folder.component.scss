@@ -48,6 +48,26 @@
     white-space: nowrap;
   }
 
+  .sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: #ececec;
+    }
+
+    &.sorted {
+      background-color: #e0e0e0;
+    }
+
+    .sort-indicator {
+      margin-left: 0.4rem;
+      font-size: 0.7rem;
+      color: #2196f3;
+    }
+  }
+
   .reviews-table td {
     padding: 0.6rem 0.5rem;
     border-bottom: 1px solid #eee;
@@ -69,8 +89,8 @@
   }
 
   .thumbnail {
-    width: 50px;
-    height: 50px;
+    width: 100px;
+    height: 100px;
     object-fit: cover;
     border-radius: 4px;
     cursor: pointer;
@@ -150,13 +170,59 @@
     font-size: 0.85rem;
     color: #666;
     max-width: 200px;
-    overflow: hidden;
+    overflow: visible;
     text-overflow: ellipsis;
     white-space: nowrap;
+    position: relative;
+    cursor: help;
+
+    &.has-notes:hover {
+      color: #2196f3;
+    }
+
+    .notes-tooltip {
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: #fff;
+      padding: 1rem;
+      border-radius: 4px;
+      white-space: normal;
+      word-wrap: break-word;
+      width: 200px;
+      text-align: left;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      animation: tooltipPop 0.2s ease-out;
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: #333;
+      }
+    }
+  }
+
+  @keyframes tooltipPop {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%) translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   }
 
   .actions-cell {
-    display: flex;
     gap: 0.5rem;
     justify-content: center;
   }

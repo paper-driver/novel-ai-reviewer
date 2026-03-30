@@ -94,7 +94,11 @@
     </div>
 
     <!-- Tag Filter -->
+    <button class="btn-toggle-tags" (click)="toggleTagFilter()">
+      {{ showTagFilter ? '▼ Hide Tag Filter' : '▶ Show Tag Filter' }}
+    </button>
     <app-tag-filter 
+      *ngIf="showTagFilter"
       [sourcePath]="baseFolder || sortedFolderPath"
       (filtersChanged)="onTagFiltersChanged($event)">
     </app-tag-filter>
@@ -192,8 +196,8 @@
                 <button 
                   (click)="requestReview(group)" 
                   class="btn-review" 
-                  title="Create or edit review for this group">
-                  📝 Review
+                  [title]="hasExistingReview(group) ? 'Edit existing review for this group' : 'Create new review for this group'">
+                  {{ hasExistingReview(group) ? '✏️ Edit Review' : '📝 Create Review' }}
                 </button>
               </div>
             </td>

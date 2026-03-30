@@ -45,10 +45,15 @@ interface Tag {
         <p>No tags assigned yet</p>
       </div>
 
-      <!-- Available tags to add -->
+      <!-- Available tags to add (collapsible) -->
       <div *ngIf="!isLoading && availableTagsToAdd.length > 0" class="available-tags-section">
-        <label class="section-label">Add Tags</label>
-        <div class="tags-list">
+        <div class="section-header">
+          <label class="section-label">Add Tags</label>
+          <button class="btn-toggle-section" (click)="toggleAddTagsSection()" [title]="showAddTagsSection ? 'Collapse' : 'Expand'">
+            {{ showAddTagsSection ? '▼' : '▶' }}
+          </button>
+        </div>
+        <div *ngIf="showAddTagsSection" class="tags-list">
           <button
             *ngFor="let tag of availableTagsToAdd"
             class="btn-add-tag"
@@ -109,12 +114,34 @@ interface Tag {
       margin-bottom: 16px;
     }
 
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
     .section-label {
       display: block;
-      margin-bottom: 8px;
       font-size: 12px;
       font-weight: 500;
       color: #666;
+      margin: 0;
+    }
+
+    .btn-toggle-section {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      color: #666;
+      padding: 0;
+      margin: 0;
+      transition: color 0.2s;
+
+      &:hover {
+        color: #333;
+      }
     }
 
     .tags-list {
@@ -160,6 +187,7 @@ export class ImageTagsComponent implements OnInit, OnChanges {
   currentImageTagIds: string[] = [];
   isLoading: boolean = false;
   error: string = '';
+  showAddTagsSection: boolean = false; // Collapsed by default
 
   constructor(private http: HttpClient) {}
 
@@ -306,6 +334,13 @@ export class ImageTagsComponent implements OnInit, OnChanges {
         console.error('[ImageTags] Error removing tag:', err);
       }
     });
+  }
+
+  /**
+   * Toggle the "Add Tags" section visibility
+   */
+  toggleAddTagsSection(): void {
+    this.showAddTagsSection = !this.showAddTagsSection;
   }
 
   /**
