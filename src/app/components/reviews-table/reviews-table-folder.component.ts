@@ -7,6 +7,7 @@ import { ReviewsFolderService, Review } from '../../services/reviews-folder.serv
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
 import { ArtistGalleryService } from '../../services/artist-gallery.service';
 import { PromptGroupingService } from '../../services/prompt-grouping.service';
+import { ScrollTargetService } from '../../services/scroll-target.service';
 import { TagFilterComponent } from '../tag-filter/tag-filter.component';
 import { TagManagerComponent } from '../tag-manager/tag-manager.component';
 
@@ -50,6 +51,9 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
   // Notes tooltip hover state
   hoveredNoteId: string | null = null;
   
+  // Track which review to scroll to after loading
+  private scrollTargetId: string | null = null;
+  
   // Thumbnail URLs map: review.id -> thumbnail URL
   reviewThumbnails: { [reviewId: string]: string } = {};
   
@@ -72,10 +76,22 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
     private reviewsFolderService: ReviewsFolderService,
     private http: HttpClient,
     private galleryService: ArtistGalleryService,
-    private groupingService: PromptGroupingService
+    private groupingService: PromptGroupingService,
+    private scrollTargetService: ScrollTargetService
   ) {}
 
   ngOnInit(): void {
+    // Subscribe to scroll target updates
+    this.scrollTargetService.getScrollTarget()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(scrollTargetId => {
+        this.scrollTargetId = scrollTargetId;
+        // If data is already loaded and we have a scroll target, scroll to it
+        if (this.scrollTargetId && this.reviews.length > 0) {
+          this.scrollToReview(this.scrollTargetId);
+        }
+      });
+
     // Load reviews if sourceFolder is provided
     if (this.sourceFolder) {
       this.loadReviews();
@@ -104,7 +120,6 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
       this.reviews = [];
       this.reviewThumbnails = {};
       this.error = null;
-      console.log('[ReviewsTable] Source folder changed to:', this.sourceFolder);
       this.loadReviews();
     }
   }
@@ -130,16 +145,30 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
         this.reviews = response.reviews;
         this.selectedTagFilters = []; // Reset filters when loading new folder
         this.isLoading = false;
-        console.log('[ReviewsTable] Loaded', response.reviews.length, 'reviews from', this.sourceFolder);
         
         // Load thumbnails for all reviews
         this.loadThumbnailsForReviews();
         
         // Load image tags for all reviews
         this.loadImageTagsForReviews();
+        
+        // If we have a scroll target, scroll to it after DOM updates and images load
+        if (this.scrollTargetId) {
+          // Wait for images to load before positioning
+          // Use multiple requestAnimationFrames to ensure images have time to load
+          requestAnimationFrame(() => {
+            // First RAF: DOM is rendered
+            requestAnimationFrame(() => {
+              // Second RAF: content is painted
+              // Add delay for images to load asynchronously
+              setTimeout(() => {
+                this.scrollToReview(this.scrollTargetId!);
+              }, 500); // 500ms for images to complete loading (reduced from 1000ms since scroll is instant)
+            });
+          });
+        }
       },
       error: (err) => {
-        console.error('[ReviewsTable] Error loading reviews:', err);
         this.error = 'Failed to load reviews: ' + (err.error?.error || err.message);
         this.reviews = [];
         this.allReviews = [];
@@ -176,7 +205,6 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
         );
       });
     }
-    console.log('[ReviewsTable] Filtered to', this.reviews.length, 'reviews with tags:', this.selectedTagFilters);
   }
 
   /**
@@ -246,7 +274,6 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
    * Handle tag manager update
    */
   onTagsUpdated(tags: any[]): void {
-    console.log('[ReviewsTable] Tags updated:', tags);
   }
 
   /**
@@ -286,7 +313,6 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
           const firstImage = response.images[0];
           const thumbnailUrl = this.galleryService.getThumbnailUrl(review.foreign_id, firstImage);
           this.reviewThumbnails[review.id] = thumbnailUrl;
-          console.log('[ReviewsTable] Loaded artist gallery thumbnail:', thumbnailUrl);
         }
       },
       error: (err) => {
@@ -312,7 +338,6 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
             const fullImagePath = `${this.sourceFolder}/${firstImage}`;
             const thumbnailUrl = `http://localhost:3001/api/prompt-grouping/image?filePath=${encodeURIComponent(fullImagePath)}&thumbnail=true&v=${Date.now()}`;
             this.reviewThumbnails[review.id] = thumbnailUrl;
-            console.log('[ReviewsTable] Loaded prompt grouping thumbnail:', thumbnailUrl);
           }
         }
       },
@@ -338,9 +363,6 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
    * Load image tags for a single review
    */
   private loadImageTagsForReview(review: Review, tagsSourcePath: string | null = null): void {
-    console.log('[ReviewsTable] loadImageTagsForReview called for review:', review.id);
-    console.log('[ReviewsTable] Review source:', review.source, 'foreign_id:', review.foreign_id);
-    console.log('[ReviewsTable] tagsSourcePath param:', tagsSourcePath);
     
     // Use provided tagsSourcePath or fall back to selectedReviewTagsSourcePath (set when modal opened)
     // IMPORTANT: Use sourceFolder as default for artist gallery (parent folder where .tags.json is)
@@ -351,10 +373,8 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
     if (!actualTagsSourcePath) {
       actualTagsSourcePath = this.sourceFolder;
     }
-    console.log('[ReviewsTable] Using actualTagsSourcePath:', actualTagsSourcePath);
     
     if (review.source === 'artist_gallery') {
-      console.log('[ReviewsTable] Loading artist gallery image tags');
       this.loadArtistGalleryImageTags(review, actualTagsSourcePath);
     } else if (review.source === 'prompt_grouping') {
       console.log('[ReviewsTable] Loading prompt grouping image tags');
@@ -381,11 +401,11 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
         console.log('[ReviewsTable] Raw images from API:', response.images);
         if (response.images && response.images.length > 0) {
           // Get union of tags for all images in this group
-          // Use display names as-is from API response, joined with pipe delimiter
-          const imageFilenames = response.images.join('|');
-          console.log('[ReviewsTable] Fetching union tags from tagsSourcePath:', actualTagsSourcePath, 'with imageFilenames:', imageFilenames);
-          this.http.get<any>(
-            `http://localhost:3001/api/tags/images/union-tags?sourcePath=${encodeURIComponent(actualTagsSourcePath)}&imageFilenames=${encodeURIComponent(imageFilenames)}`
+          // Send as POST with request body to handle large image counts
+          console.log('[ReviewsTable] Fetching union tags from tagsSourcePath:', actualTagsSourcePath, 'with', response.images.length, 'images');
+          this.http.post<any>(
+            'http://localhost:3001/api/tags/images/union-tags',
+            { sourcePath: actualTagsSourcePath, imageFilenames: response.images }
           ).subscribe({
             next: (tagsResponse) => {
               console.log('[ReviewsTable] Union tags response:', tagsResponse);
@@ -435,13 +455,13 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
             const fullImagePaths = groupData.images.map((relativePath: string) =>
               `${this.sourceFolder}/${relativePath}`
             );
-            // Use pipe delimiter between filenames
-            const imageFilenames = fullImagePaths.join('|');
-            console.log('[ReviewsTable] Fetching union tags from tagsSourcePath:', actualTagsSourcePath, 'with imageFilenames:', imageFilenames);
+            console.log('[ReviewsTable] Fetching union tags from tagsSourcePath:', actualTagsSourcePath, 'with', fullImagePaths.length, 'images');
             
             // Get union of tags for all images in this group
-            this.http.get<any>(
-              `http://localhost:3001/api/tags/images/union-tags?sourcePath=${encodeURIComponent(actualTagsSourcePath)}&imageFilenames=${encodeURIComponent(imageFilenames)}`
+            // Send as POST with request body to handle large image counts
+            this.http.post<any>(
+              'http://localhost:3001/api/tags/images/union-tags',
+              { sourcePath: actualTagsSourcePath, imageFilenames: fullImagePaths }
             ).subscribe({
               next: (tagsResponse) => {
                 console.log('[ReviewsTable] Union tags response:', tagsResponse);
@@ -852,5 +872,43 @@ export class ReviewsTableComponent implements OnInit, OnChanges, OnDestroy {
    */
   onNotesLeave(): void {
     this.hoveredNoteId = null;
+  }
+
+  /**
+   * Scroll to a specific review row by ID with highlight animation
+   */
+  private scrollToReview(reviewId: string): void {
+    if (!reviewId) {
+      this.scrollTargetService.clearScrollTarget();
+      return;
+    }
+
+    // Query the DOM for the review row
+    const reviewRow = document.querySelector(`[data-review-id="${reviewId}"]`) as HTMLElement;
+
+    if (reviewRow) {
+      // Calculate the scroll position to center the row
+      const rowRect = reviewRow.getBoundingClientRect();
+      const rowTop = rowRect.top + window.scrollY;
+      const rowHeight = rowRect.height;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate position to center the row in viewport
+      const targetScrollY = rowTop - (viewportHeight / 2) + (rowHeight / 2);
+      
+      // Scroll instantly to the calculated position (no animation)
+      window.scrollTo({ top: targetScrollY, behavior: 'auto' });
+
+      // Add highlight class for visual feedback
+      reviewRow.classList.add('highlight');
+      
+      // Remove highlight after 2 seconds
+      setTimeout(() => {
+        reviewRow.classList.remove('highlight');
+      }, 2000);
+    }
+
+    // Clear the scroll target after attempting to scroll
+    this.scrollTargetService.clearScrollTarget();
   }
 }

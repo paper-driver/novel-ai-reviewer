@@ -8,6 +8,7 @@ import { ReviewFormComponent } from '../review-form/review-form-folder.component
 import { CurrentSourceFolderService } from '../../services/current-source-folder.service';
 import { ReviewRequestService, ReviewRequest } from '../../services/review-request.service';
 import { ReviewsFolderService, Review } from '../../services/reviews-folder.service';
+import { ScrollTargetService } from '../../services/scroll-target.service';
 
 /**
  * Reviews Management Page Component
@@ -45,13 +46,13 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
     private currentSourceFolderService: CurrentSourceFolderService,
     private reviewsFolderService: ReviewsFolderService,
     private reviewRequestService: ReviewRequestService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private scrollTargetService: ScrollTargetService
   ) {}
 
   ngOnInit(): void {
     // If a review request was provided as an input, handle it
     if (this.reviewRequest) {
-      console.log('[ReviewsManagement] Handling review request in ngOnInit:', this.reviewRequest);
       this.handleReviewRequest(this.reviewRequest);
     }
 
@@ -60,17 +61,13 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
       .pipe(takeUntil(this.destroy$))
       .subscribe(folder => {
         if (folder) {
-          console.log('[ReviewsManagement] Folder changed to:', folder, 'isHandlingReviewRequest:', this.isHandlingReviewRequest);
           this.selectedSourceFolder = folder;
           
           // Only reset to reviews-table if we're NOT handling a review request
           // (to prevent interfering with review form display)
           if (!this.isHandlingReviewRequest) {
-            console.log('[ReviewsManagement] Resetting to reviews-table (not handling review request)');
             this.currentStep = 'reviews-table';
             this.editingReview = null;
-          } else {
-            console.log('[ReviewsManagement] Skipping reset because handling review request');
           }
           
           localStorage.setItem('selectedSourceFolder', folder);
@@ -78,7 +75,6 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
           // Explicitly trigger reload in reviews-table component
           // This ensures the table updates when folder changes from other components
           if (this.reviewsTableComponent && !this.isHandlingReviewRequest) {
-            console.log('[ReviewsManagement] Triggering reviews reload in table component');
             setTimeout(() => {
               this.reviewsTableComponent?.loadReviews();
             }, 0);
@@ -95,17 +91,10 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
 
   ngOnChanges(changes: SimpleChanges): void {
     // Handle review request changes (when review request arrives from gallery/grouping)
-    console.log('[ReviewsManagement] ngOnChanges fired:', Object.keys(changes));
     
     if (changes['reviewRequest']) {
-      console.log('[ReviewsManagement] reviewRequest changed:', {
-        previousValue: changes['reviewRequest'].previousValue,
-        currentValue: changes['reviewRequest'].currentValue
-      });
-      
       if (changes['reviewRequest'].currentValue) {
         const newRequest = changes['reviewRequest'].currentValue as ReviewRequest;
-        console.log('[ReviewsManagement] Review request changed via ngOnChanges:', newRequest);
         this.handleReviewRequest(newRequest);
       }
     }
@@ -142,7 +131,15 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
   onReviewSaved(savedReview: Review): void {
     this.editingReview = null;
     this.currentStep = 'reviews-table';
-    console.log('[ReviewsManagement] Review saved:', savedReview.id);
+    
+    // Set the scroll target so the table will auto-scroll to this review
+    this.scrollTargetService.setScrollTarget(savedReview.id);
+    
+    // Reload the reviews table to show the updated/new review
+    if (this.reviewsTableComponent) {
+      this.reviewsTableComponent.loadReviews();
+    }
+    
     // Clear the pending review request after successful save
     this.reviewRequestService.clearRequest();
   }
@@ -169,26 +166,20 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
    * Load existing review from source + foreignId (for edit requests from gallery/grouping)
    */
   private loadExistingReview(sourceFolder: string, source: string, foreignId: string): void {
-    console.log('[ReviewsManagement] loadExistingReview called:', { sourceFolder, source, foreignId });
     
     this.reviewsFolderService.getReviewBySource(sourceFolder, source, foreignId).subscribe({
       next: (response) => {
-        console.log('[ReviewsManagement] getReviewBySource response:', response);
         
         if (response.success && response.review) {
-          console.log('[ReviewsManagement] Loaded existing review:', response.review);
           this.editingReview = response.review;
         } else {
-          console.log('[ReviewsManagement] No existing review found - will create new one');
           this.editingReview = null;
         }
         
         // Force change detection after async operation
-        console.log('[ReviewsManagement] Triggering change detection');
         this.cdr.markForCheck();
       },
       error: (err) => {
-        console.error('[ReviewsManagement] Error loading existing review:', err);
         this.editingReview = null;
         this.cdr.markForCheck();
       }
@@ -199,7 +190,6 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
    * Handle review request (extract common logic for both ngOnInit and ngOnChanges)
    */
   private handleReviewRequest(request: ReviewRequest): void {
-    console.log('[ReviewsManagement] handleReviewRequest called:', request);
     
     // Set flag to prevent folder subscription from interfering
     this.isHandlingReviewRequest = true;
@@ -208,11 +198,9 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
     this.selectedReviewSource = request.source;
     this.selectedReviewForeignId = request.foreignId;
     
-    console.log('[ReviewsManagement] Setting source folder:', request.sourceFolder);
     this.currentSourceFolderService.setSourceFolder(request.sourceFolder);
     
     // Set step before loading review
-    console.log('[ReviewsManagement] Setting currentStep to review-form');
     this.currentStep = 'review-form';
     
     // Force initial change detection for UI update
@@ -223,7 +211,6 @@ export class ReviewsManagementComponent implements OnInit, OnChanges, OnDestroy 
     
     // Reset flag after a brief delay to allow the form to settle
     setTimeout(() => {
-      console.log('[ReviewsManagement] Resetting isHandlingReviewRequest flag');
       this.isHandlingReviewRequest = false;
     }, 500);
   }

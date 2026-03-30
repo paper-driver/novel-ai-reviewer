@@ -1,0 +1,18 @@
+<div class="floating-nav" [class.collapsed]="isCollapsed">
+  <button class="toggle-btn" (click)="toggleCollapse()" title="Toggle navigation menu">
+    {{ isCollapsed ? '☰' : '✕' }}
+  </button>
+
+  <nav class="nav-menu" *ngIf="!isCollapsed">
+    <button 
+      *ngFor="let tab of tabs"
+      [class.active]="currentTab === tab.id"
+      (click)="selectTab(tab.id)"
+      class="nav-btn"
+      [title]="tab.label"
+    >
+      <span class="nav-icon">{{ tab.icon }}</span>
+      <span class="nav-label">{{ tab.label }}</span>
+    </button>
+  </nav>
+</div>

@@ -81,6 +81,11 @@
     &:hover {
       background-color: #f9f9f9;
     }
+
+    &.highlight {
+      background-color: #fff3cd;
+      animation: highlightFade 2s ease-out forwards;
+    }
   }
 
   .thumbnail-cell {
@@ -219,6 +224,15 @@
     100% {
       opacity: 1;
       transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  @keyframes highlightFade {
+    0% {
+      background-color: #fff3cd;
+    }
+    100% {
+      background-color: transparent;
     }
   }
 

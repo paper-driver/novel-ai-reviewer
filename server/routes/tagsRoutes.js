@@ -368,6 +368,38 @@ function createTagsRouter(tagsService, reviewsFolderService) {
   });
 
   /**
+   * POST /api/tags/images/union-tags
+   * Get union of all tags across multiple images (for large image counts)
+   * Body: { sourcePath, imageFilenames (array) }
+   */
+  router.post('/images/union-tags', (req, res) => {
+    try {
+      const { sourcePath, imageFilenames } = req.body;
+
+      if (!sourcePath) {
+        return res.status(400).json({ 
+          error: 'sourcePath is required' 
+        });
+      }
+
+      const images = Array.isArray(imageFilenames) ? imageFilenames : [];
+      const tagIds = tagsService.getUnionTagsForImages(sourcePath, images);
+      const tagDetails = tagsService.getUnionTagDetailsForImages(sourcePath, images);
+
+      res.json({
+        success: true,
+        imageFilenames: images,
+        tagIds,
+        tags: tagDetails,
+        count: tagIds.length
+      });
+    } catch (err) {
+      logger.error(TAG, `Error getting union tags: ${err.message}`);
+      res.status(500).json({ error: 'Failed to get union tags', details: err.message });
+    }
+  });
+
+  /**
    * POST /api/tags/images/add-to-multiple
    * Add a tag to multiple images
    * Body: { sourcePath, imageFilenames (array), tagId }

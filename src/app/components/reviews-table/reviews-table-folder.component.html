@@ -56,7 +56,7 @@
     </thead>
     <tbody>
       <ng-container *ngFor="let review of reviews">
-        <tr class="review-row">
+        <tr class="review-row" [attr.data-review-id]="review.id">
           <!-- Thumbnail -->
           <td class="thumbnail-cell">
             <img 

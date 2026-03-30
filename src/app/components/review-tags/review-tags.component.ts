@@ -460,14 +460,10 @@ export class ReviewTagsComponent implements OnInit, OnChanges {
       return;
     }
 
-    // Join filenames with pipe delimiter
-    const imageFilenames = this.imageFilenames.join('|');
-    
-    this.http.get<any>('http://localhost:3001/api/tags/images/union-tags', {
-      params: {
-        sourcePath: this.sourcePath,
-        imageFilenames: imageFilenames
-      }
+    // Send as POST with request body to handle large image counts
+    this.http.post<any>('http://localhost:3001/api/tags/images/union-tags', {
+      sourcePath: this.sourcePath,
+      imageFilenames: this.imageFilenames
     }).subscribe({
       next: (response) => {
         // Map the returned tags to available tags

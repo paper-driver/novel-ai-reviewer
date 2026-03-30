@@ -3,6 +3,12 @@
   
   <!-- Floating Stats Widget -->
   <app-floating-stats></app-floating-stats>
+
+  <!-- Floating Navigation Bar -->
+  <app-floating-nav 
+    [currentTab]="currentTab"
+    (tabChanged)="onTabChange($event)">
+  </app-floating-nav>
   
   <!-- Navigation Tabs -->
   <div class="nav-tabs">

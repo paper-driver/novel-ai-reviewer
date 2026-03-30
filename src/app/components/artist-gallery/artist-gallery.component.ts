@@ -264,9 +264,10 @@ export class ArtistGalleryComponent implements OnInit, OnDestroy {
     }
 
     // Get union of tags for all images in this group
-    const imageFilenames = group.images.join('|');
-    this.http.get<any>(
-      `http://localhost:3001/api/tags/images/union-tags?sourcePath=${encodeURIComponent(this.baseFolder)}&imageFilenames=${encodeURIComponent(imageFilenames)}`
+    // Send as POST with request body to handle large image counts
+    this.http.post<any>(
+      'http://localhost:3001/api/tags/images/union-tags',
+      { sourcePath: this.baseFolder, imageFilenames: group.images }
     ).subscribe({
       next: (response) => {
         if (response.success && response.tags && Array.isArray(response.tags)) {
