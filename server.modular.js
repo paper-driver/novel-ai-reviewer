@@ -2,11 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const multer = require('multer');
 const vision = require('@google-cloud/vision');
 
 // Import logger utility
 const logger = require('./server/utils/logger');
+
+// Import WebSocket service
+const WebSocketService = require('./server/services/websocketService');
 
 // Import all services
 const ReviewsService = require('./server/services/reviewsService');
@@ -38,6 +42,7 @@ const createFeedbackRoutes = require('./server/routes/feedbackRoutes');
 const createReviewsFolderRoutes = require('./server/routes/reviewsFolderRoutes');
 const createTagsRoutes = require('./server/routes/tagsRoutes');
 const createLegacyGroupingRoutes = require('./server/routes/legacyGroupingRoutes');
+const combinationGeneratorRoutes = require('./server/routes/combinationGeneratorRoutes');
 
 // Initialize Express app
 const app = express();
@@ -164,6 +169,13 @@ app.use('/api/feedback', createFeedbackRoutes(feedbackService));
 // Legacy grouping endpoints (backward compatibility)
 app.use('/api', createLegacyGroupingRoutes(legacyArtistGroupingService, GENERATED_DIR, logger));
 
+// Artist Registry endpoints - create routes with injected visionAnalysisService
+const createArtistRegistryRoutes = require('./server/routes/artistRegistryRoutes');
+app.use('/api/artist-registry', createArtistRegistryRoutes(visionAnalysisService));
+
+// Combination Generator endpoints
+app.use('/api/combination-generator', combinationGeneratorRoutes);
+
 // Background job processor - process batch jobs asynchronously
 const processBackgroundJobs = async () => {
   setInterval(async () => {
@@ -191,11 +203,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
+// ===== INITIALIZE WEBSOCKET =====
+// Create HTTP server for WebSocket support
+const server = http.createServer(app);
+const websocketService = new WebSocketService(server);
+
+// Make websocketService available globally for routes to use
+global.websocketService = websocketService;
+
 // ===== START SERVER =====
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   logger.info('Server', `[Server Ready] API Server listening on port ${PORT}`);
   logger.info('Server', `Health check available at http://localhost:${PORT}/health`);
-  // Also log to stdout for Electron to detect
+  logger.info('Server', `WebSocket server ready for real-time updates`);
   console.log(`[Server Ready] http://localhost:${PORT}`);
   processBackgroundJobs();
 });

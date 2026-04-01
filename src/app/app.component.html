@@ -36,6 +36,18 @@
       (click)="currentTab = 'prompt-grouping'">
       Prompt-Based Grouping
     </button>
+    <button 
+      class="tab-button" 
+      [class.active]="currentTab === 'artist-registry'"
+      (click)="currentTab = 'artist-registry'">
+      🎨 Artist Registry
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="currentTab === 'combination-generator'"
+      (click)="currentTab = 'combination-generator'">
+      ✨ Combination Generator
+    </button>
   </div>
 
   <!-- Reviews Management Section (Folder-Based) -->
@@ -56,5 +68,15 @@
   <!-- Prompt-Based Grouping Section -->
   <div *ngIf="currentTab === 'prompt-grouping'" class="prompt-grouping-section">
     <app-prompt-grouping></app-prompt-grouping>
+  </div>
+
+  <!-- Artist Registry Section -->
+  <div *ngIf="currentTab === 'artist-registry'" class="artist-registry-section">
+    <app-artist-registry></app-artist-registry>
+  </div>
+
+  <!-- Combination Generator Section -->
+  <div *ngIf="currentTab === 'combination-generator'" class="combination-generator-section">
+    <app-combination-generator></app-combination-generator>
   </div>
 </div>

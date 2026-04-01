@@ -1,0 +1,600 @@
+<div class="artist-registry-container">
+  <div class="registry-header">
+    <h1>🎨 Artist Registry</h1>
+    <p class="subtitle">Measure and manage artist tag strength with automated image analysis</p>
+  </div>
+
+  <!-- Success messages -->
+  <div class="alert alert-success alert-dismissible fade show" *ngIf="(successMessage$ | async) as message" role="alert">
+    <i class="bi bi-check-circle"></i> {{ message }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+
+  <!-- Error messages -->
+  <div class="alert alert-danger alert-dismissible fade show" *ngIf="(error$ | async) as error" role="alert">
+    <i class="bi bi-exclamation-circle"></i> {{ error }}
+    <button type="button" class="btn-close" (click)="clearMessages()"></button>
+  </div>
+
+  <!-- Loading indicator -->
+  <div class="spinner-container" *ngIf="isLoading$ | async">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <span>Processing...</span>
+  </div>
+
+  <!-- Folder selector and controls -->
+  <div class="registry-controls-card">
+    <div class="controls-header">
+      <h5>Registry Setup</h5>
+    </div>
+    <div class="controls-body">
+      <div class="folder-selector">
+        <label for="folder-path" class="form-label">Registry Folder Path:</label>
+        <div class="folder-picker-controls">
+          <input 
+            id="folder-path"
+            type="text" 
+            class="form-control folder-path-input"
+            [(ngModel)]="folderInput"
+            placeholder="Click folder icon to browse or paste path here"
+            title="Click the folder icon to pick a folder, or paste/type the full path here"
+          >
+          <button 
+            class="btn-folder-icon" 
+            type="button"
+            (click)="selectFolderWithPicker()"
+            title="Click to open folder picker"
+          >
+            🗂️
+          </button>
+        </div>
+        <small class="help-text">
+          Click the folder icon to open the native folder picker, or enter a path directly.
+        </small>
+        <div class="button-group mt-3">
+          <button 
+            type="button"
+            class="btn-load"
+            (click)="loadRegistryFromFolder()"
+            [disabled]="!folderInput || (isLoading$ | async)"
+          >
+            {{ (isLoading$ | async) ? 'Loading...' : 'Load Registry' }}
+          </button>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button 
+          type="button"
+          class="btn-add"
+          (click)="showAddForm = true"
+          [disabled]="!((selectedFolder$ | async))"
+        >
+          ➕ Add New Artist
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Artist Modal Background -->
+  <div class="modal-backdrop" *ngIf="showAddForm" (click)="showAddForm = false"></div>
+
+  <!-- Add Artist Modal Dialog -->
+  <div class="modal fade-in" *ngIf="showAddForm">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add New Artist to Registry</h5>
+          <button 
+            type="button" 
+            class="btn-close" 
+            (click)="showAddForm = false"
+            [disabled]="isLoading$ | async"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <form [formGroup]="addArtistForm" (ngSubmit)="addArtist()">
+            <!-- Artist Basic Info Section -->
+        <div class="form-section">
+          <h3 class="section-title">Artist Information</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Artist Name <span class="text-danger">*</span></label>
+              <input 
+                type="text" 
+                class="form-control" 
+                formControlName="name" 
+                placeholder="e.g., greg_rutkowski"
+              >
+              <small class="form-hint">The artist tag name as used in Novel AI prompts</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Art Style</label>
+              <select class="form-control" formControlName="artStyle">
+                <option *ngFor="let style of artStyles" [value]="style.value">
+                  {{ style.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                formControlName="description" 
+                placeholder="Optional description of the artist's style"
+              >
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notes</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                formControlName="notes" 
+                placeholder="Optional notes"
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Quality Attributes Section -->
+        <div class="form-section">
+          <h3 class="section-title">Quality Attributes (1-10 Scale)</h3>
+          <p class="section-hint">Rate the artist's skill in each area</p>
+          <div class="sliders-grid">
+            <div class="slider-group">
+              <label class="slider-label">Anatomy</label>
+              <div class="slider-container">
+                <input 
+                  type="range" 
+                  class="form-range" 
+                  min="1" 
+                  max="10" 
+                  formControlName="anatomy"
+                >
+                <span class="slider-value">{{ addArtistForm.get('anatomy')?.value }}</span>
+              </div>
+            </div>
+            <div class="slider-group">
+              <label class="slider-label">Object Quality</label>
+              <div class="slider-container">
+                <input 
+                  type="range" 
+                  class="form-range" 
+                  min="1" 
+                  max="10" 
+                  formControlName="object"
+                >
+                <span class="slider-value">{{ addArtistForm.get('object')?.value }}</span>
+              </div>
+            </div>
+            <div class="slider-group">
+              <label class="slider-label">Colouring</label>
+              <div class="slider-container">
+                <input 
+                  type="range" 
+                  class="form-range" 
+                  min="1" 
+                  max="10" 
+                  formControlName="colouring"
+                >
+                <span class="slider-value">{{ addArtistForm.get('colouring')?.value }}</span>
+              </div>
+            </div>
+            <div class="slider-group">
+              <label class="slider-label">Prompt Interpretation</label>
+              <div class="slider-container">
+                <input 
+                  type="range" 
+                  class="form-range" 
+                  min="1" 
+                  max="10" 
+                  formControlName="promptInterpretation"
+                >
+                <span class="slider-value">{{ addArtistForm.get('promptInterpretation')?.value }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image Upload for Strength Analysis Section -->
+        <div class="form-section">
+          <h3 class="section-title">📸 Upload Images for Strength Analysis</h3>
+          <p class="section-hint">Optional: Upload image pairs to automatically calculate the artist's strength. Leave empty to add manually later.</p>
+          <div class="upload-section">
+            <div class="alert alert-info">
+              <strong>📋 How it works:</strong>
+              <ul style="margin-bottom: 0; margin-top: 0.5rem; padding-left: 1.5rem;">
+                <li>Generate two images with identical prompts and settings</li>
+                <li><strong>Baseline image:</strong> WITHOUT the artist tag</li>
+                <li><strong>With artist image:</strong> WITH the artist tag (only difference)</li>
+                <li>Upload both to automatically measure the artist's strength</li>
+              </ul>
+            </div>
+            <div class="image-pair-upload">
+              <div class="upload-area">
+                <input 
+                  #baseImageInput
+                  type="file" 
+                  class="form-control" 
+                  accept="image/*"
+                  style="display: none;"
+                  (change)="onBaseImageSelected()"
+                >
+                <button 
+                  type="button"
+                  class="btn-upload"
+                  (click)="baseImageInput.click()"
+                >
+                  <div class="upload-icon">🖼️</div>
+                  <strong>Baseline Image</strong><br>
+                  <small>Without artist tag</small>
+                  <div class="file-status" *ngIf="baseImageFileName">
+                    ✓ {{ baseImageFileName }}
+                  </div>
+                </button>
+              </div>
+              <div class="upload-area">
+                <input 
+                  #withArtistImageInput
+                  type="file" 
+                  class="form-control" 
+                  accept="image/*"
+                  style="display: none;"
+                  (change)="onArtistImageSelected()"
+                >
+                <button 
+                  type="button"
+                  class="btn-upload"
+                  (click)="withArtistImageInput.click()"
+                >
+                  <div class="upload-icon">🖼️</div>
+                  <strong>With Artist Image</strong><br>
+                  <small>With artist tag</small>
+                  <div class="file-status" *ngIf="artistImageFileName">
+                    ✓ {{ artistImageFileName }}
+                  </div>
+                </button>
+              </div>
+            </div>
+            <small class="form-hint">💡 Strength analysis is optional and can be added later by uploading image pairs from the artist's detail view</small>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button 
+            type="submit" 
+            class="btn-submit"
+            [disabled]="!addArtistForm.valid || (isLoading$ | async)"
+          >
+            {{ (isLoading$ | async) ? 'Adding...' : '➕ Add Artist' }}
+          </button>
+          <button 
+            type="button" 
+            class="btn-cancel" 
+            (click)="showAddForm = false"
+            [disabled]="isLoading$ | async"
+          >
+            Cancel
+          </button>
+        </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <!-- Footer content optional -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Artist Registry Table -->
+  <div class="registry-table-container" *ngIf="((artists$ | async)?.length || 0) > 0 || !(isLoading$ | async)">
+    <div class="table-title">
+      <h5 class="mb-0">Artist Registry ({{ (artists$ | async)?.length || 0 }} artists)</h5>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Artist Name</th>
+            <th class="text-center">Strength</th>
+            <th class="text-center">Confidence</th>
+            <th class="text-center">Anatomy</th>
+            <th class="text-center">Object</th>
+            <th class="text-center">Color</th>
+            <th class="text-center">Prompt Interp</th>
+            <th class="text-center">Thumbnail</th>
+            <th class="text-center">Images</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let artist of (artists$ | async)" class="artist-row">
+            <td class="artist-name">
+              <strong>{{ artist.name }}</strong>
+              <br>
+              <small class="text-muted">{{ artist.artStyle }}</small>
+            </td>
+            <td class="text-center">
+              <div class="strength-badge">
+                <span [class]="'badge ' + getStrengthColor(artist.strengthLabel)">
+                  {{ (artist.strength * 100).toFixed(0) }}%
+                </span>
+              </div>
+            </td>
+            <td class="text-center">
+              <div class="confidence-bar">
+                <div class="confidence-fill" [style.width.%]="artist.confidence"></div>
+                <span class="confidence-text">{{ artist.confidence }}%</span>
+              </div>
+            </td>
+            <td class="text-center"><span class="badge bg-light text-dark">{{ artist.anatomy }}</span></td>
+            <td class="text-center"><span class="badge bg-light text-dark">{{ artist.object }}</span></td>
+            <td class="text-center"><span class="badge bg-light text-dark">{{ artist.colouring }}</span></td>
+            <td class="text-center"><span class="badge bg-light text-dark">{{ artist.promptInterpretation }}</span></td>
+            <!-- Thumbnail column -->
+            <td class="text-center">
+              <div class="thumbnail-preview">
+                <button 
+                  *ngIf="artist.imagesCount > 0"
+                  class="thumbnail-preview-btn"
+                  (click)="viewArtistImages(artist)"
+                  title="View images"
+                  [disabled]="isLoading$ | async"
+                  [ngStyle]="getThumbnailUrl(artist, 0) ? {'background-image': 'url(' + getThumbnailUrl(artist, 0) + ')'} : {}"
+                >
+                </button>
+                <div *ngIf="artist.imagesCount === 0" class="thumbnail-empty">
+                  <small>No image</small>
+                </div>
+              </div>
+            </td>
+            <!-- Images count column -->
+            <td class="text-center">
+              <span class="badge bg-info">{{ artist.imagesCount }}</span>
+            </td>
+            <td class="text-center">
+              <span [class]="'badge ' + getStatusBadge(artist.validationStatus)">
+                {{ artist.validationStatus }}
+              </span>
+            </td>
+            <td class="text-center">
+              <div class="action-buttons-group">
+                <button 
+                  type="button" 
+                  class="action-btn upload-btn"
+                  title="Upload image pair for strength analysis"
+                  (click)="initiateUpload(artist)"
+                  [disabled]="isLoading$ | async"
+                >
+                  📤
+                </button>
+                <button 
+                  type="button" 
+                  class="action-btn info-btn"
+                  title="View analysis details"
+                  (click)="viewAnalysisDetails(artist)"
+                >
+                  📊
+                </button>
+                <button 
+                  type="button" 
+                  class="action-btn delete-btn"
+                  title="Delete artist"
+                  (click)="deleteArtist(artist)"
+                  [disabled]="isLoading$ | async"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="((artists$ | async)?.length || 0) === 0">
+            <td colspan="11" class="text-center py-5 text-muted">
+              <i class="bi bi-inbox" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+              No artists in registry yet. Add one to get started!
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Image Upload Modal -->
+  <div class="modal-backdrop" *ngIf="showUploadDialog" (click)="showUploadDialog = false"></div>
+  <div class="modal fade show" *ngIf="showUploadDialog" style="display: block;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-upload"></i> Upload Image Pair - <strong>{{ selectedArtist?.name }}</strong>
+          </h5>
+          <button type="button" class="btn-close" (click)="showUploadDialog = false"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info" role="alert">
+            <strong><i class="bi bi-lightbulb"></i> How to prepare image pairs:</strong>
+            <ul style="margin-bottom: 0; margin-top: 0.5rem;">
+              <li>Generate two images with identical prompts and settings</li>
+              <li><strong>Baseline image:</strong> WITHOUT the artist tag</li>
+              <li><strong>With artist image:</strong> WITH the artist tag (only difference)</li>
+              <li>Upload both to automatically measure the artist's strength</li>
+            </ul>
+          </div>
+
+          <form [formGroup]="uploadImageForm">
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Baseline Image (Without Artist Tag) <span class="text-danger">*</span></label>
+              <div class="upload-area">
+                <input 
+                  #baseImageInput
+                  type="file" 
+                  class="form-control" 
+                  accept="image/*"
+                  style="display: none;"
+                  (change)="uploadImageForm.patchValue({baseImage: $event})"
+                >
+                <button 
+                  type="button"
+                  class="btn btn-light border-2 w-100 py-4"
+                  (click)="baseImageInput.click()"
+                >
+                  <div class="upload-icon">
+                    <i class="bi bi-image" style="font-size: 2rem; color: #0d6efd;"></i>
+                  </div>
+                  <span *ngIf="!baseImageInput?.files?.length" class="d-block">
+                    <strong>Click to select baseline image</strong><br>
+                    <small class="text-muted">or drag & drop</small>
+                  </span>
+                  <span *ngIf="baseImageInput?.files?.length" class="d-block text-success">
+                    <i class="bi bi-check-circle"></i> {{ baseImageInput.files[0].name }}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-semibold">With Artist Image (With Artist Tag) <span class="text-danger">*</span></label>
+              <div class="upload-area">
+                <input 
+                  #withArtistImageInput
+                  type="file" 
+                  class="form-control" 
+                  accept="image/*"
+                  style="display: none;"
+                  (change)="uploadImageForm.patchValue({withArtistImage: $event})"
+                >
+                <button 
+                  type="button"
+                  class="btn btn-light border-2 w-100 py-4"
+                  (click)="withArtistImageInput.click()"
+                >
+                  <div class="upload-icon">
+                    <i class="bi bi-image" style="font-size: 2rem; color: #0d6efd;"></i>
+                  </div>
+                  <span *ngIf="!withArtistImageInput?.files?.length" class="d-block">
+                    <strong>Click to select image with artist tag</strong><br>
+                    <small class="text-muted">or drag & drop</small>
+                  </span>
+                  <span *ngIf="withArtistImageInput?.files?.length" class="d-block text-success">
+                    <i class="bi bi-check-circle"></i> {{ withArtistImageInput.files[0].name }}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="showUploadDialog = false">
+            Cancel
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary"
+            (click)="uploadImagePair()"
+            [disabled]="!baseImageInput?.files?.length || !withArtistImageInput?.files?.length || (isLoading$ | async)"
+          >
+            <i class="bi bi-upload"></i> Upload & Analyze
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analysis Details Modal -->
+  <div class="modal-backdrop" *ngIf="showAnalysisDetails" (click)="showAnalysisDetails = false"></div>
+  <div class="modal fade show" *ngIf="showAnalysisDetails && selectedArtist" style="display: block;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-graph-up"></i> Analysis Details - <strong>{{ selectedArtist.name }}</strong>
+          </h5>
+          <button type="button" class="btn-close" (click)="showAnalysisDetails = false"></button>
+        </div>
+        <div class="modal-body">
+          <div class="details-grid">
+            <div class="detail-card">
+              <div class="detail-label">Measured Strength</div>
+              <div class="detail-value">
+                <span [class]="'badge ' + getStrengthColor(selectedArtist.strengthLabel) + ' fs-5'">
+                  {{ (selectedArtist.strength * 100).toFixed(1) }}%
+                </span>
+              </div>
+              <div class="detail-category">{{ selectedArtist.strengthLabel }}</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-label">Confidence Level</div>
+              <div class="detail-value">{{ selectedArtist.confidence }}<span style="font-size: 0.8em;">%</span></div>
+              <div class="detail-category">Based on {{ selectedArtist.imagesCount }} image pair(s)</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-label">Images Analyzed</div>
+              <div class="detail-value">{{ selectedArtist.imagesCount }}</div>
+              <div class="detail-category">More = More Reliable</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-label">Status</div>
+              <div class="detail-value">
+                <span [class]="'badge ' + getStatusBadge(selectedArtist.validationStatus)">
+                  {{ selectedArtist.validationStatus }}
+                </span>
+              </div>
+              <div class="detail-category">{{ formatDate(selectedArtist.lastUpdated) }}</div>
+            </div>
+          </div>
+
+          <div class="analysis-scores" *ngIf="analysisDetails">
+            <h6 class="mt-5 mb-3"><i class="bi bi-list-check"></i> Score Breakdown</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="score-box">
+                  <label>LPIPS Scores (Perceptual Similarity)</label>
+                  <div class="scores-list">
+                    <span *ngFor="let score of analysisDetails.lpipsScores" class="score-tag">
+                      {{ (score * 100).toFixed(0) }}%
+                    </span>
+                    <span *ngIf="!analysisDetails.lpipsScores?.length" class="text-muted">No scores yet</span>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="score-box">
+                  <label>Google Vision Scores (Style Detection)</label>
+                  <div class="scores-list">
+                    <span *ngFor="let score of analysisDetails.googleVisionScores" class="score-tag">
+                      {{ (score * 100).toFixed(0) }}%
+                    </span>
+                    <span *ngIf="!analysisDetails.googleVisionScores?.length" class="text-muted">No scores yet</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-muted mt-4 text-sm">
+            <i class="bi bi-info-circle"></i> 
+            Final strength = (Google Vision × 33%) + (LPIPS × 67%) - measured automatically from uploaded image pairs
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="showAnalysisDetails = false">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Viewer Modal -->
+  <app-image-viewer-modal 
+    [isOpen]="showImageViewer"
+    [reviewData]="currentImageViewerData"
+    (closeModal)="showImageViewer = false"
+  ></app-image-viewer-modal>
+</div>

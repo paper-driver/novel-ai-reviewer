@@ -1,0 +1,269 @@
+<div class="combination-generator">
+  <!-- Header -->
+  <div class="generator-header">
+    <h1>🎨 Artist Combination Generator</h1>
+    <p class="subtitle">Generate optimized artist combinations from natural language</p>
+  </div>
+
+  <!-- Messages -->
+  <div class="alert alert-error" *ngIf="(error$ | async) as error">
+    <span>❌ {{ error }}</span>
+    <button class="alert-close" (click)="error$.next('')">×</button>
+  </div>
+
+  <!-- Main Container -->
+  <div class="generator-main">
+    <!-- Input Section -->
+    <div class="input-panel">
+      <!-- Folder Selector Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>📁 Select Registry Folder</h2>
+        </div>
+        <div class="card-body">
+          <div class="input-group">
+            <input 
+              type="text" 
+              class="input-control"
+              [(ngModel)]="folderInput"
+              placeholder="Click folder icon to browse or paste path here"
+            >
+            <button 
+              class="btn-icon" 
+              (click)="selectFolderWithPicker()"
+              title="Browse folders"
+            >
+              🗂️
+            </button>
+          </div>
+          <small class="hint">Click the folder icon to open the native folder picker, or enter a path directly.</small>
+        </div>
+      </div>
+
+      <!-- Generator Form Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>✨ Describe Your Vision</h2>
+        </div>
+        <div class="card-body">
+          <p class="hint">Tell us what kind of artists you want to combine. Be specific about style, attributes, and intensity.</p>
+
+          <form [formGroup]="generatorForm" (ngSubmit)="generateCombinations()">
+            <!-- Description Input -->
+            <div class="form-group">
+              <label class="form-label">Natural Language Description <span class="required">*</span></label>
+              <textarea 
+                class="textarea-control"
+                formControlName="userInput" 
+                rows="4"
+                placeholder="Example: I want to combine an artist with detailed anatomy and vibrant colors, with a realistic style..."
+              ></textarea>
+              <small class="hint">Include style preferences, attribute focuses, and intensity (subtle/strong)</small>
+            </div>
+
+            <!-- Max Suggestions -->
+            <div class="form-group">
+              <label class="form-label">Maximum Suggestions</label>
+              <input 
+                type="number" 
+                class="input-control"
+                formControlName="maxSuggestions"
+                min="1"
+                max="10"
+              >
+            </div>
+
+            <!-- Quick Keywords -->
+            <div class="keywords-section">
+              <h3 class="keywords-title">Quick Keywords</h3>
+              
+              <div class="keyword-group">
+                <span class="keyword-label">Styles:</span>
+                <div class="keyword-buttons">
+                  <button 
+                    *ngFor="let style of keywords.styles"
+                    type="button"
+                    class="keyword-btn"
+                    (click)="addKeyword(style)"
+                    title="Add to description"
+                  >
+                    {{ style }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="keyword-group">
+                <span class="keyword-label">Attributes:</span>
+                <div class="keyword-buttons">
+                  <button 
+                    *ngFor="let attr of keywords.attributes"
+                    type="button"
+                    class="keyword-btn"
+                    (click)="addKeyword(attr)"
+                    title="Add to description"
+                  >
+                    {{ attr }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="keyword-group">
+                <span class="keyword-label">Intensity:</span>
+                <div class="keyword-buttons">
+                  <button 
+                    *ngFor="let intensity of keywords.intensity"
+                    type="button"
+                    class="keyword-btn"
+                    (click)="addKeyword(intensity)"
+                    title="Add to description"
+                  >
+                    {{ intensity }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="form-actions">
+              <button 
+                type="submit" 
+                class="btn btn-primary"
+                [disabled]="!generatorForm.valid || (isLoading$ | async)"
+              >
+                <span *ngIf="!(isLoading$ | async)">⚡ Generate Combinations</span>
+                <span *ngIf="(isLoading$ | async)">⏳ Generating...</span>
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-secondary"
+                (click)="toggleSavedPanel()"
+              >
+                🔖 Saved ({{ (savedCombinations$ | async)?.length || 0 }})
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Saved Combinations -->
+      <div class="card" *ngIf="showSaved">
+        <div class="card-header">
+          <h2>💾 Saved Combinations</h2>
+        </div>
+        <div class="card-body">
+          <div *ngIf="(savedCombinations$ | async) as saved">
+            <div *ngIf="saved.length === 0" class="empty-state">
+              No saved combinations yet. Generate and save combinations here!
+            </div>
+            
+            <div class="saved-list" *ngIf="saved.length > 0">
+              <div *ngFor="let combo of saved" class="saved-item">
+                <div class="saved-header">
+                  <h4>{{ combo.name }}</h4>
+                  <span class="saved-date">{{ combo.createdAt | date: 'short' }}</span>
+                </div>
+                <div class="saved-artists">
+                  <span *ngFor="let artist of combo.artists" class="artist-chip">
+                    {{ artist.name }} ({{ artist.emphasis }})
+                  </span>
+                </div>
+                <div class="saved-actions">
+                  <button (click)="useSavedCombination(combo)" class="action-btn" title="Load">📥</button>
+                  <button [appClipboard]="combo.promptFormat" class="action-btn" title="Copy prompt">📋</button>
+                  <button (click)="deleteSavedCombination(combo.id)" class="action-btn action-delete" title="Delete">🗑️</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-panel" *ngIf="(suggestions$ | async) as suggestions">
+      <div *ngIf="suggestions.length === 0" class="empty-results">
+        <p>Generate combinations to see suggestions here...</p>
+      </div>
+
+      <div *ngIf="suggestions.length > 0">
+        <h2>{{ suggestions.length }} Suggested Combinations</h2>
+        
+        <div class="suggestions-list">
+          <div 
+            *ngFor="let combo of suggestions; let i = index" 
+            class="suggestion-card"
+            [class.expanded]="selectedCombination === combo"
+          >
+            <!-- Card Header -->
+            <div class="card-header-clickable" (click)="toggleSuggestion(combo)">
+              <div class="header-left">
+                <span class="rank-badge">{{ i + 1 }}</span>
+                <span [class]="'confidence-badge confidence-' + getConfidenceLevel(combo.confidence ?? '50%')">
+                  {{ combo.confidence ?? '50%' }}
+                </span>
+              </div>
+              
+              <div class="artists-list">
+                <span *ngFor="let a of combo.artists" class="artist-tag">
+                  {{ a.artist.name }} 
+                  <span class="emphasis">{{ (a.emphasis * 100 | number: '1.0-0') }}%</span>
+                </span>
+              </div>
+
+              <span class="expand-icon">{{ selectedCombination === combo ? '▼' : '▶' }}</span>
+            </div>
+
+            <!-- Card Details (Expanded) -->
+            <div class="card-details" *ngIf="selectedCombination === combo">
+              <!-- Explanation -->
+              <div class="detail-section">
+                <h4>Why This Combination?</h4>
+                <p>{{ combo.explanation }}</p>
+              </div>
+
+              <!-- Artists Breakdown -->
+              <div class="detail-section">
+                <h4>Artists & Roles</h4>
+                <div class="artist-breakdown">
+                  <div *ngFor="let a of combo.artists" class="artist-row">
+                    <div class="artist-name">{{ a.artist.name }}</div>
+                    <div class="artist-meta">
+                      <span class="role-badge" [class]="'role-' + a.role">{{ a.role }}</span>
+                      <span class="emphasis-value">{{ (a.emphasis * 100 | number: '1.0-0') }}%</span>
+                      <span class="strength-badge" [class]="'strength-' + a.artist.strengthLabel">
+                        {{ a.artist.strengthLabel }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Prompt Format -->
+              <div class="detail-section">
+                <h4>Prompt Format</h4>
+                <div class="prompt-box">
+                  <code>{{ getPromptFormat(combo) }}</code>
+                  <button class="btn-copy-prompt" [appClipboard]="getPromptFormat(combo)" title="Copy prompt">
+                    📋 Copy
+                  </button>
+                </div>
+              </div>
+
+              <!-- Save Combination -->
+              <div class="detail-actions">
+                <button 
+                  *ngIf="!combo.id"
+                  (click)="saveCombination(combo)" 
+                  class="btn btn-primary"
+                >
+                  💾 Save This Combination
+                </button>
+                <span *ngIf="combo.id" class="saved-indicator">✅ Already Saved</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

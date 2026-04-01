@@ -821,6 +821,256 @@ class VisionAnalysisService {
 
     return adjusted;
   }
+
+  /**
+   * Compare two images and return a difference score
+   * Used by Artist Registry for measuring artist tag influence
+   * @param {string} imagePath_A - Path to first image (baseline)
+   * @param {string} imagePath_B - Path to second image (with artist tag)
+   * @returns {Promise<number>} Difference score (0-1)
+   */
+  async compareImages(imagePath_A, imagePath_B) {
+    logger.info(TAG, `START comparing images: ${path.basename(imagePath_A)} vs ${path.basename(imagePath_B)}`);
+    
+    try {
+      if (!fs.existsSync(imagePath_A) || !fs.existsSync(imagePath_B)) {
+        throw new Error('One or both image files not found');
+      }
+
+      // Get analysis for both images
+      const analysisA = await this._analyzeImageFeatures(imagePath_A);
+      const analysisB = await this._analyzeImageFeatures(imagePath_B);
+
+      logger.debug(TAG, `Analysis A: labels=${analysisA.labels.length}, objects=${analysisA.objects.length}`);
+      logger.debug(TAG, `Analysis B: labels=${analysisB.labels.length}, objects=${analysisB.objects.length}`);
+
+      // Compute difference score (0 = identical, 1 = completely different)
+      const differenceScore = this._computeFeatureDifference(analysisA, analysisB);
+      
+      // For artist strength: HIGH score = HIGH visual difference = HIGH artist impact
+      // Return the difference directly (don't invert)
+      logger.info(TAG, `Image comparison: difference score ${differenceScore.toFixed(2)} (0=identical, 1=completely different)`);
+      return differenceScore;
+    } catch (error) {
+      logger.error(TAG, `Image comparison failed: ${error.message}`);
+      // Return neutral score on error
+      return 0.5;
+    }
+  }
+
+  /**
+   * Analyze image features for comparison
+   * Internal method for extracting comparable features
+   * @param {string} filePath - Path to image
+   * @returns {Promise<object>} Feature analysis
+   */
+  async _analyzeImageFeatures(filePath) {
+    try {
+      if (!fs.existsSync(filePath)) {
+        throw new Error('Image file not found');
+      }
+
+      const imageBuffer = fs.readFileSync(filePath);
+      const base64Image = imageBuffer.toString('base64');
+
+      const request = {
+        image: {
+          content: base64Image
+        },
+        features: [
+          { type: 'LABEL_DETECTION', maxResults: 30 },
+          { type: 'OBJECT_LOCALIZATION', maxResults: 30 },
+          { type: 'IMAGE_PROPERTIES' },
+          { type: 'WEB_DETECTION', maxResults: 10 }
+        ]
+      };
+
+      const [result] = await this.visionClient.annotateImage(request);
+
+      return {
+        labels: (result.labelAnnotations || []).map(l => ({
+          description: l.description.toLowerCase(),
+          confidence: l.confidence
+        })),
+        objects: (result.localizedObjectAnnotations || []).map(o => ({
+          name: o.name.toLowerCase(),
+          confidence: o.confidence,
+          score: o.score
+        })),
+        colors: this._extractColorFeatures(result.imagePropertiesAnnotation),
+        properties: result.imagePropertiesAnnotation || {},
+        webEntities: (result.webDetection?.webEntities || []).map(e => ({
+          description: e.description.toLowerCase(),
+          score: e.score
+        }))
+      };
+    } catch (error) {
+      logger.error(TAG, `Feature analysis failed: ${error.message}`);
+      return { labels: [], objects: [], colors: [], properties: {}, webEntities: [] };
+    }
+  }
+
+  /**
+   * Extract color features from image properties
+   * @param {object} imageProperties - Image properties from Vision API
+   * @returns {array} Array of dominant colors
+   */
+  _extractColorFeatures(imageProperties) {
+    if (!imageProperties || !imageProperties.dominantColors) {
+      return [];
+    }
+
+    const colors = imageProperties.dominantColors.colors || [];
+    return colors.map(color => {
+      if (!color.color) return null;
+      const { red = 0, green = 0, blue = 0 } = color.color;
+      return {
+        rgb: `${Math.round(red)},${Math.round(green)},${Math.round(blue)}`,
+        pixelFraction: color.pixelFraction,
+        score: color.score
+      };
+    }).filter(c => c !== null);
+  }
+
+  /**
+   * Compute feature difference between two images
+   * Compares labels, objects, colors, and other properties
+   * @param {object} featuresA - Features from first image
+   * @param {object} featuresB - Features from second image
+   * @returns {number} Difference score (0-1)
+   */
+  _computeFeatureDifference(featuresA, featuresB) {
+    let totalDifference = 0;
+    let componentCount = 0;
+
+    logger.debug(TAG, `Feature A labels: ${featuresA.labels.map(l => l.description).join(', ')}`);
+    logger.debug(TAG, `Feature B labels: ${featuresB.labels.map(l => l.description).join(', ')}`);
+
+    // Compare labels (most important)
+    const labelDifference = this._compareStringLists(
+      featuresA.labels.map(l => l.description),
+      featuresB.labels.map(l => l.description)
+    );
+    logger.debug(TAG, `Label difference: ${labelDifference.toFixed(2)}`);
+    totalDifference += labelDifference * 0.4; // 40% weight
+    componentCount++;
+
+    // Compare objects
+    const objectDifference = this._compareStringLists(
+      featuresA.objects.map(o => o.name),
+      featuresB.objects.map(o => o.name)
+    );
+    logger.debug(TAG, `Object difference: ${objectDifference.toFixed(2)}`);
+    totalDifference += objectDifference * 0.3; // 30% weight
+    componentCount++;
+
+    // Compare colors
+    const colorDifference = this._compareColorLists(
+      featuresA.colors,
+      featuresB.colors
+    );
+    logger.debug(TAG, `Color difference: ${colorDifference.toFixed(2)}`);
+    totalDifference += colorDifference * 0.2; // 20% weight
+    componentCount++;
+
+    // Compare web entities (style/aesthetic)
+    const webDifference = this._compareStringLists(
+      featuresA.webEntities.map(e => e.description),
+      featuresB.webEntities.map(e => e.description)
+    );
+    logger.debug(TAG, `Web entity difference: ${webDifference.toFixed(2)}`);
+    totalDifference += webDifference * 0.1; // 10% weight
+    componentCount++;
+
+    const finalScore = Math.min(Math.max(totalDifference / componentCount, 0), 1);
+    logger.debug(TAG, `Raw difference score: ${finalScore.toFixed(2)}, After invert: ${(1 - finalScore).toFixed(2)}`);
+    
+    // Return normalized difference score (0-1)
+    return finalScore;
+  }
+
+  /**
+   * Compare two lists of strings
+   * Computes similarity using Jaccard index
+   * @param {array} list1 - First list
+   * @param {array} list2 - Second list
+   * @returns {number} Difference score (0-1, where 1 = completely different)
+   */
+  _compareStringLists(list1, list2) {
+    if (list1.length === 0 && list2.length === 0) {
+      return 0; // Both empty = no difference
+    }
+
+    const set1 = new Set(list1);
+    const set2 = new Set(list2);
+
+    // Jaccard index: intersection / union
+    const intersection = [...set1].filter(item => set2.has(item)).length;
+    const union = new Set([...set1, ...set2]).size;
+
+    if (union === 0) return 0;
+
+    const similarity = intersection / union;
+    return 1 - similarity; // Return difference (inverse of similarity)
+  }
+
+  /**
+   * Compare two lists of colors
+   * @param {array} colors1 - First color list
+   * @param {array} colors2 - Second color list
+   * @returns {number} Difference score (0-1)
+   */
+  _compareColorLists(colors1, colors2) {
+    if (colors1.length === 0 && colors2.length === 0) {
+      return 0;
+    }
+
+    if (colors1.length === 0 || colors2.length === 0) {
+      return 0.5; // Partial difference if one has no colors
+    }
+
+    let totalDistance = 0;
+    let comparisons = 0;
+
+    // Compare dominant colors
+    const minLength = Math.min(colors1.length, colors2.length);
+    for (let i = 0; i < minLength; i++) {
+      const distance = this._colorDistance(colors1[i].rgb, colors2[i].rgb);
+      totalDistance += distance;
+      comparisons++;
+    }
+
+    // Account for different color counts
+    const colorCountDifference = Math.abs(colors1.length - colors2.length) / 
+                                  Math.max(colors1.length, colors2.length);
+    totalDistance += colorCountDifference * 255 * 0.5; // Max color distance is ~255
+    comparisons++;
+
+    return Math.min(totalDistance / (comparisons * 255), 1);
+  }
+
+  /**
+   * Calculate RGB color distance
+   * Returns distance in 0-255 range
+   * @param {string} rgb1 - Color as "r,g,b"
+   * @param {string} rgb2 - Color as "r,g,b"
+   * @returns {number} Distance (0-255)
+   */
+  _colorDistance(rgb1, rgb2) {
+    try {
+      const [r1, g1, b1] = rgb1.split(',').map(Number);
+      const [r2, g2, b2] = rgb2.split(',').map(Number);
+
+      // Euclidean distance in RGB space
+      return Math.sqrt(
+        Math.pow(r2 - r1, 2) +
+        Math.pow(g2 - g1, 2) +
+        Math.pow(b2 - b1, 2)
+      );
+    } catch (error) {
+      return 0; // Return no distance on parse error
+    }
+  }
 }
 
 module.exports = VisionAnalysisService;

@@ -8,6 +8,8 @@ import { PromptGroupingComponent } from './components/prompt-grouping/prompt-gro
 import { FloatingStatsComponent } from './components/floating-stats/floating-stats.component';
 import { ReviewsManagementComponent } from './components/reviews-management/reviews-management.component';
 import { FloatingNavComponent } from './components/floating-nav/floating-nav.component';
+import { ArtistRegistryComponent } from './components/artist-registry/artist-registry.component';
+import { CombinationGeneratorComponent } from './components/combination-generator/combination-generator.component';
 import { ReviewRequestService, ReviewRequest } from './services/review-request.service';
 import { ScrollTargetService } from './services/scroll-target.service';
 
@@ -21,14 +23,16 @@ import { ScrollTargetService } from './services/scroll-target.service';
     PromptGroupingComponent,
     FloatingStatsComponent,
     ReviewsManagementComponent,
-    FloatingNavComponent
+    FloatingNavComponent,
+    ArtistRegistryComponent,
+    CombinationGeneratorComponent
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit, OnDestroy {
   filters: any = {};
-  currentTab: 'reviews-management' | 'grouping' | 'gallery' | 'prompt-grouping' = 'reviews-management';
+  currentTab: 'reviews-management' | 'grouping' | 'gallery' | 'prompt-grouping' | 'artist-registry' | 'combination-generator' = 'reviews-management';
   
   // Review request from gallery/grouping components
   pendingReviewRequest: ReviewRequest | null = null;
@@ -82,7 +86,7 @@ export class AppComponent implements OnInit, OnDestroy {
   /**
    * Handle tab changes from floating navigation
    */
-  onTabChange(tabId: 'reviews-management' | 'grouping' | 'gallery' | 'prompt-grouping'): void {
+  onTabChange(tabId: 'reviews-management' | 'grouping' | 'gallery' | 'prompt-grouping' | 'artist-registry' | 'combination-generator'): void {
     // Save current scroll position before switching tabs
     this.scrollPositions.set(this.currentTab, window.scrollY);
     
