@@ -1786,21 +1786,19 @@ app.post('/api/open-file', (req, res) => {
 
     // Verify path exists and is a file
     if (!fs.existsSync(filePath)) {
-      console.error('[OpenFile] Path does not exist:', filePath);
+        // File does not exist
       return res.status(400).json({ error: 'File does not exist' });
     }
 
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) {
-      console.error('[OpenFile] Path is not a file:', filePath);
+      // Path is not a file
       return res.status(400).json({ error: 'Path is not a file' });
     }
 
     const { execSync } = require('child_process');
     const os = require('os');
     const platform = os.platform();
-
-    console.log('[OpenFile] Opening file:', filePath, 'on platform:', platform);
 
     try {
       if (platform === 'darwin') {
@@ -1821,14 +1819,12 @@ app.post('/api/open-file', (req, res) => {
             try {
               execSync(`dolphin "${filePath}"`, { stdio: 'ignore' });
             } catch (e3) {
-              console.warn('[OpenFile] Could not open file with any file manager');
               return res.status(500).json({ error: 'No file manager available' });
             }
           }
         }
       }
 
-      console.log('[OpenFile] Successfully opened file:', filePath);
       res.json({ success: true, message: 'File opened in file explorer' });
     } catch (execError) {
       console.error('[OpenFile] Execution error:', execError.message);
@@ -1946,13 +1942,8 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
         const hasModifiedFiles = pngFiles.some(f => f.mtime > lastUpdated);
         const fileCountChanged = pngFiles.length !== cachedFileCount;
         
-        console.log(`[PromptGrouping] Cache validation for ${resolvedPath}:`);
-        console.log(`  - Cached file count: ${cachedFileCount}, Current file count: ${pngFiles.length}, Changed: ${fileCountChanged}`);
-        console.log(`  - Last updated: ${mapping.lastUpdated}, Has modified files: ${hasModifiedFiles}`);
-        
         if (!hasModifiedFiles && !fileCountChanged && mapping.groups && Object.keys(mapping.groups).length > 0) {
           // Cache is valid, use it
-          console.log(`[PromptGrouping] ✓ Using cached mapping for ${resolvedPath}`);
           
           const groupNicknames = mapping.groupNicknames || {};
           const promptGroups = mapping.groups || {};
@@ -2008,7 +1999,6 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
           if (hasModifiedFiles) reasons.push('files modified');
           if (fileCountChanged) reasons.push('file count changed');
           if (!mapping.groups || Object.keys(mapping.groups).length === 0) reasons.push('no cached groups');
-          console.log(`[PromptGrouping] ✗ Cache invalidated (${reasons.join(', ')}), will reprocess`);
         }
       } catch (err) {
         console.warn('[PromptGrouping] Cache validation failed, will reprocess:', err.message);
@@ -2016,8 +2006,6 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
     }
 
     // Full reprocessing needed
-    console.log(`[PromptGrouping] Reprocessing ${resolvedPath}...`);
-    
     let promptGroups = {};
     let promptToGroupId = {};
     let groupNicknames = {};
@@ -2035,7 +2023,6 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
 
     // Scan all PNG files recursively
     const pngFiles = scanPNGFilesRecursive(resolvedPath);
-    console.log(`[PromptGrouping] Found ${pngFiles.length} PNG files in ${resolvedPath}`);
     
     // Initialize progress tracking
     const folderKey = resolvedPath;
@@ -2103,13 +2090,8 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
     const nextGroupId = Math.max(0, ...Object.keys(promptGroups).map(Number)) + 1;
     let currentGroupId = nextGroupId;
 
-    console.log(`[PromptGrouping] processedImages count: ${Object.keys(processedImages).length}`);
-    console.log(`[PromptGrouping] processedImages keys:`, Object.keys(processedImages));
-
     for (const [relativePath, imgData] of Object.entries(processedImages)) {
       const normalized = imgData.normalizedPrompt;
-      
-      console.log(`[PromptGrouping] Processing image: ${relativePath}, normalized: ${normalized.substring(0, 50)}...`);
       
       // Check if this normalized prompt already has a group
       if (promptToGroupId[normalized]) {
@@ -2118,7 +2100,6 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
           // Prevent duplicate images from being added to the same group
           if (!promptGroups[groupId].images.includes(relativePath)) {
             promptGroups[groupId].images.push(relativePath);
-            console.log(`[PromptGrouping] Added to existing group ${groupId}, now has ${promptGroups[groupId].images.length} images`);
           } else {
             console.warn(`[PromptGrouping] Duplicate image "${relativePath}" already in group ${groupId}, skipping`);
           }
@@ -2134,7 +2115,6 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
           images: [relativePath],
           sampleOriginalPrompt: imgData.originalPrompt
         };
-        console.log(`[PromptGrouping] Created new group ${groupId} with image: ${relativePath}`);
       }
     }
 
@@ -2145,13 +2125,8 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
       // Check for duplicate images in the group
       const uniqueImages = new Set(group.images);
       if (uniqueImages.size !== group.images.length) {
-        console.warn(`[PromptGrouping] GROUP ${group.groupId} HAS DUPLICATES!`);
-        console.warn(`[PromptGrouping] Total images: ${group.images.length}, Unique: ${uniqueImages.size}`);
-        console.warn(`[PromptGrouping] Images array:`, group.images);
-        
         // Remove duplicates and keep only unique images
         group.images = Array.from(uniqueImages);
-        console.log(`[PromptGrouping] Deduplicated to ${group.images.length} unique images`);
       }
       
       // Get latest modification time
@@ -2199,7 +2174,6 @@ app.post('/api/prompt-grouping/load-groups', (req, res) => {
         totalFileCount: pngFiles.length  // Store file count for cache validation
       };
       fs.writeFileSync(mappingFile, JSON.stringify(mappingToSave, null, 2));
-      console.log('[PromptGrouping] Mapping file saved:', mappingFile);
     } catch (err) {
       console.warn('[PromptGrouping] Failed to save mapping file:', err.message);
     }
@@ -2419,8 +2393,6 @@ app.get('/api/prompt-grouping/image-metadata', (req, res) => {
     const artists = extractArtistTags(prompt);
     const normalizedPrompt = normalizePrompt(prompt);
 
-    console.log(`[PromptGrouping/image-metadata] Extracted prompt, artists: ${artists.join(', ')}`);
-
     res.json({
       success: true,
       filename,
@@ -2461,7 +2433,6 @@ app.post('/api/prompt-grouping/save-ratings', (req, res) => {
       if (fs.existsSync(ratingsFile)) {
         try {
           existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-          console.log('[PromptGrouping] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
         } catch (parseErr) {
           console.warn('[PromptGrouping] Failed to parse existing ratings file, starting fresh:', parseErr.message);
           existingRatings = {};
@@ -2471,12 +2442,7 @@ app.post('/api/prompt-grouping/save-ratings', (req, res) => {
       // Merge: existing + new (new ratings override old ones for same keys)
       const mergedRatings = { ...existingRatings, ...ratings };
       
-      console.log('[PromptGrouping] Existing:', Object.keys(existingRatings).length, 'entries');
-      console.log('[PromptGrouping] New:', Object.keys(ratings).length, 'entries');
-      console.log('[PromptGrouping] Merged:', Object.keys(mergedRatings).length, 'entries');
-      
       fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
-      console.log('[PromptGrouping] Ratings saved to:', ratingsFile);
       res.json({ 
         success: true, 
         message: 'Ratings saved',
@@ -2556,7 +2522,6 @@ app.post('/api/artist-gallery/save-ratings', (req, res) => {
       if (fs.existsSync(ratingsFile)) {
         try {
           existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-          console.log('[ArtistGallery] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
         } catch (parseErr) {
           console.warn('[ArtistGallery] Failed to parse existing ratings file, starting fresh:', parseErr.message);
           existingRatings = {};
@@ -2566,12 +2531,7 @@ app.post('/api/artist-gallery/save-ratings', (req, res) => {
       // Merge: existing + new (new ratings override old ones for same keys)
       const mergedRatings = { ...existingRatings, ...ratings };
       
-      console.log('[ArtistGallery] Existing:', Object.keys(existingRatings).length, 'entries');
-      console.log('[ArtistGallery] New:', Object.keys(ratings).length, 'entries');
-      console.log('[ArtistGallery] Merged:', Object.keys(mergedRatings).length, 'entries');
-      
       fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
-      console.log('[ArtistGallery] Ratings saved to:', ratingsFile);
       res.json({ 
         success: true, 
         message: 'Ratings saved',
@@ -2658,7 +2618,6 @@ app.post('/api/ratings/save', (req, res) => {
       if (fs.existsSync(ratingsFile)) {
         try {
           existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-          console.log('[Ratings] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
         } catch (parseErr) {
           console.warn('[Ratings] Failed to parse existing ratings file, starting fresh:', parseErr.message);
           existingRatings = {};
@@ -2668,13 +2627,7 @@ app.post('/api/ratings/save', (req, res) => {
       // Simple merge: existing + new (new ratings override old ones)
       const mergedRatings = { ...existingRatings, ...ratings };
       
-      console.log('[Ratings] Existing:', Object.keys(existingRatings).length, 'entries');
-      console.log('[Ratings] New:', Object.keys(ratings).length, 'entries');
-      console.log('[Ratings] Merged:', Object.keys(mergedRatings).length, 'entries');
-      console.log('[Ratings] New ratings being added:', ratings);
-      
       fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
-      console.log('[Ratings] Ratings saved to:', ratingsFile);
       res.json({ 
         success: true, 
         message: 'Ratings saved',
@@ -2715,12 +2668,8 @@ app.get('/api/ratings/load', (req, res) => {
     try {
       if (fs.existsSync(ratingsFile)) {
         const ratings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-        console.log('[Ratings] Loaded ratings from:', ratingsFile);
-        console.log('[Ratings] Total entries:', Object.keys(ratings).length);
-        console.log('[Ratings] Keys:', Object.keys(ratings));
         res.json({ success: true, ratings });
       } else {
-        console.log('[Ratings] No ratings file found at:', ratingsFile);
         res.json({ success: true, ratings: {} });
       }
     } catch (err) {
@@ -2754,15 +2703,10 @@ app.post('/api/batch-rating/submit', async (req, res) => {
 
   const jobId = uuidv4();
   
-  console.log(`[BatchRating] New batch job submitted: ${jobId}`);
-  console.log(`[BatchRating] Images: ${imageFilenames.length}, Folder: ${folderPath}`);
-  console.log(`[BatchRating] Image filenames received:`, imageFilenames);
-  
   // Check for duplicates in the array
   const uniqueImages = new Set(imageFilenames);
   if (uniqueImages.size !== imageFilenames.length) {
-    console.warn(`[BatchRating] ⚠️ DUPLICATE FILENAMES DETECTED! Received ${imageFilenames.length} but only ${uniqueImages.size} unique`);
-    console.log(`[BatchRating] Duplicates:`, imageFilenames.filter((img, idx) => imageFilenames.indexOf(img) !== idx));
+    console.warn(`[BatchRating] Duplicate filenames detected`);
   }
 
   // Create job record
@@ -2853,10 +2797,6 @@ app.get('/api/batch-rating/results/:jobId', (req, res) => {
     return res.status(400).json({ error: 'Job not completed yet' });
   }
 
-  console.log(`[BatchRating] GET results for job ${jobId}:`);
-  console.log(`  - job.results keys:`, Object.keys(job.results));
-  console.log(`  - job.results values:`, Object.values(job.results));
-  console.log(`  - Full job.results:`, job.results);
   res.json(job.results);
 });
 
@@ -2877,7 +2817,6 @@ app.post('/api/batch-rating/cancel/:jobId', (req, res) => {
   }
 
   job.status = 'cancelled';
-  console.log(`[BatchRating] Job ${jobId} cancelled`);
 
   res.json({ success: true });
 });
@@ -2891,18 +2830,13 @@ async function processBatchJob(jobId) {
   if (!job) return;
 
   job.status = 'processing';
-  console.log(`[BatchRating] Starting processing for job ${jobId}`);
-  console.log(`[BatchRating] Job imageFilenames (count: ${job.imageFilenames.length}):`, job.imageFilenames);
-  console.log(`[BatchRating] Job folderPath: ${job.folderPath}`);
 
   const filePaths = job.imageFilenames.map(img => `${job.folderPath}/${img}`);
-  console.log(`[BatchRating] Computed filePaths (count: ${filePaths.length}):`, filePaths);
 
   try {
     for (let i = 0; i < filePaths.length; i++) {
       // Check if job was cancelled
       if (job.status === 'cancelled') {
-        console.log(`[BatchRating] Job ${jobId} was cancelled, stopping processing`);
         return;
       }
 
@@ -2997,7 +2931,6 @@ async function processBatchJob(jobId) {
             );
           }
           
-          console.log(`[BatchRating] Applied learned patterns for ${filename}: ${rawScore} → ${patternScore}`);
           score = patternScore;
         }
         
@@ -3032,17 +2965,11 @@ async function processBatchJob(jobId) {
             );
           }
           
-          console.log(`[BatchRating] Applied specific feedback for ${filename}: ${score} → ${feedbackScore}`);
           score = feedbackScore;
         }
 
         job.results[filename] = score;
-        console.log(`[BatchRating] Stored result - filename: ${filename}, score: ${score}`);
-        console.log(`[BatchRating] job.results keys after storing: ${Object.keys(job.results)}`);
-        console.log(`[BatchRating] job.results: `, job.results);
-
         job.processedImages++;
-        console.log(`[BatchRating] Processed ${filename}: ${score}/10`);
 
       } catch (err) {
         console.error(`[BatchRating] Error processing file ${i + 1}:`, err);
@@ -3065,7 +2992,6 @@ async function processBatchJob(jobId) {
       if (fs.existsSync(ratingsFile)) {
         try {
           existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-          console.log(`[BatchRating] Loaded existing ratings with ${Object.keys(existingRatings).length} entries`);
         } catch (parseErr) {
           console.warn(`[BatchRating] Failed to parse existing ratings, starting fresh:`, parseErr.message);
           existingRatings = {};
@@ -3075,17 +3001,10 @@ async function processBatchJob(jobId) {
       // MERGE existing ratings with new batch results
       const mergedRatings = { ...existingRatings, ...job.results };
       
-      console.log(`[BatchRating] Existing entries: ${Object.keys(existingRatings).length}`);
-      console.log(`[BatchRating] New batch results: ${Object.keys(job.results).length}`);
-      console.log(`[BatchRating] Merged total: ${Object.keys(mergedRatings).length}`);
-      
       fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
-      console.log(`[BatchRating] Job ${jobId} results saved to: ${ratingsFile}`);
     } catch (err) {
       console.error(`[BatchRating] Failed to save results: ${err.message}`);
     }
-
-    console.log(`[BatchRating] Job ${jobId} completed! ${job.processedImages} images processed`);
 
   } catch (err) {
     job.status = 'failed';
@@ -3100,13 +3019,11 @@ async function processBatchJob(jobId) {
  * Supports both photo and illustration scoring with custom weights
  */
 async function analyzeImageQualityLocal(filePath) {
-  console.log(`[ImageQuality] START analyzing: ${filePath}`);
   const startTime = Date.now();
   
   try {
     const imageBuffer = fs.readFileSync(filePath);
     const base64Image = imageBuffer.toString('base64');
-    console.log(`[ImageQuality] Read file ${path.basename(filePath)}: ${imageBuffer.length} bytes`);
 
     const request = {
       image: {
@@ -3124,7 +3041,6 @@ async function analyzeImageQualityLocal(filePath) {
     const [result] = await visionClient.annotateImage(request);
     const labels = result.labelAnnotations || [];
     const objects = result.localizedObjectAnnotations || [];
-    console.log(`[ImageQuality] Vision API returned ${labels.length} labels for: ${path.basename(filePath)}`);
 
     // Calculate scores based on detected content
     let anatomyScore = 6;
@@ -3157,7 +3073,6 @@ async function analyzeImageQualityLocal(filePath) {
     );
     
     const isIllustrativeContent = isIllustration || hasArtisticStyle;
-    console.log(`[ImageQuality] Image type - Illustration: ${isIllustrativeContent}, Labels: ${labelNames.join(', ')}`);
 
     // Anatomy checks
     if (labelNames.some(l => l.includes('hand') || l.includes('finger') || l.includes('arm'))) {
@@ -3272,7 +3187,6 @@ async function analyzeImageQualityLocal(filePath) {
          objectQuality * 0.20 + 
          coherenceScore * 0.15) / 1
       );
-      console.log(`[ImageQuality] Using ILLUSTRATION weights (type: ${isIllustration ? 'detected' : 'artistic'})`);
     } else {
       // PHOTO WEIGHTS - Standard evaluation
       // Anatomy: 20%, Pose: 15%, Face: 20%, Background: 15%, Objects: 15%, Coherence: 15%
@@ -3284,19 +3198,9 @@ async function analyzeImageQualityLocal(filePath) {
          objectQuality * 0.15 + 
          coherenceScore * 0.15) / 1
       );
-      console.log(`[ImageQuality] Using PHOTO weights`);
-    }
-
-    // DEBUG: Log detailed component scores
-    console.log(`[ImageQuality] Component scores: Anatomy=${anatomyScore}, Pose=${poseScore}, Face=${faceQuality}, BG=${backgroundQuality}, Objects=${objectQuality}, Coherence=${coherenceScore}`);
-    if (isIllustrativeContent) {
-      console.log(`[ImageQuality] Calculation: (${anatomyScore}*0.15 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.20 + ${coherenceScore}*0.15) = ${overallScore}`);
-    } else {
-      console.log(`[ImageQuality] Calculation: (${anatomyScore}*0.20 + ${poseScore}*0.15 + ${faceQuality}*0.20 + ${backgroundQuality}*0.15 + ${objectQuality}*0.15 + ${coherenceScore}*0.15) = ${overallScore}`);
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(`[ImageQuality] FINAL SCORE for ${path.basename(filePath)}: ${overallScore}/10 (${elapsed}ms)`);
     return overallScore;
 
   } catch (err) {
@@ -3840,7 +3744,6 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
   }
 
   try {
-    console.log(`[Illustration] Batch analyzing ${filePaths.length} images with Vision API`);
     const results = [];
 
     for (const filePath of filePaths) {
@@ -3980,8 +3883,6 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
              objectQuality * 0.15 + 
              coherenceScore * 0.15)
           );
-
-          console.log(`[Batch] Feedback applied for ${imageId}: User score=${priorFeedback.userScore}/10 (from AI=${priorFeedback.aiScore}/10)`);
         }
 
         results.push({
@@ -4000,8 +3901,6 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
           feedbackApplied
         });
 
-        console.log(`[Illustration] Analyzed: ${path.basename(filePath)} = ${overallScore}/10`);
-
       } catch (err) {
         console.error(`[Illustration] Failed to analyze ${filePath}:`, err);
         results.push({ error: err.message, filePath });
@@ -4011,7 +3910,6 @@ app.post('/api/batch-analyze-illustrations', async (req, res) => {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    console.log(`[Illustration] Batch complete - ${results.length} images analyzed`);
     res.json(results);
 
   } catch (err) {
@@ -4088,7 +3986,6 @@ function saveFeedback(feedbackData, sourcePath = null) {
  */
 function calculateLearnedPatterns(feedbackData) {
   if (!feedbackData.entries || feedbackData.entries.length === 0) {
-    console.log('[ML] No feedback entries to learn from');
     return null;
   }
 
@@ -4227,9 +4124,6 @@ app.post('/api/feedback/submit', (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // DEBUG: Log the full imageId received
-    console.log(`[Feedback] Received imageId (length: ${imageId.length}): ${imageId}`);
-
     // Use provided sourcePath or fall back to currentSourcePath
     const feedbackSourcePath = sourcePath || currentSourcePath;
     if (!feedbackSourcePath) {
@@ -4249,9 +4143,6 @@ app.post('/api/feedback/submit', (req, res) => {
 
     feedbackData.entries.push(entry);
     saveFeedback(feedbackData, feedbackSourcePath);
-
-    console.log(`[Feedback] New entry: ${imageId} | AI: ${aiScore} → User: ${userScore} | Correction: ${entry.correction}`);
-    console.log(`[Feedback] Total entries in ${feedbackSourcePath}: ${feedbackData.entries.length}`);
 
     res.json({
       success: true,

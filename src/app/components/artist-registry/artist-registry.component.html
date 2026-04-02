@@ -606,6 +606,57 @@
             </ul>
           </div>
 
+          <!-- Base Image Selector for Automatic Generation Section (Optional) -->
+          <div class="form-section">
+            <h3 class="section-title">🎯 Automatic Image Generation (Optional)</h3>
+            <p class="section-hint">After uploading image pairs, you can also generate new images with this artist tag using selected base images</p>
+            
+            <div *ngIf="(availableBaseImages$ | async)?.length > 0; else noBaseImagesUploadTemplate" class="base-images-selector">
+              <div class="selection-info">
+                <strong>Available Base Images:</strong>
+                <span class="selection-count">{{ (selectedUploadBaseImages$ | async)?.length || 0 }} selected</span>
+              </div>
+              <div class="selection-hint">Click on images to select for generation</div>
+              <div class="images-grid">
+                <div *ngFor="let image of availableBaseImages$ | async" class="image-card">
+                  <div class="image-wrapper">
+                    <div class="image-preview">
+                      <!-- Show image thumbnail if available -->
+                      <img *ngIf="image.path" 
+                           [src]="'http://localhost:3001/api/base-images/file-proxy?path=' + (image.path | urlEncode)" 
+                           alt="{{ image.name }}"
+                           class="thumbnail-img"
+                           (error)="onImageLoadError($event)">
+                      <div *ngIf="!image.path" class="image-placeholder">
+                        <span>📷</span>
+                      </div>
+                    </div>
+                    <div class="image-checkbox-overlay" 
+                         [class.selected]="(selectedUploadBaseImages$ | async)?.includes(image.name)"
+                         (click)="toggleUploadBaseImageSelection(image.name); $event.stopPropagation()">
+                      <div class="checkbox-label">
+                        <span class="checkmark" *ngIf="(selectedUploadBaseImages$ | async)?.includes(image.name)">✓</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="image-details">
+                    <strong title="{{ image.name }}">{{ image.name }}</strong>
+                    <small>{{ (image.size / 1024 / 1024).toFixed(2) }} MB</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <ng-template #noBaseImagesUploadTemplate>
+              <div class="alert alert-secondary">
+                <strong>No base images available yet.</strong>
+                <div style="margin-top: 0.75rem;">
+                  <p style="margin: 0.5rem 0;">You need to upload base images first using the Base Image Manager, or upload image pairs manually below.</p>
+                </div>
+              </div>
+            </ng-template>
+          </div>
+
           <form [formGroup]="uploadImageForm">
             <div class="mb-4">
               <label class="form-label fw-semibold">Baseline Image (Without Artist Tag) <span class="text-danger">*</span></label>

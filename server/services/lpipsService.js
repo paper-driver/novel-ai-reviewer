@@ -46,7 +46,6 @@ class LpipsService {
       });
 
       this.pythonProcess.on('close', (code) => {
-        console.log(`LPIPS Python process exited with code ${code}`);
         this.isReady = false;
       });
 

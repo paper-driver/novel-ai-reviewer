@@ -145,7 +145,10 @@ function createImageGenerationRoutes(
       let estimatedTimeRemaining = null;
       if (job.status === 'generating') {
         const imagesRemaining = job.totalImages - job.currentImage;
-        estimatedTimeRemaining = `${imagesRemaining * 30} seconds`;
+        estimatedTimeRemaining = `~${imagesRemaining * 30} seconds (generating)`;
+      } else if (job.status === 'analyzing') {
+        const imagesRemaining = job.generatedImages.length - (Math.round(((job.progress - 50) / 50) * job.generatedImages.length));
+        estimatedTimeRemaining = `~${imagesRemaining * 10} seconds (analyzing)`;
       }
 
       res.json({
@@ -263,7 +266,7 @@ async function performImageGeneration(
     for (let i = 0; i < job.selectedBaseImages.length; i++) {
       const baseImageName = job.selectedBaseImages[i];
       job.currentImage = i + 1;
-      job.progress = Math.round((job.currentImage / job.totalImages) * 100);
+      job.progress = Math.round((job.currentImage / job.totalImages) * 50); // 0-50% for generation phase
 
       try {
         logger.info(TAG, `Processing image ${job.currentImage}/${job.totalImages}: ${baseImageName}`);
@@ -308,66 +311,83 @@ async function performImageGeneration(
           metadata
         );
 
-        // Analyze image pair with both Vision and LPIPS in parallel
-        let lpipsScore = null;
-        let googleVisionScore = null;
-        let lpipsInterpretation = '';
-        try {
-          logger.info(TAG, `Analyzing image pair (Vision + LPIPS): ${baseImageName} <-> ${path.basename(savedPath)}`);
-          const analysisResult = await imageAnalysisService.analyzeImagePair(baseImagePath, savedPath, job.artistName);
-          
-          // Get LPIPS score (normalized to 0-1 from imageAnalysisService)
-          lpipsScore = analysisResult.lpipsScore;
-          logger.info(TAG, `LPIPS score computed: ${lpipsScore.toFixed(3)} (0-1 normalized)`);
-          
-          // Get Vision comparison score (normalized to 0-1 from imageAnalysisService)
-          googleVisionScore = analysisResult.googleVisionScore;
-          logger.info(TAG, `Vision comparison score: ${googleVisionScore.toFixed(3)} (0-1 normalized)`);
-          
-          // Provide LPIPS interpretation
-          if (lpipsScore < 0.2) {
-            lpipsInterpretation = 'Very similar - artist barely changed the image';
-          } else if (lpipsScore < 0.4) {
-            lpipsInterpretation = 'Similar - artist made subtle style changes';
-          } else if (lpipsScore < 0.6) {
-            lpipsInterpretation = 'Moderate difference - artist applied noticeable changes';
-          } else if (lpipsScore < 0.8) {
-            lpipsInterpretation = 'Different - artist significantly transformed the image';
-          } else {
-            lpipsInterpretation = 'Very different - artist completely changed the image';
-          }
-        } catch (analysisError) {
-          logger.error(TAG, `Image pair analysis failed: ${analysisError.message}`);
-          lpipsScore = null;
-          googleVisionScore = null;
-          lpipsInterpretation = 'Analysis failed';
-        }
-
-        // Create comprehensive analysis result
-        const analysisResult = {
-          googleVisionScore: googleVisionScore, // 0-0.4 range for artist registry
-          lpipsScore: lpipsScore,
-          lpipsInterpretation: lpipsInterpretation,
-          strength: calculateStrength(googleVisionScore, lpipsScore)
-        };
-
+        // Store image for later analysis (don't analyze yet)
         job.generatedImages.push({
           filename: path.basename(savedPath),
           path: savedPath,
           size: imageBuffer.length,
           baseImage: baseImageName,
           baseImagePath: baseImagePath,
-          analysisResult: analysisResult,
+          analysisResult: null,
           generatedAt: new Date().toISOString()
         });
 
-        logger.info(TAG, `Successfully generated and analyzed image ${job.currentImage}/${job.totalImages}`);
+        logger.info(TAG, `Successfully generated image ${job.currentImage}/${job.totalImages}: ${path.basename(savedPath)}`);
       } catch (imageError) {
         logger.error(TAG, `Error generating image for ${baseImageName}: ${imageError.message}`);
         job.errors.push({
           baseImage: baseImageName,
           error: imageError.message
         });
+      }
+    }
+
+    // ===== ANALYSIS PHASE =====
+    logger.info(TAG, `Generation complete. Starting analysis phase...`);
+    job.status = 'analyzing';
+    
+    for (let i = 0; i < job.generatedImages.length; i++) {
+      const generatedImage = job.generatedImages[i];
+      job.progress = 50 + Math.round(((i + 1) / job.generatedImages.length) * 50); // 50-100% for analysis phase
+
+      try {
+        logger.info(TAG, `Analyzing image pair ${i + 1}/${job.generatedImages.length}: ${generatedImage.baseImage}`);
+
+        // Analyze image pair with both Vision and LPIPS in parallel
+        let lpipsScore = null;
+        let googleVisionScore = null;
+        let lpipsInterpretation = '';
+        
+        const analysisResult = await imageAnalysisService.analyzeImagePair(generatedImage.baseImagePath, generatedImage.path, job.artistName);
+        
+        // Get LPIPS score (normalized to 0-1 from imageAnalysisService)
+        lpipsScore = analysisResult.lpipsScore;
+        logger.info(TAG, `LPIPS score computed: ${lpipsScore.toFixed(3)} (0-1 normalized)`);
+        
+        // Get Vision comparison score (normalized to 0-1 from imageAnalysisService)
+        googleVisionScore = analysisResult.googleVisionScore;
+        logger.info(TAG, `Vision comparison score: ${googleVisionScore.toFixed(3)} (0-1 normalized)`);
+        
+        // Provide LPIPS interpretation
+        if (lpipsScore < 0.2) {
+          lpipsInterpretation = 'Very similar - artist barely changed the image';
+        } else if (lpipsScore < 0.4) {
+          lpipsInterpretation = 'Similar - artist made subtle style changes';
+        } else if (lpipsScore < 0.6) {
+          lpipsInterpretation = 'Moderate difference - artist applied noticeable changes';
+        } else if (lpipsScore < 0.8) {
+          lpipsInterpretation = 'Different - artist significantly transformed the image';
+        } else {
+          lpipsInterpretation = 'Very different - artist completely changed the image';
+        }
+
+        // Create comprehensive analysis result
+        generatedImage.analysisResult = {
+          googleVisionScore: googleVisionScore,
+          lpipsScore: lpipsScore,
+          lpipsInterpretation: lpipsInterpretation,
+          strength: calculateStrength(googleVisionScore, lpipsScore)
+        };
+
+        logger.info(TAG, `Successfully analyzed image ${i + 1}/${job.generatedImages.length}`);
+      } catch (analysisError) {
+        logger.error(TAG, `Image pair analysis failed: ${analysisError.message}`);
+        generatedImage.analysisResult = {
+          googleVisionScore: null,
+          lpipsScore: null,
+          lpipsInterpretation: 'Analysis failed',
+          strength: null
+        };
       }
     }
 

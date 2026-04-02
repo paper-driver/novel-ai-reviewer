@@ -44,8 +44,8 @@ interface ArtistRecord {
   styleUrls: ['./artist-registry.component.scss']
 })
 export class ArtistRegistryComponent implements OnInit, OnDestroy {
-  @ViewChild('baseImageInput') baseImageInput: ElementRef<HTMLInputElement>;
-  @ViewChild('withArtistImageInput') withArtistImageInput: ElementRef<HTMLInputElement>;
+  @ViewChild('baseImageInput') baseImageInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('withArtistImageInput') withArtistImageInput!: ElementRef<HTMLInputElement>;
 
   artists$ = new BehaviorSubject<ArtistRecord[]>([]);
   selectedFolder$ = new BehaviorSubject<string>('');
@@ -56,6 +56,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
   // Base image management
   availableBaseImages$ = new BehaviorSubject<any[]>([]);
   selectedBaseImages$ = new BehaviorSubject<string[]>([]);
+  selectedUploadBaseImages$ = new BehaviorSubject<string[]>([]);
   
   // Generation job tracking
   generationJobId$ = new BehaviorSubject<string | null>(null);
@@ -167,14 +168,13 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
       this.websocket = new WebSocket(wsUrl);
 
       this.websocket.onopen = () => {
-        console.log('WebSocket connected');
+        // WebSocket connected
       };
 
       this.websocket.onmessage = (event) => {
         const message = JSON.parse(event.data);
 
         if (message.type === 'validation-complete') {
-          console.log('Validation complete for artist:', message.artistName);
           // Reload the registry to get updated scores
           this.loadRegistryFromFolder();
           
@@ -195,7 +195,6 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
       };
 
       this.websocket.onclose = () => {
-        console.log('WebSocket disconnected, reconnecting in 3 seconds...');
         // Attempt to reconnect after 3 seconds
         setTimeout(() => this.connectWebSocket(), 3000);
       };
@@ -254,7 +253,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
         this.loadAvailableBaseImages();
         
         // Fetch image pair data for all artists (for thumbnails)
-        artists.forEach(artist => {
+        artists.forEach((artist: ArtistRecord) => {
           this.http.get<any>(
             `/api/artist-registry/${artist.id}/analysis-details`,
             { params: { folderPath } }
@@ -300,9 +299,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
    */
   private loadAvailableBaseImages() {
     const folderPath = this.selectedFolder$.value;
-    console.log('loadAvailableBaseImages called with folderPath:', folderPath);
     if (!folderPath) {
-      console.warn('No folder path set, cannot load base images');
       return;
     }
 
@@ -310,7 +307,6 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
       params: { registryFolder: folderPath }
     }).subscribe({
       next: (response) => {
-        console.log('Base images loaded:', response);
         if (response.success && response.images) {
           this.availableBaseImages$.next(response.images);
         }
@@ -326,21 +322,30 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
    * Toggle selection of a base image
    */
   toggleBaseImageSelection(imageName: string) {
-    console.log('toggleBaseImageSelection called for:', imageName);
     const currentSelection = this.selectedBaseImages$.value;
-    console.log('Current selection before:', currentSelection);
     
     if (currentSelection.includes(imageName)) {
       const newSelection = currentSelection.filter(name => name !== imageName);
-      console.log('Removing image, new selection:', newSelection);
       this.selectedBaseImages$.next(newSelection);
     } else {
       const newSelection = [...currentSelection, imageName];
-      console.log('Adding image, new selection:', newSelection);
       this.selectedBaseImages$.next(newSelection);
     }
+  }
+
+  /**
+   * Toggle selection of a base image for the upload dialog
+   */
+  toggleUploadBaseImageSelection(imageName: string) {
+    const currentSelection = this.selectedUploadBaseImages$.value;
     
-    console.log('Current selection after:', this.selectedBaseImages$.value);
+    if (currentSelection.includes(imageName)) {
+      const newSelection = currentSelection.filter(name => name !== imageName);
+      this.selectedUploadBaseImages$.next(newSelection);
+    } else {
+      const newSelection = [...currentSelection, imageName];
+      this.selectedUploadBaseImages$.next(newSelection);
+    }
   }
 
   /**
@@ -586,6 +591,17 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Close the add artist modal
+   */
+  onModalClose() {
+    this.resetAddArtistForm();
+    this.showAddForm = false;
+    this.showGenerationResults$.next(false);
+    this.generationJobId$.next(null);
+    this.generationResults$.next(null);
+  }
+
+  /**
    * Close the generation results view and reset form
    */
   closeGenerationResults() {
@@ -719,6 +735,11 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
    */
   initiateUpload(artist: ArtistRecord) {
     this.selectedArtist = artist;
+    this.selectedUploadBaseImages$.next([]);
+    this.baseImageFileName = '';
+    this.artistImageFileName = '';
+    if (this.baseImageInput?.nativeElement) this.baseImageInput.nativeElement.value = '';
+    if (this.withArtistImageInput?.nativeElement) this.withArtistImageInput.nativeElement.value = '';
     this.showUploadDialog = true;
   }
 
@@ -745,6 +766,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     this.successMessage$.next('');
 
     const folderPath = this.selectedFolder$.value;
+    const selectedBaseImages = this.selectedUploadBaseImages$.value;
     const formData = new FormData();
 
     formData.append('folderPath', folderPath);
@@ -763,11 +785,24 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
         // Clear form
         this.baseImageInput.nativeElement.value = '';
         this.withArtistImageInput.nativeElement.value = '';
+        this.baseImageFileName = '';
+        this.artistImageFileName = '';
         this.showUploadDialog = false;
-        this.selectedArtist = null;
-        this.isLoading$.next(false);
         
-        // WebSocket will automatically update the table when analysis is complete
+        // Handle automatic generation if base images selected
+        if (selectedBaseImages.length > 0 && this.selectedArtist) {
+          this.startImageGeneration(
+            this.selectedArtist.id,
+            this.selectedArtist.name,
+            folderPath,
+            selectedBaseImages
+          );
+          this.selectedUploadBaseImages$.next([]);
+        } else {
+          this.selectedArtist = null;
+          this.isLoading$.next(false);
+          // WebSocket will automatically update the table when analysis is complete
+        }
       },
       error: (error) => {
         this.error$.next(error.error?.message || 'Failed to upload image pair');
@@ -868,7 +903,6 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
         // Relative path - construct full path
         fullPath = `${folderPath}/${artist.name}/${imagePath}`;
       }
-      console.log(`Thumbnail URL for artist ${artist.name}:`, fullPath);
       return `/api/artist-gallery/image?filePath=${encodeURIComponent(fullPath)}`;
     }
     

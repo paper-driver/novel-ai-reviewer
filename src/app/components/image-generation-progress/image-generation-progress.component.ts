@@ -105,6 +105,8 @@ export class ImageGenerationProgressComponent implements OnInit, OnDestroy {
         return 'badge-warning';
       case 'generating':
         return 'badge-info';
+      case 'analyzing':
+        return 'badge-info';
       case 'completed':
         return 'badge-success';
       case 'completed_with_errors':
@@ -124,13 +126,15 @@ export class ImageGenerationProgressComponent implements OnInit, OnDestroy {
       case 'pending':
         return 'Pending...';
       case 'generating':
-        return 'Generating...';
+        return '🎨 Generating Images...';
+      case 'analyzing':
+        return '📊 Analyzing Images...';
       case 'completed':
-        return 'Completed';
+        return '✅ Completed';
       case 'completed_with_errors':
-        return 'Completed with Errors';
+        return '⚠️ Completed with Errors';
       case 'failed':
-        return 'Failed';
+        return '❌ Failed';
       default:
         return status;
     }

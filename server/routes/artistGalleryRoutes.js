@@ -199,8 +199,6 @@ function createArtistGalleryRoutes(artistGalleryService, imageMetadataService, i
       
       const artists = imageMetadataService.extractArtistTags(prompt);
 
-      console.log('[ArtistGallery] Successfully read metadata, prompt length:', prompt.length);
-
       res.json({
         success: true,
         filename,
@@ -229,8 +227,6 @@ function createArtistGalleryRoutes(artistGalleryService, imageMetadataService, i
 
       const filePath = decodeURIComponent(encodedFilePath);
       const resolvedPath = path.resolve(filePath);
-
-      console.log('[ArtistGallery] Serving image:', resolvedPath);
 
       // Security: Ensure the file exists
       if (!fs.existsSync(resolvedPath)) {
@@ -283,7 +279,6 @@ function createArtistGalleryRoutes(artistGalleryService, imageMetadataService, i
         if (fs.existsSync(ratingsFile)) {
           try {
             existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-            console.log('[ArtistGallery] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
           } catch (parseErr) {
             console.warn('[ArtistGallery] Failed to parse existing ratings file, starting fresh:', parseErr.message);
             existingRatings = {};
@@ -293,12 +288,7 @@ function createArtistGalleryRoutes(artistGalleryService, imageMetadataService, i
         // Merge: existing + new (new ratings override old ones for same keys)
         const mergedRatings = { ...existingRatings, ...ratings };
         
-        console.log('[ArtistGallery] Existing:', Object.keys(existingRatings).length, 'entries');
-        console.log('[ArtistGallery] New:', Object.keys(ratings).length, 'entries');
-        console.log('[ArtistGallery] Merged:', Object.keys(mergedRatings).length, 'entries');
-        
         fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
-        console.log('[ArtistGallery] Ratings saved to:', ratingsFile);
         res.json({ 
           success: true, 
           message: 'Ratings saved',

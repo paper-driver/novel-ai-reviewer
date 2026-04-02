@@ -16,8 +16,6 @@ function createFeedbackRoutes(feedbackService) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      console.log(`[Feedback] Received imageId (length: ${imageId.length}): ${imageId}`);
-
       // Use provided sourcePath
       if (!sourcePath) {
         return res.status(400).json({ error: 'Source path is required' });
@@ -33,11 +31,6 @@ function createFeedbackRoutes(feedbackService) {
         adjustedComponents,
         adjustmentDetails
       );
-
-      console.log(`[Feedback] New entry: ${imageId} | AI: ${aiScore} → User: ${userScore} | Correction: ${entry.correction}`);
-      if (adjustmentDetails && Object.keys(adjustmentDetails).length > 0) {
-        console.log(`[Feedback] Component adjustments:`, adjustmentDetails);
-      }
 
       const feedbackData = feedbackService.loadFeedback(sourcePath);
       res.json({

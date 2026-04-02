@@ -17,7 +17,11 @@
   <!-- Progress Bar -->
   <div class="progress-section">
     <div class="progress-label">
-      <span>Progress</span>
+      <span>
+        <span *ngIf="status.status === 'generating'">🎨 Generating</span>
+        <span *ngIf="status.status === 'analyzing'">📊 Analyzing</span>
+        <span *ngIf="!['generating', 'analyzing'].includes(status.status)">Progress</span>
+      </span>
       <span class="progress-percentage">{{ status.progress }}%</span>
     </div>
     <div class="progress-bar-container">

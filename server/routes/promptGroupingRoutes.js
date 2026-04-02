@@ -192,8 +192,6 @@ function createPromptGroupingRoutes(promptGroupingService, imageMetadataService)
       const artists = imageMetadataService.extractArtistTags(prompt);
       const normalizedPrompt = imageMetadataService.normalizePrompt(prompt);
 
-      console.log(`[PromptGrouping/image-metadata] Extracted prompt, artists: ${artists.join(', ')}`);
-
       res.json({
         success: true,
         filename,
@@ -234,7 +232,6 @@ function createPromptGroupingRoutes(promptGroupingService, imageMetadataService)
         if (fs.existsSync(ratingsFile)) {
           try {
             existingRatings = JSON.parse(fs.readFileSync(ratingsFile, 'utf8'));
-            console.log('[PromptGrouping] Loaded existing ratings with', Object.keys(existingRatings).length, 'entries');
           } catch (parseErr) {
             console.warn('[PromptGrouping] Failed to parse existing ratings file, starting fresh:', parseErr.message);
             existingRatings = {};
@@ -244,12 +241,7 @@ function createPromptGroupingRoutes(promptGroupingService, imageMetadataService)
         // Merge: existing + new (new ratings override old ones for same keys)
         const mergedRatings = { ...existingRatings, ...ratings };
         
-        console.log('[PromptGrouping] Existing:', Object.keys(existingRatings).length, 'entries');
-        console.log('[PromptGrouping] New:', Object.keys(ratings).length, 'entries');
-        console.log('[PromptGrouping] Merged:', Object.keys(mergedRatings).length, 'entries');
-        
         fs.writeFileSync(ratingsFile, JSON.stringify(mergedRatings, null, 2));
-        console.log('[PromptGrouping] Ratings saved to:', ratingsFile);
         res.json({ 
           success: true, 
           message: 'Ratings saved',
