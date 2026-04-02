@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ClipboardModule } from 'ngx-clipboard';
+import { ClipboardModule, ClipboardService } from 'ngx-clipboard';
 import { BehaviorSubject } from 'rxjs';
 import { FolderPickerService } from '../../services/folder-picker.service';
 
@@ -45,12 +45,16 @@ export class CombinationGeneratorComponent implements OnInit {
   selectedFolder$ = new BehaviorSubject<string>('');
   isLoading$ = new BehaviorSubject<boolean>(false);
   error$ = new BehaviorSubject<string>('');
+  successMessage$ = new BehaviorSubject<string>('');
+  copiedSuggestionIndex$ = new BehaviorSubject<number | null>(null);
+  copiedSavedId$ = new BehaviorSubject<string | null>(null);
 
   generatorForm: FormGroup;
   showSaved = false;
   selectedCombination: CombinationSuggestion | null = null;
   showSaveDialog = false;
   saveCombinationName = '';
+  private messageTimeout: any;
 
   keywords = {
     styles: ['anime', 'realistic', 'cartoon', 'fine art', 'semi-realistic', 'manga', 'acg', 'wuxia'],
@@ -63,7 +67,8 @@ export class CombinationGeneratorComponent implements OnInit {
   constructor(
     private http: HttpClient,
     private fb: FormBuilder,
-    private folderPickerService: FolderPickerService
+    private folderPickerService: FolderPickerService,
+    private clipboard: ClipboardService
   ) {
     this.generatorForm = this.fb.group({
       userInput: ['', [Validators.required, Validators.minLength(10)]],
@@ -199,11 +204,57 @@ export class CombinationGeneratorComponent implements OnInit {
   }
 
   /**
-   * Copy prompt to clipboard
+   * Copy prompt to clipboard with feedback
    */
-  copyToClipboard(combo: CombinationSuggestion) {
+  copyToClipboard(combo: CombinationSuggestion, index: number) {
     const prompt = this.getPromptFormat(combo);
-    // ngx-clipboard handles this with the appClipboard directive in template
+    if (prompt) {
+      this.clipboard.copy(prompt);
+      this.copiedSuggestionIndex$.next(index);
+      
+      // Clear feedback after 2 seconds
+      if (this.messageTimeout) {
+        clearTimeout(this.messageTimeout);
+      }
+      this.messageTimeout = setTimeout(() => {
+        this.copiedSuggestionIndex$.next(null);
+      }, 2000);
+    }
+  }
+
+  /**
+   * Copy saved combination prompt to clipboard with feedback
+   */
+  copySavedCombination(combo: SavedCombination) {
+    if (combo.promptFormat) {
+      this.clipboard.copy(combo.promptFormat);
+      this.copiedSavedId$.next(combo.id);
+      
+      // Clear feedback after 2 seconds
+      if (this.messageTimeout) {
+        clearTimeout(this.messageTimeout);
+      }
+      this.messageTimeout = setTimeout(() => {
+        this.copiedSavedId$.next(null);
+      }, 2000);
+    }
+  }
+
+  /**
+   * Show success message and auto-hide after 3 seconds
+   */
+  private showSuccessMessage(message: string) {
+    this.successMessage$.next(message);
+    
+    // Clear any existing timeout
+    if (this.messageTimeout) {
+      clearTimeout(this.messageTimeout);
+    }
+    
+    // Set new timeout to clear message
+    this.messageTimeout = setTimeout(() => {
+      this.successMessage$.next('');
+    }, 3000);
   }
 
   /**

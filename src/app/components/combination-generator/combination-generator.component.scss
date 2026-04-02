@@ -606,6 +606,20 @@
           background: #45a049;
         }
       }
+
+      .copy-button-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-end;
+      }
+    }
+
+    .copy-feedback {
+      font-size: 0.75rem;
+      color: #2e7d32;
+      font-weight: 600;
+      animation: slideIn 0.3s ease;
     }
 
     .detail-actions {
@@ -731,6 +745,14 @@
         }
       }
     }
+
+    .copy-feedback {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: #2e7d32;
+      font-weight: 600;
+      animation: slideIn 0.3s ease;
+    }
   }
 }
 
@@ -741,6 +763,17 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

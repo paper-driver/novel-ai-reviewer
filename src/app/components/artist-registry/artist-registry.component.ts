@@ -42,6 +42,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
 
   showAddForm = false;
   showUploadDialog = false;
+  showEditDialog = false;
   selectedArtist: ArtistRecord | null = null;
   showAnalysisDetails = false;
   analysisDetails: any = null;
@@ -57,6 +58,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
 
   addArtistForm: FormGroup;
   uploadImageForm: FormGroup;
+  editArtistForm: FormGroup;
   folderInput: string = '';
 
   artStyles = [
@@ -93,6 +95,14 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     this.uploadImageForm = this.fb.group({
       baseImage: ['', Validators.required],
       withArtistImage: ['', Validators.required]
+    });
+
+    this.editArtistForm = this.fb.group({
+      artStyle: ['undefined'],
+      anatomy: [5],
+      object: [5],
+      colouring: [5],
+      promptInterpretation: [5]
     });
   }
 
@@ -354,6 +364,79 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
           }
         });
     }
+  }
+
+  /**
+   * Initiate editing an artist's scoring fields
+   */
+  initiateEdit(artist: ArtistRecord) {
+    this.selectedArtist = artist;
+    this.editArtistForm.patchValue({
+      artStyle: artist.artStyle,
+      anatomy: artist.anatomy,
+      object: artist.object,
+      colouring: artist.colouring,
+      promptInterpretation: artist.promptInterpretation
+    });
+    this.showEditDialog = true;
+  }
+
+  /**
+   * Update artist scoring fields
+   */
+  updateArtistScoring() {
+    if (!this.editArtistForm.valid || !this.selectedArtist) {
+      return;
+    }
+
+    this.isLoading$.next(true);
+    this.error$.next('');
+    this.successMessage$.next('');
+
+    const folderPath = this.selectedFolder$.value;
+    const formData = {
+      folderPath,
+      ...this.editArtistForm.value
+    };
+
+    this.http.put<any>(
+      `http://localhost:3001/api/artist-registry/${this.selectedArtist.id}`,
+      formData
+    ).subscribe({
+      next: (response) => {
+        // Update the artist in the list
+        const artists = this.artists$.value;
+        const index = artists.findIndex(a => a.id === this.selectedArtist!.id);
+        if (index >= 0) {
+          artists[index] = response.artist;
+          this.artists$.next([...artists]);
+        }
+
+        this.successMessage$.next(`Scoring updated for ${this.selectedArtist!.name}`);
+        this.showEditDialog = false;
+        this.selectedArtist = null;
+        this.isLoading$.next(false);
+      },
+      error: (error) => {
+        this.error$.next(error.error?.message || 'Failed to update artist');
+        this.isLoading$.next(false);
+      }
+    });
+  }
+
+  /**
+   * Cancel editing and close dialog
+   */
+  cancelEdit() {
+    this.showEditDialog = false;
+    this.selectedArtist = null;
+    this.editArtistForm.reset({
+      artStyle: 'undefined',
+      anatomy: 5,
+      object: 5,
+      colouring: 5,
+      promptInterpretation: 5
+    });
   }
 
   /**

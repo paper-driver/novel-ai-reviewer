@@ -376,6 +376,15 @@
                 </button>
                 <button 
                   type="button" 
+                  class="action-btn edit-btn"
+                  title="Edit scoring"
+                  (click)="initiateEdit(artist)"
+                  [disabled]="isLoading$ | async"
+                >
+                  ✏️
+                </button>
+                <button 
+                  type="button" 
                   class="action-btn info-btn"
                   title="View analysis details"
                   (click)="viewAnalysisDetails(artist)"
@@ -585,6 +594,133 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="showAnalysisDetails = false">
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Artist Scoring Modal -->
+  <div class="modal-backdrop" *ngIf="showEditDialog" (click)="cancelEdit()"></div>
+  <div class="modal fade show" *ngIf="showEditDialog" style="display: block;">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-pencil"></i> Edit Scoring - <strong>{{ selectedArtist?.name }}</strong>
+          </h5>
+          <button type="button" class="btn-close" (click)="cancelEdit()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info" role="alert">
+            <strong><i class="bi bi-info-circle"></i> Note:</strong> Adjust the art style and scoring fields below. Strength is calculated automatically from image analysis.
+          </div>
+
+          <form [formGroup]="editArtistForm">
+            <div class="mb-3">
+              <label for="edit-art-style" class="form-label">Art Style</label>
+              <select 
+                id="edit-art-style"
+                class="form-select" 
+                formControlName="artStyle"
+              >
+                <option *ngFor="let style of artStyles" [value]="style.value">
+                  {{ style.label }}
+                </option>
+              </select>
+              <small class="form-text text-muted">Select the primary art style</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="edit-anatomy" class="form-label">Anatomy Score</label>
+              <div class="d-flex align-items-center gap-2">
+                <input 
+                  id="edit-anatomy"
+                  type="range" 
+                  class="form-range" 
+                  min="0" 
+                  max="10"
+                  formControlName="anatomy"
+                >
+                <span class="badge bg-light text-dark" style="min-width: 3rem;" *ngIf="editArtistForm.get('anatomy')">
+                  {{ editArtistForm.get('anatomy')?.value }}
+                </span>
+              </div>
+              <small class="form-text text-muted">How well defines anatomy and proportions</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="edit-object" class="form-label">Object Score</label>
+              <div class="d-flex align-items-center gap-2">
+                <input 
+                  id="edit-object"
+                  type="range" 
+                  class="form-range" 
+                  min="0" 
+                  max="10"
+                  formControlName="object"
+                >
+                <span class="badge bg-light text-dark" style="min-width: 3rem;" *ngIf="editArtistForm.get('object')">
+                  {{ editArtistForm.get('object')?.value }}
+                </span>
+              </div>
+              <small class="form-text text-muted">How well renders objects and details</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="edit-colouring" class="form-label">Coloring Score</label>
+              <div class="d-flex align-items-center gap-2">
+                <input 
+                  id="edit-colouring"
+                  type="range" 
+                  class="form-range" 
+                  min="0" 
+                  max="10"
+                  formControlName="colouring"
+                >
+                <span class="badge bg-light text-dark" style="min-width: 3rem;" *ngIf="editArtistForm.get('colouring')">
+                  {{ editArtistForm.get('colouring')?.value }}
+                </span>
+              </div>
+              <small class="form-text text-muted">How well applies color palette and shading</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="edit-prompt" class="form-label">Prompt Interpretation Score</label>
+              <div class="d-flex align-items-center gap-2">
+                <input 
+                  id="edit-prompt"
+                  type="range" 
+                  class="form-range" 
+                  min="0" 
+                  max="10"
+                  formControlName="promptInterpretation"
+                >
+                <span class="badge bg-light text-dark" style="min-width: 3rem;" *ngIf="editArtistForm.get('promptInterpretation')">
+                  {{ editArtistForm.get('promptInterpretation')?.value }}
+                </span>
+              </div>
+              <small class="form-text text-muted">How well interprets and follows prompts</small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button 
+            type="button" 
+            class="btn btn-secondary" 
+            (click)="cancelEdit()"
+            [disabled]="isLoading$ | async"
+          >
+            Cancel
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-primary" 
+            (click)="updateArtistScoring()"
+            [disabled]="!editArtistForm.valid || (isLoading$ | async)"
+          >
+            <span *ngIf="!(isLoading$ | async)">💾 Save Changes</span>
+            <span *ngIf="isLoading$ | async">Saving...</span>
           </button>
         </div>
       </div>

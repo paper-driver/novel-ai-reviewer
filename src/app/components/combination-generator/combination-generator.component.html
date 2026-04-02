@@ -11,6 +11,10 @@
     <button class="alert-close" (click)="error$.next('')">×</button>
   </div>
 
+  <div class="alert alert-success" *ngIf="(successMessage$ | async) as message">
+    <span>{{ message }}</span>
+  </div>
+
   <!-- Main Container -->
   <div class="generator-main">
     <!-- Input Section -->
@@ -169,8 +173,11 @@
                 </div>
                 <div class="saved-actions">
                   <button (click)="useSavedCombination(combo)" class="action-btn" title="Load">📥</button>
-                  <button [appClipboard]="combo.promptFormat" class="action-btn" title="Copy prompt">📋</button>
+                  <button (click)="copySavedCombination(combo)" class="action-btn" title="Copy prompt">📋</button>
                   <button (click)="deleteSavedCombination(combo.id)" class="action-btn action-delete" title="Delete">🗑️</button>
+                </div>
+                <div class="copy-feedback" *ngIf="(copiedSavedId$ | async) === combo.id">
+                  ✓ Copied to clipboard!
                 </div>
               </div>
             </div>
@@ -243,9 +250,14 @@
                 <h4>Prompt Format</h4>
                 <div class="prompt-box">
                   <code>{{ getPromptFormat(combo) }}</code>
-                  <button class="btn-copy-prompt" [appClipboard]="getPromptFormat(combo)" title="Copy prompt">
-                    📋 Copy
-                  </button>
+                  <div class="copy-button-wrapper">
+                    <button class="btn-copy-prompt" (click)="copyToClipboard(combo, i)" title="Copy prompt">
+                      📋 Copy
+                    </button>
+                    <div class="copy-feedback" *ngIf="(copiedSuggestionIndex$ | async) === i">
+                      ✓ Copied!
+                    </div>
+                  </div>
                 </div>
               </div>
 
