@@ -2,6 +2,7 @@ import { Component, OnInit, Input, OnChanges, SimpleChanges } from '@angular/cor
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { UrlEncodePipe } from '../../pipes/url-encode.pipe';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 /**
@@ -12,7 +13,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 @Component({
   selector: 'app-base-image-manager',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UrlEncodePipe],
   templateUrl: './base-image-manager.component.html',
   styleUrls: ['./base-image-manager.component.scss']
 })
@@ -161,5 +162,16 @@ export class BaseImageManagerComponent implements OnInit, OnChanges {
    */
   formatDate(dateString: string): string {
     return new Date(dateString).toLocaleString();
+  }
+
+  /**
+   * Handle image load error - show placeholder
+   */
+  onImageLoadError(event: any): void {
+    event.target.style.display = 'none';
+    const placeholder = event.target.nextElementSibling;
+    if (placeholder) {
+      placeholder.style.display = 'flex';
+    }
   }
 }

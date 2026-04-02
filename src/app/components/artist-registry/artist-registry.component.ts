@@ -62,6 +62,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
   generationProgress$ = new BehaviorSubject<any | null>(null);
   generationResults$ = new BehaviorSubject<any | null>(null);
   isGenerating$ = new BehaviorSubject<boolean>(false);
+  showGenerationResults$ = new BehaviorSubject<boolean>(false);
   
   private destroy$ = new Subject<void>();
 
@@ -568,7 +569,37 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
    * Complete the artist addition workflow
    */
   private completeArtistAddition() {
-    // Reset form
+    // Show generation results view if generation was done
+    if ((this.generationResults$.value) || (this.generationJobId$.value)) {
+      this.showGenerationResults$.next(true);
+      this.isLoading$.next(false);
+    } else {
+      // No generation was done, just close the form
+      this.resetAddArtistForm();
+      this.showAddForm = false;
+      this.isLoading$.next(false);
+    }
+
+    // Reload registry in background
+    this.loadRegistryFromFolder();
+    this.loadAvailableBaseImages();
+  }
+
+  /**
+   * Close the generation results view and reset form
+   */
+  closeGenerationResults() {
+    this.resetAddArtistForm();
+    this.showAddForm = false;
+    this.showGenerationResults$.next(false);
+    this.generationJobId$.next(null);
+    this.generationResults$.next(null);
+  }
+
+  /**
+   * Reset the add artist form to initial state
+   */
+  private resetAddArtistForm() {
     this.addArtistForm.reset({
       artStyle: 'undefined',
       anatomy: 5,
@@ -581,17 +612,6 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     if (this.baseImageInput?.nativeElement) this.baseImageInput.nativeElement.value = '';
     if (this.withArtistImageInput?.nativeElement) this.withArtistImageInput.nativeElement.value = '';
     this.selectedBaseImages$.next([]);
-    
-    // Close form after a short delay to show success message
-    setTimeout(() => {
-      this.showAddForm = false;
-      this.generationJobId$.next(null);
-      
-      // Reload registry to get fresh data
-      this.loadRegistryFromFolder();
-      this.loadAvailableBaseImages();
-      this.isLoading$.next(false);
-    }, 1500);
   }
 
   /**
@@ -848,7 +868,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
         // Relative path - construct full path
         fullPath = `${folderPath}/${artist.name}/${imagePath}`;
       }
-      
+      console.log(`Thumbnail URL for artist ${artist.name}:`, fullPath);
       return `/api/artist-gallery/image?filePath=${encodeURIComponent(fullPath)}`;
     }
     

@@ -94,17 +94,21 @@
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">{{ (isGenerating$ | async) ? 'Generating Images...' : 'Add New Artist to Registry' }}</h5>
+          <h5 class="modal-title">
+            <span *ngIf="(isGenerating$ | async)">⏳ Generating Images...</span>
+            <span *ngIf="(showGenerationResults$ | async)">✅ Artist Added</span>
+            <span *ngIf="!(isGenerating$ | async) && !(showGenerationResults$ | async)">Add New Artist to Registry</span>
+          </h5>
           <button 
             type="button" 
             class="btn-close" 
-            (click)="showAddForm = false"
-            [disabled]="(isGenerating$ | async) || (isLoading$ | async)"
+            (click)="onModalClose()"
+            [disabled]="(isGenerating$ | async)"
           ></button>
         </div>
         <div class="modal-body">
           <!-- Add Artist Form -->
-          <form *ngIf="!(isGenerating$ | async)" [formGroup]="addArtistForm" (ngSubmit)="addArtist()">
+          <form *ngIf="!(isGenerating$ | async) && !(showGenerationResults$ | async)" [formGroup]="addArtistForm" (ngSubmit)="addArtist()">
             <!-- Artist Basic Info Section -->
         <div class="form-section">
           <h3 class="section-title">Artist Information</h3>
@@ -357,6 +361,74 @@
               [results]="(generationResults$ | async)"
             ></app-image-generation-progress>
           </div>
+
+          <!-- Generation Results Display -->
+          <div *ngIf="showGenerationResults$ | async" class="generation-results-container">
+            <div class="results-header">
+              <h4>✅ Artist Added Successfully!</h4>
+              <p class="results-subtitle">Image generation and analysis complete</p>
+            </div>
+
+            <div class="results-content">
+              <!-- Generation Summary -->
+              <div class="result-section" *ngIf="(generationResults$ | async) as results">
+                <h5 class="section-title">Generation Summary</h5>
+                <div class="summary-grid">
+                  <div class="summary-item">
+                    <span class="summary-label">Generated Images</span>
+                    <span class="summary-value">{{ results.generatedCount }}/{{ results.totalImages }}</span>
+                  </div>
+                  <div class="summary-item" *ngIf="results.status">
+                    <span class="summary-label">Status</span>
+                    <span class="summary-value" [ngClass]="results.status === 'completed' ? 'text-success' : 'text-warning'">
+                      {{ results.status }}
+                    </span>
+                  </div>
+                  <div class="summary-item" *ngIf="results.errors && results.errors.length > 0">
+                    <span class="summary-label">Errors</span>
+                    <span class="summary-value text-danger">{{ results.errors.length }}</span>
+                  </div>
+                </div>
+
+                <!-- Error Messages -->
+                <div *ngIf="results.errors && results.errors.length > 0" class="errors-section">
+                  <h6>Issues Encountered:</h6>
+                  <div class="error-list">
+                    <div *ngFor="let error of results.errors" class="error-item">
+                      ⚠️ {{ error }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Success Message -->
+              <div class="result-message" *ngIf="(successMessage$ | async) as message">
+                {{ message }}
+              </div>
+
+              <!-- Analysis Results if available -->
+              <div class="result-section" *ngIf="(generationResults$ | async) as results">
+                <h5 class="section-title">Next Steps</h5>
+                <ul class="next-steps-list">
+                  <li>✅ Artist record has been created</li>
+                  <li>✅ Generated images have been analyzed</li>
+                  <li>ℹ️ You can now upload image pairs to fine-tune strength values</li>
+                  <li>ℹ️ Or edit the artist's quality scores in the registry</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Close Button -->
+            <div class="results-actions">
+              <button 
+                type="button" 
+                class="btn-confirm"
+                (click)="closeGenerationResults()"
+              >
+                ✓ Done
+              </button>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <!-- Footer content optional -->
@@ -444,7 +516,7 @@
                   (click)="viewArtistImages(artist)"
                   title="View images"
                   [disabled]="isLoading$ | async"
-                  [ngStyle]="getThumbnailUrl(artist, 0) ? {'background-image': 'url(' + getThumbnailUrl(artist, 0) + ')'} : {}"
+                  [ngStyle]="getThumbnailUrl(artist, 0) ? {'background-image': 'url(\'' + getThumbnailUrl(artist, 0) + '\')'} : {}"
                 >
                 </button>
                 <div *ngIf="artist.imagesCount === 0" class="thumbnail-empty">

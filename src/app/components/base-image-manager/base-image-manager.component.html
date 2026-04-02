@@ -67,8 +67,23 @@
 
     <div *ngIf="images.length > 0" class="images-grid">
       <div *ngFor="let image of images" class="image-card">
+        <!-- Image Thumbnail -->
+        <div class="image-preview">
+          <img 
+            *ngIf="image.path"
+            [src]="'http://localhost:3001/api/base-images/file-proxy?path=' + (image.path | urlEncode)"
+            alt="{{ image.name }}"
+            class="thumbnail-img"
+            (error)="onImageLoadError($event)"
+          >
+          <div class="image-placeholder" style="display: none;">
+            <span>📷</span>
+          </div>
+        </div>
+
+        <!-- Image Info -->
         <div class="image-info">
-          <h4>{{ image.name }}</h4>
+          <h4 title="{{ image.name }}">{{ image.name }}</h4>
           <p class="meta">
             📦 {{ formatFileSize(image.size) }} | 📅 {{ formatDate(image.created) }}
           </p>
@@ -83,6 +98,8 @@
             </p>
           </div>
         </div>
+
+        <!-- Delete Button -->
         <button
           (click)="deleteBaseImage(image.name)"
           class="btn btn-danger btn-small"
