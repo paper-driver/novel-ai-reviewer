@@ -1,0 +1,126 @@
+<div class="image-generation-progress" *ngIf="jobStatus$ | async as status">
+  <!-- Header -->
+  <div class="progress-header">
+    <h3>Image Generation Progress</h3>
+    <span [ngClass]="'badge ' + getStatusBadgeClass(status.status)">
+      {{ getStatusText(status.status) }}
+    </span>
+  </div>
+
+  <!-- Job Info -->
+  <div class="job-info">
+    <p><strong>Artist:</strong> {{ status.artistName }}</p>
+    <p><strong>Total Images:</strong> {{ status.totalImages }}</p>
+    <p><strong>Current Image:</strong> {{ status.currentImage }} / {{ status.totalImages }}</p>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-section">
+    <div class="progress-label">
+      <span>Progress</span>
+      <span class="progress-percentage">{{ status.progress }}%</span>
+    </div>
+    <div class="progress-bar-container">
+      <div class="progress-bar" [style.width]="status.progress + '%'"></div>
+    </div>
+  </div>
+
+  <!-- Time Remaining -->
+  <div *ngIf="status.estimatedTimeRemaining" class="time-remaining">
+    ⏱️ Estimated time remaining: {{ status.estimatedTimeRemaining }}
+  </div>
+
+  <!-- Error Messages -->
+  <div *ngIf="status.errors && status.errors.length > 0" class="errors-section">
+    <h4>Errors Encountered:</h4>
+    <ul>
+      <li *ngFor="let error of status.errors" class="error-item">
+        <span *ngIf="error.baseImage">
+          <strong>{{ error.baseImage }}:</strong> {{ error.error }}
+        </span>
+        <span *ngIf="!error.baseImage">{{ error }}</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Results Section (after completion) -->
+  <div *ngIf="(isCompleted$ | async) && status.results" class="results-section">
+    <h3>Generation Results</h3>
+
+    <!-- Summary -->
+    <div class="results-summary">
+      <div class="summary-item">
+        <span class="label">Total Generated:</span>
+        <span class="value">{{ status.results.totalGenerated }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">Total Failed:</span>
+        <span class="value">{{ status.results.totalFailed }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">Artist Strength:</span>
+        <span class="value">{{ status.results.strength || 'N/A' }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">Confidence:</span>
+        <span class="value">{{ status.results.confidence }}</span>
+      </div>
+    </div>
+
+    <!-- Generated Images List -->
+    <div *ngIf="status.generatedImages" class="generated-images">
+      <h4>Generated Images ({{ status.generatedImages.length }})</h4>
+
+      <div *ngFor="let image of status.generatedImages" class="image-result-card">
+        <div class="image-header">
+          <h5>{{ image.filename }}</h5>
+          <span *ngIf="getQualityScore(image.analysisResult)" 
+                [ngClass]="'badge ' + getQualityBadgeClass(getQualityScore(image.analysisResult)!)">
+            Quality: {{ getQualityScore(image.analysisResult) }}
+          </span>
+        </div>
+
+        <div class="image-details">
+          <p>
+            <strong>Base Image:</strong> {{ image.baseImage }}
+          </p>
+          <p>
+            <strong>Size:</strong> {{ formatFileSize(image.size) }}
+          </p>
+          <p>
+            <strong>Generated:</strong> {{ formatDate(image.generatedAt) }}
+          </p>
+        </div>
+
+        <!-- Analysis Details -->
+        <div *ngIf="image.analysisResult" class="analysis-details">
+          <details>
+            <summary>📊 Analysis Details</summary>
+            <div class="analysis-content">
+              <p *ngIf="image.analysisResult.score">
+                <strong>Quality Score:</strong> {{ image.analysisResult.score | number: '1.2-2' }} / 1.0
+              </p>
+              <p *ngIf="image.analysisResult.labels">
+                <strong>Detected Labels:</strong> {{ image.analysisResult.labels.slice(0, 5).join(', ') }}
+              </p>
+              <p *ngIf="image.analysisResult.description">
+                <strong>Description:</strong> {{ image.analysisResult.description }}
+              </p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading$ | async" class="loading">
+    <div class="spinner"></div>
+    <p>Checking status...</p>
+  </div>
+
+  <!-- Error Alert -->
+  <div *ngIf="error$ | async as error" class="alert alert-danger">
+    ❌ {{ error }}
+  </div>
+</div>

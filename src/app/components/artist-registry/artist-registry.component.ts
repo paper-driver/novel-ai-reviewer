@@ -3,9 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ClipboardModule } from 'ngx-clipboard';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { FolderPickerService } from '../../services/folder-picker.service';
 import { ImageViewerModalComponent, ReviewImage } from '../image-viewer-modal/image-viewer-modal.component';
+import { BaseImageManagerComponent } from '../base-image-manager/base-image-manager.component';
+import { ImageGenerationProgressComponent } from '../image-generation-progress/image-generation-progress.component';
+import { UrlEncodePipe } from '../../pipes/url-encode.pipe';
 
 interface ArtistRecord {
   id: string;
@@ -26,7 +30,16 @@ interface ArtistRecord {
 @Component({
   selector: 'app-artist-registry',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, ClipboardModule, ImageViewerModalComponent],
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    ReactiveFormsModule, 
+    ClipboardModule, 
+    ImageViewerModalComponent,
+    BaseImageManagerComponent,
+    ImageGenerationProgressComponent,
+    UrlEncodePipe
+  ],
   templateUrl: './artist-registry.component.html',
   styleUrls: ['./artist-registry.component.scss']
 })
@@ -40,9 +53,22 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
   error$ = new BehaviorSubject<string>('');
   successMessage$ = new BehaviorSubject<string>('');
 
+  // Base image management
+  availableBaseImages$ = new BehaviorSubject<any[]>([]);
+  selectedBaseImages$ = new BehaviorSubject<string[]>([]);
+  
+  // Generation job tracking
+  generationJobId$ = new BehaviorSubject<string | null>(null);
+  generationProgress$ = new BehaviorSubject<any | null>(null);
+  generationResults$ = new BehaviorSubject<any | null>(null);
+  isGenerating$ = new BehaviorSubject<boolean>(false);
+  
+  private destroy$ = new Subject<void>();
+
   showAddForm = false;
   showUploadDialog = false;
   showEditDialog = false;
+  showBaseImageManager = false;
   selectedArtist: ArtistRecord | null = null;
   showAnalysisDetails = false;
   analysisDetails: any = null;
@@ -123,6 +149,10 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     if (this.websocket) {
       this.websocket.close();
     }
+    
+    // Complete the destroy subject to unsubscribe from all observables
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   /**
@@ -212,18 +242,20 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     this.successMessage$.next('');
     this.artistImagePairsCache.clear(); // Clear cache on new load
 
-    this.http.get<any>('http://localhost:3001/api/artist-registry/list', {
+    this.http.get<any>('/api/artist-registry/list', {
       params: { folderPath }
     }).subscribe({
       next: (response) => {
         const artists = response.artists || [];
         this.artists$.next(artists);
         this.selectedFolder$.next(folderPath);
+        // Load available base images after selectedFolder$ is set
+        this.loadAvailableBaseImages();
         
         // Fetch image pair data for all artists (for thumbnails)
         artists.forEach(artist => {
           this.http.get<any>(
-            `http://localhost:3001/api/artist-registry/${artist.id}/analysis-details`,
+            `/api/artist-registry/${artist.id}/analysis-details`,
             { params: { folderPath } }
           ).subscribe({
             next: (analysisResponse) => {
@@ -263,8 +295,63 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**   * Load available base images from genericBaseImages folder
+   */
+  private loadAvailableBaseImages() {
+    const folderPath = this.selectedFolder$.value;
+    console.log('loadAvailableBaseImages called with folderPath:', folderPath);
+    if (!folderPath) {
+      console.warn('No folder path set, cannot load base images');
+      return;
+    }
+
+    this.http.get<any>('/api/base-images/list', {
+      params: { registryFolder: folderPath }
+    }).subscribe({
+      next: (response) => {
+        console.log('Base images loaded:', response);
+        if (response.success && response.images) {
+          this.availableBaseImages$.next(response.images);
+        }
+      },
+      error: (error) => {
+        console.error('Failed to load base images:', error);
+        this.availableBaseImages$.next([]);
+      }
+    });
+  }
+
   /**
-   * Add new artist to registry
+   * Toggle selection of a base image
+   */
+  toggleBaseImageSelection(imageName: string) {
+    console.log('toggleBaseImageSelection called for:', imageName);
+    const currentSelection = this.selectedBaseImages$.value;
+    console.log('Current selection before:', currentSelection);
+    
+    if (currentSelection.includes(imageName)) {
+      const newSelection = currentSelection.filter(name => name !== imageName);
+      console.log('Removing image, new selection:', newSelection);
+      this.selectedBaseImages$.next(newSelection);
+    } else {
+      const newSelection = [...currentSelection, imageName];
+      console.log('Adding image, new selection:', newSelection);
+      this.selectedBaseImages$.next(newSelection);
+    }
+    
+    console.log('Current selection after:', this.selectedBaseImages$.value);
+  }
+
+  /**
+   * Handle image load error - show placeholder
+   */
+  onImageLoadError(event: any) {
+    event.target.style.display = 'none';
+    // Parent div will show the placeholder
+  }
+
+  /**
+   * Add new artist to registry with optional automatic image generation
    */
   addArtist() {
     if (!this.addArtistForm.valid) {
@@ -277,93 +364,234 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     const folderPath = this.selectedFolder$.value;
     const baseFile = this.baseImageInput?.nativeElement?.files?.[0];
     const withArtistFile = this.withArtistImageInput?.nativeElement?.files?.[0];
+    const selectedBaseImages = this.selectedBaseImages$.value;
+    const artistName = this.addArtistForm.get('name')?.value;
 
-    // If both images are provided, upload them after creating the artist
+    // First, create the artist record
+    const formData = {
+      folderPath,
+      ...this.addArtistForm.value
+    };
+
+    this.http.post<any>('/api/artist-registry/add-artist', formData)
+      .subscribe({
+        next: (response) => {
+          const artistId = response.artist.id;
+          
+          // Chain: Handle manual images, then handle automatic generation
+          this.handlePostArtistCreation(
+            artistId,
+            artistName,
+            folderPath,
+            baseFile,
+            withArtistFile,
+            selectedBaseImages
+          );
+        },
+        error: (error) => {
+          this.error$.next(error.error?.message || 'Failed to add artist');
+          this.isLoading$.next(false);
+        }
+      });
+  }
+
+  /**
+   * Handle post-artist-creation workflow: upload manual images or trigger generation
+   */
+  private handlePostArtistCreation(
+    artistId: string,
+    artistName: string,
+    folderPath: string,
+    baseFile: File | undefined,
+    withArtistFile: File | undefined,
+    selectedBaseImages: string[]
+  ) {
+    // Step 1: Upload manual images if provided
     if (baseFile && withArtistFile) {
-      const formData = {
-        folderPath,
-        ...this.addArtistForm.value
-      };
+      const imageFormData = new FormData();
+      imageFormData.append('folderPath', folderPath);
+      imageFormData.append('artistName', artistName);
+      imageFormData.append('artistId', artistId);
+      imageFormData.append('baseImage', baseFile);
+      imageFormData.append('withArtistImage', withArtistFile);
 
-      this.http.post<any>('http://localhost:3001/api/artist-registry/add-artist', formData)
-        .subscribe({
-          next: (response) => {
-            // Upload images for the newly created artist
-            const imageFormData = new FormData();
-            imageFormData.append('folderPath', folderPath);
-            imageFormData.append('artistName', response.artist.name);
-            imageFormData.append('artistId', response.artist.id);
-            imageFormData.append('baseImage', baseFile);
-            imageFormData.append('withArtistImage', withArtistFile);
-
-            this.http.post<any>(
-              'http://localhost:3001/api/artist-registry/upload-image-pair',
-              imageFormData
-            ).subscribe({
-              next: () => {
-                // Reset form
-                this.addArtistForm.reset({
-                  artStyle: 'undefined',
-                  anatomy: 5,
-                  object: 5,
-                  colouring: 5,
-                  promptInterpretation: 5
-                });
-                this.baseImageFileName = '';
-                this.artistImageFileName = '';
-                if (this.baseImageInput?.nativeElement) this.baseImageInput.nativeElement.value = '';
-                if (this.withArtistImageInput?.nativeElement) this.withArtistImageInput.nativeElement.value = '';
-                
-                this.showAddForm = false;
-                this.successMessage$.next(`Artist added and images uploaded for strength analysis!`);
-                
-                // Reload registry immediately to get fresh data with correct image count
-                this.loadRegistryFromFolder();
-                this.isLoading$.next(false);
-              },
-              error: (error) => {
-                this.error$.next(error.error?.message || 'Failed to upload images');
-                this.isLoading$.next(false);
-              }
-            });
-          },
-          error: (error) => {
-            this.error$.next(error.error?.message || 'Failed to add artist');
-            this.isLoading$.next(false);
+      this.http.post<any>(
+        '/api/artist-registry/upload-image-pair',
+        imageFormData
+      ).subscribe({
+        next: () => {
+          // After manual upload, continue with automatic generation if base images selected
+          if (selectedBaseImages.length > 0) {
+            this.startImageGeneration(artistId, artistName, folderPath, selectedBaseImages);
+          } else {
+            this.completeArtistAddition();
           }
-        });
+        },
+        error: (error) => {
+          this.error$.next(error.error?.message || 'Failed to upload images');
+          this.isLoading$.next(false);
+        }
+      });
+    } else if (selectedBaseImages.length > 0) {
+      // Step 2: No manual images, but base images selected for automatic generation
+      this.startImageGeneration(artistId, artistName, folderPath, selectedBaseImages);
     } else {
-      // Add artist without images
-      const formData = {
-        folderPath,
-        ...this.addArtistForm.value
-      };
-
-      this.http.post<any>('http://localhost:3001/api/artist-registry/add-artist', formData)
-        .subscribe({
-          next: (response) => {
-            this.addArtistForm.reset({
-              artStyle: 'undefined',
-              anatomy: 5,
-              object: 5,
-              colouring: 5,
-              promptInterpretation: 5
-            });
-            this.baseImageFileName = '';
-            this.artistImageFileName = '';
-            this.showAddForm = false;
-            this.successMessage$.next('Artist added successfully!');
-            
-            // Reload registry to get fresh data
-            this.loadRegistryFromFolder();
-            this.isLoading$.next(false);
-          },
-          error: (error) => {
-            this.error$.next(error.error?.message || 'Failed to add artist');
-            this.isLoading$.next(false);
-          }
-        });
+      // Step 3: No images at all, just complete the artist addition
+      this.completeArtistAddition();
     }
+  }
+
+  /**
+   * Trigger automatic image generation using Novel AI
+   */
+  private startImageGeneration(
+    artistId: string,
+    artistName: string,
+    folderPath: string,
+    selectedBaseImages: string[]
+  ) {
+    const generationPayload = {
+      artistId,
+      artistName,
+      registryFolder: folderPath,
+      selectedBaseImages,
+      generationParams: {
+        model: 'nai-diffusion-4-5-full'
+      }
+    };
+
+    this.http.post<any>(
+      '/api/image-generation/generate',
+      generationPayload
+    ).subscribe({
+      next: (response) => {
+        if (response.success && response.jobId) {
+          this.generationJobId$.next(response.jobId);
+          this.isGenerating$.next(true);
+          this.isLoading$.next(false);
+          
+          // Start polling generation status
+          this.pollGenerationStatus(response.jobId);
+        } else {
+          this.error$.next('Failed to start image generation');
+          this.isLoading$.next(false);
+        }
+      },
+      error: (error) => {
+        this.error$.next(error.error?.message || 'Failed to start image generation');
+        this.isLoading$.next(false);
+      }
+    });
+  }
+
+  /**
+   * Poll generation job status
+   */
+  private pollGenerationStatus(jobId: string, pollCount = 0) {
+    const maxPolls = 300; // ~10 minutes with 2-second intervals
+    
+    if (pollCount >= maxPolls) {
+      this.error$.next('Image generation timed out');
+      this.isGenerating$.next(false);
+      return;
+    }
+
+    setTimeout(() => {
+      this.http.get<any>(
+        `/api/image-generation/status/${jobId}`
+      )
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.generationProgress$.next(response);
+            
+            // Check if job is complete
+            if (response.status === 'completed' || response.status === 'completed_with_errors') {
+              this.isGenerating$.next(false);
+              this.fetchGenerationResults(jobId);
+            } else if (response.status === 'failed') {
+              this.isGenerating$.next(false);
+              this.error$.next('Image generation failed');
+            } else {
+              // Continue polling
+              this.pollGenerationStatus(jobId, pollCount + 1);
+            }
+          }
+        },
+        error: (error) => {
+          console.error('Failed to poll generation status:', error);
+          // Retry on error
+          this.pollGenerationStatus(jobId, pollCount + 1);
+        }
+      });
+    }, 2000); // Poll every 2 seconds
+  }
+
+  /**
+   * Fetch final generation results
+   */
+  private fetchGenerationResults(jobId: string) {
+    this.http.get<any>(
+      `/api/image-generation/results/${jobId}`
+    )
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.generationResults$.next(response);
+          this.successMessage$.next(
+            `✅ Image generation complete! Generated ${response.generatedCount}/${response.totalImages} images.`
+          );
+        } else if (response.status === 'completed_with_errors') {
+          this.generationResults$.next(response);
+          const errorMsg = response.errors && response.errors.length > 0 
+            ? response.errors[0] 
+            : 'Generation completed with some errors';
+          this.successMessage$.next(
+            `⚠️ Image generation completed with ${response.generatedCount}/${response.totalImages} images. Errors: ${errorMsg}`
+          );
+        } else {
+          this.error$.next('Image generation failed');
+        }
+        this.completeArtistAddition();
+      },
+      error: (error) => {
+        this.error$.next('Failed to fetch generation results: ' + (error.error?.error || error.message));
+        console.error('Generation results error:', error);
+        this.completeArtistAddition();
+      }
+    });
+  }
+
+  /**
+   * Complete the artist addition workflow
+   */
+  private completeArtistAddition() {
+    // Reset form
+    this.addArtistForm.reset({
+      artStyle: 'undefined',
+      anatomy: 5,
+      object: 5,
+      colouring: 5,
+      promptInterpretation: 5
+    });
+    this.baseImageFileName = '';
+    this.artistImageFileName = '';
+    if (this.baseImageInput?.nativeElement) this.baseImageInput.nativeElement.value = '';
+    if (this.withArtistImageInput?.nativeElement) this.withArtistImageInput.nativeElement.value = '';
+    this.selectedBaseImages$.next([]);
+    
+    // Close form after a short delay to show success message
+    setTimeout(() => {
+      this.showAddForm = false;
+      this.generationJobId$.next(null);
+      
+      // Reload registry to get fresh data
+      this.loadRegistryFromFolder();
+      this.loadAvailableBaseImages();
+      this.isLoading$.next(false);
+    }, 1500);
   }
 
   /**
@@ -400,7 +628,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     };
 
     this.http.put<any>(
-      `http://localhost:3001/api/artist-registry/${this.selectedArtist.id}`,
+      `/api/artist-registry/${this.selectedArtist.id}`,
       formData
     ).subscribe({
       next: (response) => {
@@ -451,7 +679,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     const folderPath = this.selectedFolder$.value;
 
     this.http.delete<any>(
-      `http://localhost:3001/api/artist-registry/${artist.id}`,
+      `/api/artist-registry/${artist.id}`,
       { params: { folderPath } }
     ).subscribe({
       next: () => {
@@ -621,7 +849,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
         fullPath = `${folderPath}/${artist.name}/${imagePath}`;
       }
       
-      return `http://localhost:3001/api/artist-gallery/image?filePath=${encodeURIComponent(fullPath)}`;
+      return `/api/artist-gallery/image?filePath=${encodeURIComponent(fullPath)}`;
     }
     
     // Fallback: return empty string if no image is available yet

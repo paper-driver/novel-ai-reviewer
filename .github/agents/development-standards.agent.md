@@ -46,6 +46,8 @@ Before implementing ANY change, you MUST follow this workflow:
 - Check ARCHITECTURE.md for system design patterns
 - Review README.md for project context
 - Follow guidelines in CONTRIBUTING.md
+- Use `server.modular.js` as reference for backend modular architecture patterns
+- Ensure UI design patterns match other features in the application for consistency
 - Keep these documents updated with your changes
 
 ## Mandatory Workflow

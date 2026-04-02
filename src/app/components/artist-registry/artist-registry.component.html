@@ -73,6 +73,15 @@
         >
           ➕ Add New Artist
         </button>
+        <button 
+          type="button"
+          class="btn-secondary"
+          (click)="showBaseImageManager = true"
+          [disabled]="!((selectedFolder$ | async))"
+          title="Manage base images for automatic generation"
+        >
+          🖼️ Base Image Manager
+        </button>
       </div>
     </div>
   </div>
@@ -85,16 +94,17 @@
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Add New Artist to Registry</h5>
+          <h5 class="modal-title">{{ (isGenerating$ | async) ? 'Generating Images...' : 'Add New Artist to Registry' }}</h5>
           <button 
             type="button" 
             class="btn-close" 
             (click)="showAddForm = false"
-            [disabled]="isLoading$ | async"
+            [disabled]="(isGenerating$ | async) || (isLoading$ | async)"
           ></button>
         </div>
         <div class="modal-body">
-          <form [formGroup]="addArtistForm" (ngSubmit)="addArtist()">
+          <!-- Add Artist Form -->
+          <form *ngIf="!(isGenerating$ | async)" [formGroup]="addArtistForm" (ngSubmit)="addArtist()">
             <!-- Artist Basic Info Section -->
         <div class="form-section">
           <h3 class="section-title">Artist Information</h3>
@@ -200,6 +210,61 @@
           </div>
         </div>
 
+        <!-- Base Image Selector for Automatic Generation Section (NEW) -->
+        <div class="form-section">
+          <h3 class="section-title">🎯 Automatic Image Generation (Optional)</h3>
+          <p class="section-hint">Select base images to automatically generate images with this artist tag using Novel AI</p>
+          
+          <div *ngIf="(availableBaseImages$ | async)?.length > 0; else noBaseImagesTemplate" class="base-images-selector">
+            <div class="selection-info">
+              <strong>Available Base Images:</strong>
+              <span class="selection-count">{{ (selectedBaseImages$ | async)?.length || 0 }} selected</span>
+            </div>
+            <div class="selection-hint">Click on images or use checkboxes to select multiple images for generation</div>
+            <div class="images-grid">
+              <div *ngFor="let image of availableBaseImages$ | async" class="image-card">
+                <div class="image-wrapper">
+                  <div class="image-preview">
+                    <!-- Show image thumbnail if available -->
+                    <img *ngIf="image.path" 
+                         [src]="'http://localhost:3001/api/base-images/file-proxy?path=' + (image.path | urlEncode)" 
+                         alt="{{ image.name }}"
+                         class="thumbnail-img"
+                         (error)="onImageLoadError($event)">
+                    <div *ngIf="!image.path" class="image-placeholder">
+                      <span>📷</span>
+                    </div>
+                  </div>
+                  <div class="image-checkbox-overlay" 
+                       [class.selected]="(selectedBaseImages$ | async)?.includes(image.name)"
+                       (click)="toggleBaseImageSelection(image.name); $event.stopPropagation()">
+                    <div class="checkbox-label">
+                      <span class="checkmark" *ngIf="(selectedBaseImages$ | async)?.includes(image.name)">✓</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="image-details">
+                  <strong title="{{ image.name }}">{{ image.name }}</strong>
+                  <small>{{ (image.size / 1024 / 1024).toFixed(2) }} MB</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <ng-template #noBaseImagesTemplate>
+            <div class="alert alert-secondary">
+              <strong>No base images available yet.</strong>
+              <div style="margin-top: 0.75rem;">
+                <p style="margin: 0.5rem 0;">You need to upload base images first using the Base Image Manager:</p>
+                <button type="button" class="btn btn-primary btn-sm" (click)="showBaseImageManager = true">
+                  🖼️ Open Base Image Manager
+                </button>
+                <p style="margin: 0.5rem 0; font-size: 0.9rem; color: #666;">Or upload image pairs manually below.</p>
+              </div>
+            </div>
+          </ng-template>
+        </div>
+
         <!-- Image Upload for Strength Analysis Section -->
         <div class="form-section">
           <h3 class="section-title">📸 Upload Images for Strength Analysis</h3>
@@ -283,9 +348,42 @@
           </button>
         </div>
           </form>
+
+          <!-- Generation Progress Display -->
+          <div *ngIf="isGenerating$ | async" class="generation-progress-container">
+            <app-image-generation-progress 
+              [jobId]="(generationJobId$ | async) || ''"
+              [progress]="(generationProgress$ | async)"
+              [results]="(generationResults$ | async)"
+            ></app-image-generation-progress>
+          </div>
         </div>
         <div class="modal-footer">
           <!-- Footer content optional -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Base Image Manager Modal Background -->
+  <div class="modal-backdrop" *ngIf="showBaseImageManager" (click)="showBaseImageManager = false"></div>
+
+  <!-- Base Image Manager Modal Dialog -->
+  <div class="modal fade-in" *ngIf="showBaseImageManager">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">🖼️ Base Image Manager</h5>
+          <button 
+            type="button" 
+            class="btn-close" 
+            (click)="showBaseImageManager = false"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <app-base-image-manager 
+            [registryFolder]="(selectedFolder$ | async) || ''"
+          ></app-base-image-manager>
         </div>
       </div>
     </div>

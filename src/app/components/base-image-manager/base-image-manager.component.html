@@ -1,0 +1,95 @@
+<div class="base-image-manager">
+  <h2>Base Image Manager</h2>
+  <p class="description">Upload and manage base images that will be used for artist generation</p>
+
+  <!-- Registry Folder Selection -->
+  <div class="section">
+    <h3>Registry Folder</h3>
+    <div class="folder-input">
+      <input
+        type="text"
+        placeholder="Select or paste registry folder path..."
+        [(ngModel)]="registryFolder"
+        (change)="loadBaseImages()"
+        class="input-field"
+      />
+      <button (click)="loadBaseImages()" class="btn btn-primary">Load Images</button>
+    </div>
+  </div>
+
+  <!-- Upload Section -->
+  <div class="section" *ngIf="registryFolder">
+    <h3>Upload New Base Image</h3>
+    <div class="upload-area">
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        (change)="onFileSelected($event)"
+        #fileInput
+        class="file-input"
+      />
+      <button
+        type="button"
+        (click)="fileInput.click()"
+        class="btn btn-primary"
+      >
+        📁 Choose Image File
+      </button>
+      <div class="upload-info">
+        <p *ngIf="!selectedFile" class="no-file">No file selected</p>
+        <p *ngIf="selectedFile" class="file-name">✅ {{ selectedFile.name }}</p>
+      </div>
+      <button
+        (click)="uploadBaseImage()"
+        [disabled]="!selectedFile || (isLoading$ | async)"
+        class="btn btn-success"
+      >
+        {{ (isLoading$ | async) ? 'Uploading...' : 'Upload Image' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Messages -->
+  <div *ngIf="error$ | async as error" class="alert alert-danger">
+    ❌ {{ error }}
+  </div>
+  <div *ngIf="success$ | async as success" class="alert alert-success">
+    ✅ {{ success }}
+  </div>
+
+  <!-- Images List -->
+  <div class="section" *ngIf="registryFolder && (baseImages$ | async) as images">
+    <h3>Available Base Images ({{ images.length }})</h3>
+
+    <div *ngIf="images.length === 0" class="no-images">
+      <p>No base images uploaded yet. Upload one to get started!</p>
+    </div>
+
+    <div *ngIf="images.length > 0" class="images-grid">
+      <div *ngFor="let image of images" class="image-card">
+        <div class="image-info">
+          <h4>{{ image.name }}</h4>
+          <p class="meta">
+            📦 {{ formatFileSize(image.size) }} | 📅 {{ formatDate(image.created) }}
+          </p>
+          <div *ngIf="image.metadata" class="metadata">
+            <p *ngIf="image.metadata.comment" class="comment">
+              <strong>Prompt:</strong> {{ image.metadata.comment.substring(0, 60) }}...
+            </p>
+            <p *ngIf="image.metadata.parameters" class="params">
+              <strong>Params:</strong> {{ image.metadata.parameters.steps }} steps,
+              {{ image.metadata.parameters.width }}x{{ image.metadata.parameters.height }},
+              {{ image.metadata.parameters.sampler }}
+            </p>
+          </div>
+        </div>
+        <button
+          (click)="deleteBaseImage(image.name)"
+          class="btn btn-danger btn-small"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

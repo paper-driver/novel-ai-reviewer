@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -27,6 +29,10 @@ const RatingsService = require('./server/services/ratingsService');
 const LegacyArtistGroupingService = require('./server/services/legacyArtistGroupingService');
 const ReviewsFolderService = require('./server/services/reviewsFolderService');
 const TagsService = require('./server/services/tagsService');
+const NovelAiService = require('./server/services/novelAiService');
+const BaseImageManagerService = require('./server/services/baseImageManagerService');
+const LpipsService = require('./server/services/lpipsService');
+const ArtistRegistryService = require('./server/services/artistRegistryService');
 
 // Import all route creators
 const createReviewsRoutes = require('./server/routes/reviewsRoutes');
@@ -43,6 +49,8 @@ const createReviewsFolderRoutes = require('./server/routes/reviewsFolderRoutes')
 const createTagsRoutes = require('./server/routes/tagsRoutes');
 const createLegacyGroupingRoutes = require('./server/routes/legacyGroupingRoutes');
 const combinationGeneratorRoutes = require('./server/routes/combinationGeneratorRoutes');
+const createBaseImageRoutes = require('./server/routes/baseImageRoutes');
+const createImageGenerationRoutes = require('./server/routes/imageGenerationRoutes');
 
 // Initialize Express app
 const app = express();
@@ -121,6 +129,13 @@ const legacyArtistGroupingService = new LegacyArtistGroupingService(imageMetadat
 const reviewsFolderService = new ReviewsFolderService();
 const tagsService = new TagsService();
 
+// Novel AI Image Generation Services
+const novelAiApiKey = process.env.NOVEL_AI_API_KEY || '';
+const novelAiService = new NovelAiService(novelAiApiKey, logger);
+const baseImageManagerService = new BaseImageManagerService(logger, fileSystemService);
+const lpipsService = new LpipsService(logger);
+const artistRegistryService = new ArtistRegistryService();
+
 // ===== ENSURE REQUIRED DIRECTORIES =====
 fileSystemService.ensureDirectoryExists(GENERATED_DIR);
 fileSystemService.ensureDirectoryExists(DATA_DIR);
@@ -168,6 +183,20 @@ app.use('/api/feedback', createFeedbackRoutes(feedbackService));
 
 // Legacy grouping endpoints (backward compatibility)
 app.use('/api', createLegacyGroupingRoutes(legacyArtistGroupingService, GENERATED_DIR, logger));
+
+// Base Image Manager endpoints (upload/list/delete base images)
+app.use('/api/base-images', createBaseImageRoutes(baseImageManagerService, imageMetadataService));
+
+// Image Generation endpoints (Novel AI integration)
+app.use('/api/image-generation', createImageGenerationRoutes(
+  novelAiService,
+  baseImageManagerService,
+  imageMetadataService,
+  visionAnalysisService,
+  fileSystemService,
+  lpipsService,
+  artistRegistryService
+));
 
 // Artist Registry endpoints - create routes with injected visionAnalysisService
 const createArtistRegistryRoutes = require('./server/routes/artistRegistryRoutes');

@@ -13,6 +13,70 @@ const TAG = 'ImageMetadataService';
 
 class ImageMetadataService {
   /**
+   * Extract prompt for Novel AI image generation request
+   * Extracts the raw prompt field from PNG metadata for re-generation
+   * Returns only the prompt string needed for the Novel AI API request
+   */
+  extractBasicPrompt(imagePath) {
+    try {
+      if (!fs.existsSync(imagePath)) {
+        logger.warn(TAG, `Image not found: ${imagePath}`);
+        return null;
+      }
+
+      let prompt = null;
+      const filename = path.basename(imagePath);
+
+      // Try to read embedded PNG metadata first
+      try {
+        const imageBuffer = fs.readFileSync(imagePath);
+        const metadata = this.readPNGMetadata(imageBuffer);
+
+        // Look for Comment chunk which typically contains JSON with generation parameters
+        if (metadata.comment) {
+          try {
+            const commentData = JSON.parse(metadata.comment);
+            // For Novel AI generation, use the raw prompt field if available
+            if (commentData.prompt) {
+              prompt = commentData.prompt;
+            } else if (commentData.v4_prompt) {
+              // Fallback: extract from v4_prompt if raw prompt not available
+              prompt = commentData.v4_prompt.caption.base_caption;
+              if(commentData.v4_prompt.caption.char_captions && commentData.v4_prompt.caption.char_captions.length > 0) {
+                prompt += ', ' + commentData.v4_prompt.caption.char_captions.map(c => c.char_caption).join(', ');
+              }
+            }
+          } catch (e) {
+            // Comment is not JSON, try direct text
+            prompt = metadata.comment;
+          }
+        }
+
+        // Also check Description field
+        if (!prompt && metadata.description) {
+          prompt = metadata.description;
+        }
+      } catch (err) {
+        logger.warn(TAG, `Could not read embedded PNG metadata: ${err.message}`);
+      }
+
+      // Fall back to extracting from filename if no embedded metadata found
+      if (!prompt) {
+        const match = filename.match(/^(.+?)\s+s-\d+\.png$/i);
+        if (match) {
+          prompt = match[1];
+        }
+      }
+
+      logger.debug(TAG, `Extracted prompt for Novel AI generation: ${filename}`);
+      return prompt || null;
+    } catch (err) {
+      logger.error(TAG, `Error extracting prompt for Novel AI generation: ${err.message}`);
+      throw err;
+    }
+  }
+
+  /**
    * Extract metadata from an image file
    * Tries PNG embedded metadata first, then filename
    */

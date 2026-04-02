@@ -8,3 +8,5 @@
 - Try to reuse existing functions instead of creating similar or same function over and over
 - Before implementing anything, make a plan and design solution
 - Use API.md, ARCHITECTURE.md, README.md, CONTRIBUTING.md as a reference and keep them updated
+- Use `server.modular.js` as reference for backend modular architecture patterns
+- UI design patterns should match other features in the application for consistency
