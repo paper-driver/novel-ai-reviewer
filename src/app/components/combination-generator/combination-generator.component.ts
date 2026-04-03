@@ -57,7 +57,7 @@ export class CombinationGeneratorComponent implements OnInit {
   private messageTimeout: any;
 
   keywords = {
-    styles: ['anime', 'realistic', 'cartoon', 'fine art', 'semi-realistic', 'manga', 'acg', 'wuxia'],
+    styles: ['anime', 'realistic', 'cartoon', 'fine art', 'semi-realistic', 'manga', 'acg', 'wuxia', 'cg'],
     attributes: ['anatomy', 'colors', 'detailed', 'dynamic', 'expression', 'lighting', 'objects'],
     intensity: ['subtle', 'moderate', 'strong', 'very strong']
   };

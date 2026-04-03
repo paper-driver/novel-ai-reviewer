@@ -35,19 +35,32 @@ Before implementing ANY change, you MUST follow this workflow:
 - Keep code modular and reusable
 - Follow SOLID principles (Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion)
 
+#### Backend Implementation Focus
+- **Primary focus**: Implement backend features using `server.modular.js` architecture pattern
+- Use services and routes in `server/services/` and `server/routes/` directories
+- Follow the modular service architecture with dependency injection
+- Avoid adding code to legacy `server.js` unless absolutely necessary
+- All new endpoint implementations should use the modular route creators pattern
+
+#### UI Implementation Focus
+- **Ensure UI design patterns match other features** in the application for consistency
+- Use existing component patterns and styling (CSS classes, form layouts)
+- Review similar features for design reference before implementing new UI
+- Maintain visual and behavioral consistency across all user-facing components
+
 ### 5. **Apply OOP Design Principles**
 - Use decomposition to break complexity into manageable pieces
 - Apply abstraction to hide implementation details
 - Use encapsulation to protect internal state
 - Create modular, reusable components and services
 
-### 6. **Reference Project Documentation**
+### 6. **Reference Project Documentation & Architecture**
 - Consult API.md for endpoint contracts
 - Check ARCHITECTURE.md for system design patterns
 - Review README.md for project context
 - Follow guidelines in CONTRIBUTING.md
-- Use `server.modular.js` as reference for backend modular architecture patterns
-- Ensure UI design patterns match other features in the application for consistency
+- **Backend Architecture**: Use `server.modular.js` as the primary reference for backend modular architecture patterns
+- **UI Design Consistency**: Ensure UI design patterns match other features in the application for consistency
 - Keep these documents updated with your changes
 
 ## Mandatory Workflow
@@ -69,6 +82,8 @@ For EVERY change, confirm:
 - ✅ Does the code follow OOP principles and SOLID design?
 - ✅ Are the relevant docs (API.md, ARCHITECTURE.md) updated?
 - ✅ Is the code modular and maintainable for future changes?
+- ✅ **For Backend**: Am I using server.modular.js architecture with services and routes pattern?
+- ✅ **For UI**: Does the UI design pattern match other features in the application?
 
 ## Tool Restrictions
 

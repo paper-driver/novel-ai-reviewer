@@ -224,6 +224,14 @@
               <strong>Available Base Images:</strong>
               <span class="selection-count">{{ (selectedBaseImages$ | async)?.length || 0 }} selected</span>
             </div>
+            <div class="selection-controls">
+              <button type="button" class="btn-select-action" (click)="selectAllBaseImages()">
+                ✓ Select All
+              </button>
+              <button type="button" class="btn-select-action" (click)="clearAllBaseImages()">
+                ✕ Clear All
+              </button>
+            </div>
             <div class="selection-hint">Click on images or use checkboxes to select multiple images for generation</div>
             <div class="images-grid">
               <div *ngFor="let image of availableBaseImages$ | async" class="image-card">
@@ -596,17 +604,19 @@
           <button type="button" class="btn-close" (click)="showUploadDialog = false"></button>
         </div>
         <div class="modal-body">
-          <div class="alert alert-info" role="alert">
-            <strong><i class="bi bi-lightbulb"></i> How to prepare image pairs:</strong>
-            <ul style="margin-bottom: 0; margin-top: 0.5rem;">
-              <li>Generate two images with identical prompts and settings</li>
-              <li><strong>Baseline image:</strong> WITHOUT the artist tag</li>
-              <li><strong>With artist image:</strong> WITH the artist tag (only difference)</li>
-              <li>Upload both to automatically measure the artist's strength</li>
-            </ul>
-          </div>
+          <!-- Upload Form (hidden when generating) -->
+          <div *ngIf="!(isGenerating$ | async)">
+            <div class="alert alert-info" role="alert">
+              <strong><i class="bi bi-lightbulb"></i> How to prepare image pairs:</strong>
+              <ul style="margin-bottom: 0; margin-top: 0.5rem;">
+                <li>Generate two images with identical prompts and settings</li>
+                <li><strong>Baseline image:</strong> WITHOUT the artist tag</li>
+                <li><strong>With artist image:</strong> WITH the artist tag (only difference)</li>
+                <li>Upload both to automatically measure the artist's strength</li>
+              </ul>
+            </div>
 
-          <!-- Base Image Selector for Automatic Generation Section (Optional) -->
+            <!-- Base Image Selector for Automatic Generation Section (Optional) -->
           <div class="form-section">
             <h3 class="section-title">🎯 Automatic Image Generation (Optional)</h3>
             <p class="section-hint">After uploading image pairs, you can also generate new images with this artist tag using selected base images</p>
@@ -615,6 +625,14 @@
               <div class="selection-info">
                 <strong>Available Base Images:</strong>
                 <span class="selection-count">{{ (selectedUploadBaseImages$ | async)?.length || 0 }} selected</span>
+              </div>
+              <div class="selection-controls">
+                <button type="button" class="btn-select-action" (click)="selectAllUploadBaseImages()">
+                  ✓ Select All
+                </button>
+                <button type="button" class="btn-select-action" (click)="clearAllUploadBaseImages()">
+                  ✕ Clear All
+                </button>
               </div>
               <div class="selection-hint">Click on images to select for generation</div>
               <div class="images-grid">
@@ -718,8 +736,18 @@
               </div>
             </div>
           </form>
+          </div>
+
+          <!-- Generation Progress Display -->
+          <div *ngIf="isGenerating$ | async" class="generation-progress-container">
+            <app-image-generation-progress 
+              [jobId]="(generationJobId$ | async) || ''"
+              [progress]="(generationProgress$ | async)"
+              [results]="(generationResults$ | async)"
+            ></app-image-generation-progress>
+          </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" *ngIf="!(isGenerating$ | async)">
           <button type="button" class="btn btn-secondary" (click)="showUploadDialog = false">
             Cancel
           </button>
@@ -727,7 +755,7 @@
             type="button" 
             class="btn btn-primary"
             (click)="uploadImagePair()"
-            [disabled]="!baseImageInput?.files?.length || !withArtistImageInput?.files?.length || (isLoading$ | async)"
+            [disabled]="(!baseImageInput?.files?.length || !withArtistImageInput?.files?.length) && (!(selectedUploadBaseImages$ | async)?.length) || (isLoading$ | async)"
           >
             <i class="bi bi-upload"></i> Upload & Analyze
           </button>

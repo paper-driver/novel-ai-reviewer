@@ -98,6 +98,7 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     { value: 'manga', label: 'Manga' },
     { value: 'acg', label: 'ACG' },
     { value: 'wuxia', label: 'Wuxia' },
+    { value: 'cg', label: 'CG' },
     { value: 'undefined', label: 'Undefined' }
   ];
 
@@ -349,6 +350,36 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Select all available base images for the add artist form
+   */
+  selectAllBaseImages() {
+    const allImages = this.availableBaseImages$.value.map(img => img.name);
+    this.selectedBaseImages$.next(allImages);
+  }
+
+  /**
+   * Clear all base image selections for the add artist form
+   */
+  clearAllBaseImages() {
+    this.selectedBaseImages$.next([]);
+  }
+
+  /**
+   * Select all available base images for the upload dialog
+   */
+  selectAllUploadBaseImages() {
+    const allImages = this.availableBaseImages$.value.map(img => img.name);
+    this.selectedUploadBaseImages$.next(allImages);
+  }
+
+  /**
+   * Clear all base image selections for the upload dialog
+   */
+  clearAllUploadBaseImages() {
+    this.selectedUploadBaseImages$.next([]);
+  }
+
+  /**
    * Handle image load error - show placeholder
    */
   onImageLoadError(event: any) {
@@ -585,6 +616,11 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
       this.isLoading$.next(false);
     }
 
+    // Also close upload dialog if generation was triggered from there
+    if (this.showUploadDialog) {
+      this.showUploadDialog = false;
+    }
+
     // Reload registry in background
     this.loadRegistryFromFolder();
     this.loadAvailableBaseImages();
@@ -755,12 +791,27 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
     // Get files from input elements
     const baseFile = this.baseImageInput?.nativeElement?.files?.[0];
     const withArtistFile = this.withArtistImageInput?.nativeElement?.files?.[0];
+    const selectedBaseImages = this.selectedUploadBaseImages$.value;
 
-    if (!baseFile || !withArtistFile) {
-      this.error$.next('Please select both baseline and artist images');
-      return;
+    // Handle two workflows:
+    // 1. Direct file upload: both files must be selected
+    // 2. Base image selection: generate with selected base images (no direct upload needed)
+    
+    if (baseFile && withArtistFile) {
+      // Workflow 1: Upload image pair for analysis
+      this.uploadImagePairForAnalysis(baseFile, withArtistFile);
+    } else if (selectedBaseImages.length > 0) {
+      // Workflow 2: Generate images with selected base images
+      this.startImageGenerationFromSelectedBases();
+    } else {
+      this.error$.next('Please either upload image files or select base images for generation');
     }
+  }
 
+  /**
+   * Upload image pair for analysis (Workflow 1)
+   */
+  private uploadImagePairForAnalysis(baseFile: File, withArtistFile: File) {
     this.isLoading$.next(true);
     this.error$.next('');
     this.successMessage$.next('');
@@ -780,17 +831,17 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
       formData
     ).subscribe({
       next: (response) => {
-        this.successMessage$.next(`Image pair uploading... (Job: ${response.jobId}). Waiting for analysis to complete...`);
+        this.successMessage$.next(`Image pair uploaded. Analyzing...`);
         
         // Clear form
         this.baseImageInput.nativeElement.value = '';
         this.withArtistImageInput.nativeElement.value = '';
         this.baseImageFileName = '';
         this.artistImageFileName = '';
-        this.showUploadDialog = false;
         
-        // Handle automatic generation if base images selected
+        // Handle automatic generation if base images selected - reuse generation component
         if (selectedBaseImages.length > 0 && this.selectedArtist) {
+          // Keep dialog open to show generation progress
           this.startImageGeneration(
             this.selectedArtist.id,
             this.selectedArtist.name,
@@ -799,9 +850,10 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
           );
           this.selectedUploadBaseImages$.next([]);
         } else {
+          // No generation - close dialog and let WebSocket update
+          this.showUploadDialog = false;
           this.selectedArtist = null;
           this.isLoading$.next(false);
-          // WebSocket will automatically update the table when analysis is complete
         }
       },
       error: (error) => {
@@ -809,6 +861,34 @@ export class ArtistRegistryComponent implements OnInit, OnDestroy {
         this.isLoading$.next(false);
       }
     });
+  }
+
+  /**
+   * Generate images using selected base images (Workflow 2)
+   */
+  private startImageGenerationFromSelectedBases() {
+    const selectedBaseImages = this.selectedUploadBaseImages$.value;
+    const folderPath = this.selectedFolder$.value;
+
+    if (!selectedBaseImages.length || !this.selectedArtist) {
+      this.error$.next('No base images or artist selected');
+      return;
+    }
+
+    this.successMessage$.next('Starting image generation with selected base images...');
+    // Keep dialog open to show generation progress
+
+    // Start generation
+    this.startImageGeneration(
+      this.selectedArtist.id,
+      this.selectedArtist.name,
+      folderPath,
+      selectedBaseImages
+    );
+
+    // Clear selections in background
+    this.selectedUploadBaseImages$.next([]);
+    this.selectedUploadBaseImages$.next([]);
   }
 
   /**

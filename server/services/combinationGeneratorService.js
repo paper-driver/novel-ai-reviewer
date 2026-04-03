@@ -136,7 +136,7 @@ class CombinationGeneratorService {
               role: 'primary',
               emphasis: this.calculateEmphasis(primary, parsed, 'primary')
             },
-            ...complementary.slice(0, 2).map(comp => ({
+            ...complementary.slice(0, 5).map(comp => ({
               artist: comp,
               role: 'complementary',
               emphasis: this.calculateEmphasis(comp, parsed, 'secondary')
@@ -149,7 +149,7 @@ class CombinationGeneratorService {
 
     // Strategy 2: Multiple equally-weighted artists
     if (matchedArtists.length >= 2) {
-      const topArtists = matchedArtists.slice(0, 3);
+      const topArtists = matchedArtists.slice(0, 6);
       const combo = {
         artists: topArtists.map(artist => ({
           artist,
@@ -167,7 +167,64 @@ class CombinationGeneratorService {
     );
     combinations.push(...attributeFocusedCombos.slice(0, maxSuggestions - combinations.length));
 
+    // Strategy 4: Variations with different artist subsets (to fill remaining slots)
+    if (combinations.length < maxSuggestions && matchedArtists.length >= 3) {
+      const remainingSlots = maxSuggestions - combinations.length;
+      const subsetCombos = this.generateSubsetCombinations(
+        matchedArtists,
+        parsed,
+        remainingSlots,
+        combinations
+      );
+      combinations.push(...subsetCombos);
+    }
+
     return combinations.slice(0, maxSuggestions);
+  }
+
+  /**
+   * Generate combinations from different artist subsets
+   * @param {array} matchedArtists - All matched artists
+   * @param {object} parsed - Parsed user input
+   * @param {number} count - Number of combinations to generate
+   * @param {array} existingCombos - Existing combinations to avoid duplicates
+   * @returns {array} Subset combinations
+   */
+  generateSubsetCombinations(matchedArtists, parsed, count, existingCombos = []) {
+    const combos = [];
+    const maxComboSize = 5;
+
+    // Create variations with different artist combinations
+    for (let i = 0; i < count && combos.length < count; i++) {
+      const startIdx = i % Math.max(1, matchedArtists.length - 2);
+      const comboSize = 2 + (i % (maxComboSize - 1)); // Vary size from 2-5
+      const selectedArtists = matchedArtists.slice(startIdx, startIdx + comboSize);
+
+      if (selectedArtists.length > 0) {
+        let artists = selectedArtists.map((artist, idx) => ({
+          artist,
+          role: idx === 0 ? 'primary' : idx === selectedArtists.length - 1 ? 'accent' : 'complementary',
+          emphasis: this.calculateEmphasis(artist, parsed, idx === 0 ? 'primary' : 'secondary')
+        }));
+
+        // Normalize emphasis to prevent any artist from dominating
+        artists = this.normalizeEmphasis(artists);
+
+        const combo = { artists };
+        
+        // Avoid duplicates
+        const existing = existingCombos.some(c => 
+          c.artists.length === combo.artists.length &&
+          c.artists.every((a, idx) => a.artist.name === combo.artists[idx].artist.name)
+        );
+        
+        if (!existing) {
+          combos.push(combo);
+        }
+      }
+    }
+
+    return combos;
   }
 
   /**
@@ -215,13 +272,19 @@ class CombinationGeneratorService {
     let basePreference;
     switch (role) {
       case 'primary':
-        basePreference = 1.5; // Strong emphasis for primary
+        basePreference = 1.3; // Strong emphasis for primary
         break;
       case 'secondary':
-        basePreference = 1.0; // Moderate for secondary
+        basePreference = 0.9; // Moderate for secondary
+        break;
+      case 'complementary':
+        basePreference = 0.85; // Slightly lower for complementary
+        break;
+      case 'accent':
+        basePreference = 0.8; // Lower for accent
         break;
       case 'balanced':
-        basePreference = 1.1; // Slight boost for balanced
+        basePreference = 1.0; // Neutral for balanced
         break;
       default:
         basePreference = 1.0;
@@ -229,30 +292,93 @@ class CombinationGeneratorService {
 
     // Adjust based on intensity requested
     const intensityMultiplier = {
-      'weak': 0.7,
+      'weak': 0.85,
       'medium': 1.0,
-      'strong': 1.2,
-      'very-strong': 1.4
+      'strong': 1.15,
+      'very-strong': 1.25
     };
     basePreference *= intensityMultiplier[parsed.styleIntensity.intensity] || 1.0;
 
-    // Strength-based adjustment factor
+    // Calculate attribute-based adjustment factor
+    // Normalize each attribute to 0-1 scale (0-10 score)
+    const attributeScores = {
+      anatomy: (artist.anatomy || 5) / 10,
+      objects: (artist.object || 5) / 10,
+      coloring: (artist.colouring || 5) / 10,
+      expression: (artist.promptInterpretation || 5) / 10
+    };
+
+    // Calculate average attribute score
+    const avgAttributeScore = Object.values(attributeScores).reduce((a, b) => a + b, 0) / 4;
+
+    // Bonus/penalty based on attributes
+    // If artist excels at attributes mentioned in user request, boost them
+    let attributeBonus = 1.0;
+    const requestedAttrs = Object.keys(parsed.detectedAttributes);
+    
+    if (requestedAttrs.length > 0) {
+      const attrMap = {
+        'anatomy': attributeScores.anatomy,
+        'objects': attributeScores.objects,
+        'coloring': attributeScores.coloring,
+        'background': Math.min(attributeScores.anatomy, attributeScores.objects),
+        'expression': attributeScores.expression
+      };
+
+      // Calculate how well this artist matches requested attributes
+      const matchedAttrScores = requestedAttrs.map(attr => attrMap[attr] || 0.5);
+      const attrMatchScore = matchedAttrScores.reduce((a, b) => a + b, 0) / matchedAttrScores.length;
+      
+      // Bonus ranges from 0.9 (if weak on requested attrs) to 1.2 (if strong on requested attrs)
+      attributeBonus = 0.9 + (attrMatchScore * 0.3);
+    }
+
+    // Strength-based adjustment (more conservative to prevent dominance)
     let strengthAdjustment;
     if (artist.strengthLabel === 'weak') {
-      strengthAdjustment = 1.5; // Boost weak artists
+      strengthAdjustment = 1.2; // Boost weak artists slightly
     } else if (artist.strengthLabel === 'medium') {
       strengthAdjustment = 1.0; // Keep medium at baseline
     } else if (artist.strengthLabel === 'strong') {
-      strengthAdjustment = 0.8; // Reduce strong artists to balance
+      strengthAdjustment = 0.9; // Reduce strong artists more moderately
     } else {
       strengthAdjustment = 1.0;
     }
 
-    // Final emphasis
-    const emphasis = basePreference * strengthAdjustment;
+    // Final emphasis with attribute consideration
+    const emphasis = basePreference * strengthAdjustment * attributeBonus;
 
-    // Clamp to typical Novel AI range (0.5-2.0)
-    return Math.max(0.5, Math.min(2.0, parseFloat(emphasis.toFixed(2))));
+    // Clamp to narrower Novel AI range to prevent dominance (0.7-1.6 instead of 0.5-2.0)
+    return Math.max(0.7, Math.min(1.6, parseFloat(emphasis.toFixed(2))));
+  }
+
+  /**
+   * Normalize emphasis values in a combination to prevent any artist from dominating
+   * @param {array} artists - Artists in combination
+   * @returns {array} Artists with normalized emphasis values
+   */
+  normalizeEmphasis(artists) {
+    if (artists.length <= 1) return artists;
+
+    const emphases = artists.map(a => a.emphasis);
+    const minEmphasis = Math.min(...emphases);
+    const maxEmphasis = Math.max(...emphases);
+    const range = maxEmphasis - minEmphasis;
+
+    // If all emphases are very similar, no normalization needed
+    if (range < 0.1) return artists;
+
+    // Redistribute emphasis in a narrower range (0.8-1.3) to maintain hierarchy but prevent dominance
+    return artists.map(artist => {
+      const normalized = range > 0 
+        ? 0.8 + ((artist.emphasis - minEmphasis) / range) * 0.5
+        : 1.0;
+      return {
+        ...artist,
+        emphasis: parseFloat(normalized.toFixed(2)),
+        originalEmphasis: artist.emphasis // Keep original for reference
+      };
+    });
   }
 
   /**
